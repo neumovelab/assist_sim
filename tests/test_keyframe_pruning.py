@@ -50,10 +50,10 @@ def test_keyframe_decomposition_by_joint(minimal_human):
 
     assert "home" in keyframes
     home = keyframes["home"]
-    # qpos="0.9 0.1 -0.2 0.0 0.0 0.0 0.01" in document order
+    # qpos="0.9 0.1 0.2 0.0 0.0 0.0 0.01" in document order
     assert home.qpos_by_joint["pelvis_ty"] == [0.9]
     assert home.qpos_by_joint["hip"] == [0.1]
-    assert home.qpos_by_joint["knee"] == [-0.2]
+    assert home.qpos_by_joint["knee"] == [0.2]
     assert home.qpos_by_joint["pp_y"] == [0.01]
 
 

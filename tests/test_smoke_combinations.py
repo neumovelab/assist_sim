@@ -19,16 +19,19 @@ from assist_sim.registry import resolve
 from .conftest import needs_myo_sim
 
 # (msk_key, device_key) -> (nq, nu, nbody, nmesh)
+# nbody / nmesh are one less than the legacy pre-baked combined models because
+# the ground body is now stripped at preprocess time (assist_sim emits
+# model-only XMLs; downstream consumers layer terrain on top).
 EXPECTED = {
-    ("myoLeg22_2D", "DephyExoBoot_L1"):     (53, 24, 51, 44),
-    ("myoLeg26_3D", "DephyExoBoot_L1"):     (60, 28, 51, 44),
-    ("myoLeg22_2D", "OpenSourceLeg_A_L1"):  (52, 19, 38, 35),
-    ("myoLeg26_3D", "OpenSourceLeg_A_L1"):  (59, 23, 38, 35),
-    ("myoLeg22_2D", "OpenSourceLeg_KA_L1"): (44, 17, 37, 37),
-    ("myoLeg26_3D", "OpenSourceLeg_KA_L1"): (51, 21, 37, 37),
-    ("myoLeg80",    "DephyExoBoot_L1"):     (35, 82, 31, 31),
-    ("myoLeg80",    "OpenSourceLeg_A_L1"):  (33, 69, 18, 22),
-    ("myoLeg80",    "OpenSourceLeg_KA_L1"): (29, 56, 20, 24),
+    ("myoLeg22_2D", "DephyExoBoot_L1"):     (53, 24, 50, 44),
+    ("myoLeg26_3D", "DephyExoBoot_L1"):     (60, 28, 50, 44),
+    ("myoLeg22_2D", "OpenSourceLeg_A_L1"):  (52, 19, 37, 35),
+    ("myoLeg26_3D", "OpenSourceLeg_A_L1"):  (59, 23, 37, 35),
+    ("myoLeg22_2D", "OpenSourceLeg_KA_L1"): (44, 17, 36, 37),
+    ("myoLeg26_3D", "OpenSourceLeg_KA_L1"): (51, 21, 36, 37),
+    ("myoLeg80",    "DephyExoBoot_L1"):     (35, 82, 30, 31),
+    ("myoLeg80",    "OpenSourceLeg_A_L1"):  (33, 69, 17, 22),
+    ("myoLeg80",    "OpenSourceLeg_KA_L1"): (29, 56, 19, 24),
 }
 
 

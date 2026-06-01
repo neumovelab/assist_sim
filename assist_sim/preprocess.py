@@ -589,9 +589,9 @@ def preprocess_human_xml(
     src = Path(human_xml).resolve()
     tree = ET.parse(str(src))
     root = tree.getroot()
-    # Capture terrain include paths BEFORE inlining so we can re-emit them as
-    # external <include> directives on export (keeps the exported XML small
-    # and decoupled from the terrain package).
+    # Capture terrain include paths BEFORE inlining so the export step can
+    # strip terrain content from the model-only output (downstream consumers
+    # like myoassist.terrains layer the scene back on top).
     terrain_paths = _collect_terrain_include_paths(root, src.parent)
     inline_mujoco_includes(root, src.parent)
     parent_map = _build_parent_map(root)
@@ -625,6 +625,12 @@ def preprocess_human_xml(
 
     _cascade_cleanup(root, rj, rg, rs, rb)
     _remove_keyframes(root)
+
+    # Strip terrain content from the preprocessed XML so the compiled (in-memory)
+    # model is also model-only -- not just the exported XML.  assist_sim outputs
+    # are model-only; downstream consumers (myoassist.terrains) layer the scene.
+    from .utils import _strip_terrain
+    _strip_terrain(root, terrain_paths)
 
     path = _write_temp_xml(root, src, "human_pp")
     return PreprocessResult(

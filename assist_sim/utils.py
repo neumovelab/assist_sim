@@ -22,11 +22,14 @@ def export_combined_xml(
         to the output file location
       - Compiler ``meshdir`` / ``texturedir`` strip (paths are now absolute
         relative to the output file)
-      - Terrain externalization: every element defined in the source MSK's
-        terrain include is stripped from the exported XML, and a single
-        ``<include file="..."/>`` pointing to the terrain config (relative to
-        the output file) is emitted in its place.  Keeps the exported file
-        small and decoupled from the terrain package.
+      - Terrain stripping: every element defined in the source MSK's terrain
+        include (ground body, ground-plane geom, floor texture/material,
+        hfield, terrain-referencing contact pairs) is removed from the export.
+        assist_sim emits model-only XMLs; downstream consumers (e.g.
+        ``myoassist.terrains``) layer the scene on top.
+      - Minimal-visual fallback: if no ``<visual>`` block survives in the
+        export, a small default is emitted so the model renders sensibly in
+        a viewer.
 
     Args:
         spec: The combined MjSpec to export.
@@ -37,8 +40,9 @@ def export_combined_xml(
             value of ``<compiler meshdir="..."/>`` in that source.  Both are
             tried when resolving ``<mesh file="..."/>`` references.
         terrain_paths: Absolute paths to the terrain XML(s) the source MSK
-            included.  Each is stripped from the inlined body of the export
-            and re-emitted as an ``<include>`` directive.
+            included.  Used to identify which named elements to strip from
+            the export (texture / material / hfield / body / geom).  Not
+            re-emitted as includes; assist_sim outputs are model-only.
     """
     output_path = Path(output_path).resolve()
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -56,7 +60,8 @@ def export_combined_xml(
         _strip_resource_dirs(root)
 
     if terrain_paths:
-        _externalize_terrain(root, terrain_paths, output_path.parent)
+        _strip_terrain(root, terrain_paths)
+    _ensure_minimal_visual(root)
 
     final_xml = ET.tostring(root, encoding="unicode")
     output_path.write_text(final_xml, encoding="utf-8")
@@ -66,28 +71,35 @@ def export_combined_xml(
 # Internal helpers
 # ------------------------------------------------------------------
 
-def _externalize_terrain(
+def _strip_terrain(
     root: ET.Element,
     terrain_paths: list[Path],
-    output_dir: Path,
 ) -> None:
-    """Strip inlined terrain content and re-emit a bare ``<include>`` directive.
+    """Remove every element contributed by a terrain include from the export.
 
-    Drives the strip from the terrain XML itself: every named element it
-    defines (``<texture>`` / ``<material>`` / ``<hfield>`` / ``<body>`` /
-    ``<geom>`` / ``<site>``) is removed from *root* by matching ``(tag, name)``
-    tuples.  Geoms nested inside a body subtree count too, so contact pairs
-    that reference them can be cleaned up.
+    Driven by the terrain XML itself: every named element it declares
+    (``<texture>`` / ``<material>`` / ``<hfield>`` / ``<body>`` / ``<geom>``
+    / ``<site>``) is removed from *root* by matching ``(tag, name)`` tuples.
+    Geoms nested inside a removed body subtree count too, so contact pairs
+    referencing them are also scrubbed.  Any ``<include file="terrain_*"/>``
+    directive surviving in the export is dropped.
 
-    After stripping, inserts an ``<include file="..."/>`` for each terrain
-    path, with the path made relative to *output_dir*.
+    assist_sim's outputs are model-only; downstream consumers (e.g.
+    ``myoassist.terrains``) layer the scene on top.  Nothing is re-emitted
+    here.
     """
     if not terrain_paths:
         return
 
+    # Textures + materials are intentionally NOT stripped: MuJoCo's renderer
+    # requires at least one non-skybox texture bound to a material for the
+    # skybox texture to render at all (without it, the viewer falls back to a
+    # white clear color regardless of whether a skybox is defined).  Keeping
+    # the terrain-config-derived 2D texture + its material around -- with no
+    # geom referencing them -- is harmless and keeps the skybox visible.
     terrain_info: dict[str, set[str]] = {
         tag: set()
-        for tag in ("texture", "material", "hfield", "body", "geom", "site")
+        for tag in ("hfield", "body", "geom", "site")
     }
     for tp in terrain_paths:
         if not tp.exists():
@@ -107,7 +119,6 @@ def _externalize_terrain(
         nm = elem.get("name")
         if elem.tag in terrain_info and nm in terrain_info[elem.tag]:
             to_remove.append(elem)
-            # If we're dropping a body, every geom inside it also disappears.
             if elem.tag == "body":
                 for g in elem.iter("geom"):
                     if g.get("name"):
@@ -136,20 +147,34 @@ def _externalize_terrain(
             ):
                 contact_root.remove(pair)
 
-    # Drop any pre-existing terrain <include> elements so we don't double up.
+    # Drop any pre-existing terrain <include> directives surviving the round-trip.
     for inc in list(root.findall("include")):
         f = inc.get("file", "")
         if Path(f).name.startswith("terrain_config"):
             root.remove(inc)
 
-    # Emit fresh include directives, paths relative to the output file.
-    for tp in terrain_paths:
-        try:
-            rel = tp.relative_to(output_dir)
-        except ValueError:
-            rel = Path(os.path.relpath(tp, output_dir))
-        rel_str = str(rel).replace("\\", "/")
-        root.insert(0, ET.Element("include", {"file": rel_str}))
+
+def _ensure_minimal_visual(root: ET.Element) -> None:
+    """Emit a baseline ``<visual>`` block if none survived the export.
+
+    MSKs typically carry their own visual section (headlight, scale, haze)
+    that passes through unchanged.  But if a model was authored without one
+    -- or if the terrain strip removed the only visual block (e.g. when the
+    skybox texture was the only ``<visual>`` content) -- this default keeps
+    the model viewable in a MuJoCo viewer.
+    """
+    if root.find("visual") is not None:
+        return
+    visual = ET.Element("visual")
+    ET.SubElement(
+        visual,
+        "headlight",
+        {"diffuse": "0.6 0.6 0.6", "specular": "0.3 0.3 0.3", "ambient": "0.3 0.3 0.3"},
+    )
+    ET.SubElement(visual, "rgba", {"haze": "0.15 0.15 0.15 1"})
+    ET.SubElement(visual, "scale", {"framelength": "0.5", "framewidth": "0.01"})
+    # Insert near the top so it lands before bodies / assets.
+    root.insert(0, visual)
 
 
 def _rewrite_mesh_paths(
