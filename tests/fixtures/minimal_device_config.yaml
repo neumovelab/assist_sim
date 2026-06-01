@@ -1,0 +1,19 @@
+device:
+  name: "TestDev"
+  model_xml: "minimal_device.xml"
+
+attachments:
+  - device_body: "dev_a"
+    parent_body: "pelvis"
+  - device_body: "dev_b"
+    parent_body: "thigh"
+
+actuators:
+  - name: "dev_act"
+    type: "motor"
+    joint: "dev_joint"
+    gear: [1.0]
+
+keyframe_overrides:
+  home:
+    pelvis_ty: 0.5

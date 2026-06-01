@@ -1,0 +1,73 @@
+<mujoco model="minimal_human">
+  <compiler angle="radian"/>
+
+  <default>
+    <default class="muscle">
+      <general ctrlrange="0 1"/>
+    </default>
+  </default>
+
+  <worldbody>
+    <body name="pelvis" pos="0 0 1">
+      <joint name="pelvis_ty" type="slide" axis="0 0 1"/>
+      <geom name="pelvis_geom" type="sphere" size="0.05"/>
+      <site name="pelvis_site" pos="0 0 0"/>
+      <body name="thigh" pos="0 0 -0.1">
+        <joint name="hip" type="hinge" axis="0 1 0"/>
+        <geom name="thigh_geom" type="capsule" fromto="0 0 0 0 0 -0.4" size="0.03"/>
+        <site name="thigh_site" pos="0 0 -0.2"/>
+        <body name="shank" pos="0 0 -0.4">
+          <joint name="knee" type="hinge" axis="0 1 0" range="0 2"/>
+          <geom name="shank_geom" type="capsule" fromto="0 0 0 0 0 -0.4" size="0.03"/>
+          <site name="shank_site" pos="0 0 -0.2"/>
+          <body name="foot" pos="0 0 -0.4">
+            <joint name="ankle" type="hinge" axis="0 1 0"/>
+            <geom name="foot_geom" type="box" size="0.1 0.04 0.02"/>
+            <site name="foot_site" pos="0 0 0"/>
+            <body name="toe" pos="0.1 0 0">
+              <joint name="mtp" type="hinge" axis="0 1 0"/>
+              <geom name="toe_geom" type="box" size="0.03 0.03 0.01"/>
+            </body>
+          </body>
+        </body>
+        <body name="pp" pos="0 0 -0.2">
+          <joint name="pp_x" type="slide" axis="1 0 0"/>
+          <joint name="pp_y" type="slide" axis="0 1 0"/>
+          <geom name="pp_geom" type="sphere" size="0.005" mass="0.001"/>
+          <site name="pp_site" pos="0 0 0"/>
+        </body>
+      </body>
+    </body>
+  </worldbody>
+
+  <contact>
+    <pair geom1="foot_geom" geom2="toe_geom"/>
+    <pair geom1="pelvis_geom" geom2="shank_geom"/>
+  </contact>
+
+  <equality>
+    <joint joint1="pp_x" joint2="knee" polycoef="0 1 0 0 0"/>
+  </equality>
+
+  <sensor>
+    <touch name="foot_touch" site="foot_site"/>
+    <jointpos name="knee_pos" joint="knee"/>
+  </sensor>
+
+  <tendon>
+    <spatial name="calf_tendon" springlength="0.3" stiffness="5" damping="0.1" width="0.005">
+      <site site="thigh_site"/>
+      <site site="shank_site"/>
+      <site site="foot_site"/>
+    </spatial>
+  </tendon>
+
+  <actuator>
+    <general name="calf_act" class="muscle" tendon="calf_tendon"/>
+    <motor name="knee_act" joint="knee"/>
+  </actuator>
+
+  <keyframe>
+    <key name="home" qpos="0.9 0.1 0.2 0.0 0.0 0.0 0.01" qvel="0 0 0 0 0 0 0"/>
+  </keyframe>
+</mujoco>

@@ -112,9 +112,9 @@ keyframe_overrides:
       pelvis_ty: 0.88
     squat:
       pelvis_ty: 0.735
-      OSL_A_osl_ankle_angle_r: 0.385
+      osl_ankle_angle_r: 0.385
     lunge:
       pelvis_ty: 0.67
   myoLeg80:
     squat:
-      OSL_A_osl_ankle_angle_r: 0.385
+      osl_ankle_angle_r: 0.385
