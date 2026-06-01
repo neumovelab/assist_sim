@@ -1,0 +1,171 @@
+device:
+  name: "OSL_KA_L1"
+  model_xml: "KA_L1model.xml"
+
+# --- Prosthetic: remove biological leg below the knee ---
+body_removals:
+  - "tibia_r"   # cascades to talus_r, calcn_r, toes_r + muscle attachment bodies
+
+# --- Prosthetic: replace femur mesh with residual-limb version ---
+mesh_replacements:
+  default:
+    - geom: "femur_r_geom_1"
+      mesh: "osl_femur_trans_r"
+  myoLeg80:
+    - geom: "r_femur"
+      mesh: "osl_femur_trans_r"
+
+# --- Attach prosthetic chain to the residual femur ---
+attachments:
+  - device_body: "osl_generic_socket"
+    parent_body: "femur_r"
+
+# --- Remove muscles that crossed the removed knee/ankle/foot ---
+# NOTE (22/26): hamstrings_r is removed because all its sub-knee waypoints
+# (P2, P3) are on tibia_r. The original model manually relocated P3
+# to femur_r, which requires site relocation not yet supported.
+actuator_removals:
+  default:
+    - "hamstrings_r"
+    - "gastroc_r"
+    - "soleus_r"
+    - "tibant_r"
+    - "edl_r"
+    - "fdl_r"
+    - "bifemsh_r"
+  myoLeg80:
+    - "addmagDist_r"
+    - "addmagIsch_r"
+    - "addmagMid_r"
+    - "addmagProx_r"
+    - "bflh_r"
+    - "bfsh_r"
+    - "edl_r"
+    - "ehl_r"
+    - "fdl_r"
+    - "fhl_r"
+    - "gaslat_r"
+    - "gasmed_r"
+    - "grac_r"
+    - "perbrev_r"
+    - "perlong_r"
+    - "recfem_r"
+    - "sart_r"
+    - "semimem_r"
+    - "semiten_r"
+    - "soleus_r"
+    - "tfl_r"
+    - "tibant_r"
+    - "tibpost_r"
+    - "vasint_r"
+    - "vaslat_r"
+    - "vasmed_r"
+
+# --- Remove tendons for fully removed muscles ---
+tendon_removals:
+  default:
+    - "hamstrings_r_tendon"
+    - "bifemsh_r_tendon"
+    - "gastroc_r_tendon"
+    - "soleus_r_tendon"
+    - "tib_ant_r_tendon"
+    - "edl_r_tendon"
+    - "fdl_r_tendon"
+  myoLeg80:
+    - "addmagDist_r_tendon"
+    - "addmagIsch_r_tendon"
+    - "addmagMid_r_tendon"
+    - "addmagProx_r_tendon"
+    - "bflh_r_tendon"
+    - "bfsh_r_tendon"
+    - "edl_r_tendon"
+    - "ehl_r_tendon"
+    - "fdl_r_tendon"
+    - "fhl_r_tendon"
+    - "gaslat_r_tendon"
+    - "gasmed_r_tendon"
+    - "grac_r_tendon"
+    - "perbrev_r_tendon"
+    - "perlong_r_tendon"
+    - "recfem_r_tendon"
+    - "sart_r_tendon"
+    - "semimem_r_tendon"
+    - "semiten_r_tendon"
+    - "soleus_r_tendon"
+    - "tfl_r_tendon"
+    - "tibant_r_tendon"
+    - "tibpost_r_tendon"
+    - "vasint_r_tendon"
+    - "vaslat_r_tendon"
+    - "vasmed_r_tendon"
+
+# --- Tendon waypoint truncation ---
+
+# Surviving r-side tendons on OSL_KA (transfemoral) that may want tuning:
+#   - rect_fem_r_tendon  (P3 auto-pruned; P2 now terminal)
+#   - vasti_r_tendon     (P4 auto-pruned; P3 now terminal)
+#   - glut_max_r_tendon  (intact; reposition only if visual cleanup desired)
+#   - iliopsoas_r_tendon (intact)
+
+tendon_modifications:
+  # `default` is used for the 22/26-muscle MSKs which share tendon naming
+  # (rect_fem_r_tendon, vasti_r_tendon). The 80-muscle MSK uses different names
+  # (recfem_r_tendon, vasint/vaslat/vasmed split), so the 80-muscle override is
+  # explicitly empty here; add 80-specific entries if you want to re-anchor the
+  # 80 equivalents.
+  myoLeg80: []
+  default:
+    - name: "rect_fem_r_tendon"
+      wraps:
+        - reposition_site: "rect_fem_r_rect_fem_r-P2"
+          pos: [0.045, -0.2, 0.005]
+        - replace_site: "rect_fem_r_rect_fem_r-P3"
+          new_body: "femur_r"
+          pos: [0.025, -0.275, 0.0075]
+    - name: "vasti_r_tendon"
+      wraps:
+        - reposition_site: "vasti_r_vas_int_r-P3"
+          pos: [0.03, -0.275, 0.0095]
+
+# --- Add prosthetic actuators ---
+actuators:
+  - name: "osl_knee_torque_actuator"
+    type: "motor"
+    joint: "osl_knee_angle_r"
+    gainprm: [49.4]
+    ctrlrange: [-2.88, 2.88]
+    ctrllimited: true
+    gear: [1.0]
+  - name: "osl_ankle_torque_actuator"
+    type: "motor"
+    joint: "osl_ankle_angle_r"
+    gainprm: [58.4]
+    ctrlrange: [-2.88, 2.88]
+    ctrllimited: true
+    gear: [1.0]
+
+keyframe_overrides:
+  default:
+    stand:
+      pelvis_ty: 0.91
+    walk_left:
+      pelvis_ty: 0.88
+      osl_knee_angle_r: 0.5
+    walk_right:
+      pelvis_ty: 0.88
+      osl_knee_angle_r: 0.145
+    squat:
+      pelvis_ty: 0.735
+      osl_knee_angle_r: 1.29
+      osl_ankle_angle_r: 0.393
+    lunge:
+      pelvis_ty: 0.67
+      osl_knee_angle_r: 1.6
+  myoLeg80:
+    walk_left:
+      osl_knee_angle_r: 0.5
+    walk_right:
+      osl_knee_angle_r: 0.145
+    squat:
+      osl_knee_angle_r: 1.29
+      osl_ankle_angle_r: 0.393

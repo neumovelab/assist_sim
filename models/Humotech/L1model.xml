@@ -1,0 +1,156 @@
+<mujoco model="HumotechL1">
+    <compiler angle="radian" />
+    <default class="main">
+        <default class="myo_leg_touch">
+            <site type="box" group="3" rgba="0.8 0.2 .2 .4" />
+        </default>
+    </default>
+    <asset>
+        <mesh file="mesh/Heel Connector.stl" name="heel_connector_l" />
+        <mesh file="mesh/Heel Connector.stl" name="heel_connector_r" />
+        <mesh file="mesh/Heel Ring L.stl" name="heel_ring_l" />
+        <mesh file="mesh/Heel Ring R.stl" name="heel_ring_r" />
+        <mesh file="mesh/Aft Sole L.stl" name="l_aft_sole" />
+        <mesh file="mesh/Aft Upper L.stl" name="l_aft_upper" />
+        <mesh file="mesh/Fore Sole L.stl" name="l_fore_sole" />
+        <mesh file="mesh/Fore Upper L.stl" name="l_fore_upper" />
+        <mesh file="mesh/Aft Sole R.stl" name="r_aft_sole" />
+        <mesh file="mesh/Aft Upper R.stl" name="r_aft_upper" />
+        <mesh file="mesh/Fore Sole R.stl" name="r_fore_sole" />
+        <mesh file="mesh/Fore Upper R.stl" name="r_fore_upper" />
+        <mesh file="mesh/Shin Cuff.stl" name="shin_cuff_l" />
+        <mesh file="mesh/Shin Cuff.stl" name="shin_cuff_r" />
+        <mesh file="mesh/Shin Main L.stl" name="shin_main_l" />
+        <mesh file="mesh/Shin Main R.stl" name="shin_main_r" />
+        <mesh file="mesh/Sole Attachment.stl" name="sole_attachment_l" />
+        <mesh file="mesh/Sole Attachment.stl" name="sole_attachment_r" />
+    </asset>
+    <worldbody>
+        <body name="shin_cuff_r" pos="0 -0.145 -0.0675" euler="0 -0.1 0">
+            <inertial mass="0.08888" pos="-0.01 0 0.065" diaginertia="0.00018 0.00029 0.00013" />
+            <geom name="shin_cuff_r_geom" mesh="shin_cuff_r" type="mesh" rgba="0.25 0.25 0.25 0.35" />
+        </body>
+        <body name="shin_main_r" pos="-0.0475 -0.26 -0.0785" euler="0 -0.1 0">
+            <inertial mass="0.31107" pos="0.04 0.04 0.075" diaginertia="0.00111 0.00129 0.00137" />
+            <geom name="shin_main_r_geom" mesh="shin_main_r" type="mesh" rgba="0.4 0.4 0.4 1" />
+            <site name="pf_cable1_r_P1" pos="-0.05 0.03 0.0725" />
+            <site name="df_cable1_r_P1" pos="0.065 0.0265 0.15" />
+            <site name="pf_cable2_r_P1" pos="-0.025 0.01 0.0725" />
+            <site name="df_cable2_r_P1" pos="0.035 0.025 0.15" />
+        </body>
+        <body name="heel_ring_r" pos="0.012 0.043 -0.09" euler="0 -0.1 0">
+            <inertial mass="0.18092" pos="0.015 0 0.075" diaginertia="0.00051 0.00076 0.00027" />
+            <geom name="heel_ring_r_geom" mesh="heel_ring_r" type="mesh" rgba="0.4 0.4 0.4 1" />
+            <site name="pf_cable1_r_P2" pos="-0.06 0.008 0.0775" />
+            <site name="df_cable1_r_P2" pos="0.06 0.0125 0.1495" />
+            <site name="pf_cable2_r_P2" pos="-0.06 0.008 0.0775" />
+            <site name="df_cable2_r_P2" pos="0.06 0.0125 0.1495" />
+        </body>
+        <body name="heel_connector_r" pos="-0.04 0.018 -0.022" euler="0 -0.1 0">
+            <inertial mass="0.02523" pos="0 0.005 0.005" diaginertia="0.00001 0.000001 0.00001" />
+            <geom name="heel_connector_r_geom" mesh="heel_connector_r" type="mesh" rgba="0.95 0.95 0.95 1" />
+        </body>
+        <body name="sole_attachment_r" pos="-0.025 0 -0.025" euler="0 -0.1 0">
+            <inertial mass="0.03986" pos="0 0 0.0085" diaginertia="0.000008 0.000008 0.000010" />
+            <geom name="sole_attachment_r_geom" mesh="sole_attachment_r" type="mesh" rgba="0.95 0.95 0.95 1" />
+        </body>
+        <body name="r_aft_sole" pos="0.075 -0.025 -0.055" euler="0 -0.1 0">
+            <site name="r_foot_touch" type="box" pos="-0.05 -0.005 0.05" size=".06 .03 .05" euler="0 0 0" class="myo_leg_touch" />
+            <inertial mass="0.92450" pos="-0.01 0 0.05" diaginertia="0.00067 0.00264 0.00247" />
+            <geom name="r_aft_sole_geom" mesh="r_aft_sole" type="mesh" rgba="0.2 0.2 0.2 1" />
+        </body>
+        <body name="r_aft_upper" pos="0.0815 0.036 -0.0465" euler="0 -0.1 0">
+            <inertial mass="0.14956" pos="-0.01 0.02 0.045" diaginertia="0.00019 0.00046 0.00049" />
+            <geom name="r_aft_upper_geom" mesh="r_aft_upper" type="mesh" rgba="0.06 0.06 0.06 0.35" />
+        </body>
+        <body name="r_fore_sole" pos="0.035 -0.0277 -0.048" euler="-0.02 -0.1 -0.2">
+            <site name="r_toes_touch" type="box" pos="0.0 -0.0075 0.06" size=".075 .03 .065" euler="0 0 0" class="myo_leg_touch" />
+            <inertial mass="0.61424" pos="0 -0.01 0.06" diaginertia="0.00061 0.00125 0.00085" />
+            <geom name="r_fore_sole_geom" mesh="r_fore_sole" type="mesh" rgba="0.2 0.2 0.2 1" />
+        </body>
+        <body name="r_fore_upper" pos="0.038 0.0175 -0.0395" euler="0 -0.1 -0.2">
+            <inertial mass="0.10402" pos="0 0.01 0.05" diaginertia="0.00012 0.0002 0.00015" euler="0 0 -0.2" />
+            <geom name="r_fore_upper_geom" mesh="r_fore_upper" type="mesh" rgba="0.06 0.06 0.06 0.35" />
+        </body>
+        <body name="shin_cuff_l" pos="-0.015 -0.145 -0.0675" euler="0 0.1 0">
+            <inertial mass="0.08888" pos="-0.01 0 0.065" diaginertia="0.00018 0.00029 0.00013" />
+            <geom name="shin_cuff_l_geom" mesh="shin_cuff_l" type="mesh" rgba="0.25 0.25 0.25 0.35" />
+        </body>
+        <body name="shin_main_l" pos="-0.0625 -0.26 -0.0785" euler="0 0.1 0">
+            <inertial mass="0.31107" pos="0.04 0.04 0.08" diaginertia="0.00111 0.00129 0.00137" />
+            <geom name="shin_main_l_geom" mesh="shin_main_l" type="mesh" rgba="0.4 0.4 0.4 1" />
+            <site name="pf_cable1_l_P1" pos="-0.05 0.029 0.084" />
+            <site name="df_cable1_l_P1" pos="0.065 0.0255 0.0075" />
+            <site name="pf_cable2_l_P1" pos="-0.025 0.0075 0.085" />
+            <site name="df_cable2_l_P1" pos="0.035 0.023 0.0075" />
+        </body>
+        <body name="heel_ring_l" pos="-0.0025 0.043 -0.0645" euler="0 0.1 0">
+            <inertial mass="0.18092" pos="0.015 0 0.07" diaginertia="0.00051 0.00076 0.00027" />
+            <geom name="heel_ring_l_geom" mesh="heel_ring_l" type="mesh" rgba="0.4 0.4 0.4 1" />
+            <site name="pf_cable1_l_P2" pos="-0.06 0.008 0.0775" />
+            <site name="df_cable1_l_P2" pos="0.06 0.0125 0.004" />
+            <site name="pf_cable2_l_P2" pos="-0.06 0.008 0.0775" />
+            <site name="df_cable2_l_P2" pos="0.06 0.0125 0.004" />
+        </body>
+        <body name="heel_connector_l" pos="-0.04 0.0175 0.01375" euler="0 0.1 0">
+            <inertial mass="0.02523" pos="0 0.005 0.005" diaginertia="0.00001 0.000001 0.00001" />
+            <geom name="heel_connector_l_geom" mesh="heel_connector_l" type="mesh" rgba="0.95 0.95 0.95 1" />
+        </body>
+        <body name="sole_attachment_l" pos="-0.025 0 0.0075" euler="0 0.1 0">
+            <inertial mass="0.03986" pos="0 0 0.0085" diaginertia="0.000008 0.000008 0.000010" />
+            <geom name="sole_attachment_l_geom" mesh="sole_attachment_l" type="mesh" rgba="0.95 0.95 0.95 1" />
+        </body>
+        <body name="l_aft_sole" pos="0.07 -0.025 -0.055" euler="0 0.1 0">
+            <site name="l_foot_touch" type="box" pos="-0.05 -0.005 0.0615" size=".06 .03 .05" euler="0 0 0" class="myo_leg_touch" />
+            <inertial mass="0.92450" pos="-0.01 0 0.065" diaginertia="0.00067 0.00264 0.00247" />
+            <geom name="l_aft_sole_geom" mesh="l_aft_sole" type="mesh" rgba="0.2 0.2 0.2 1" />
+        </body>
+        <body name="l_aft_upper" pos="0.0815 0.036 -0.0465" euler="0 0.1 0">
+            <inertial mass="0.14956" pos="-0.01 0.02 0.05" diaginertia="0.00019 0.00046 0.00049" />
+            <geom name="l_aft_upper_geom" mesh="l_aft_upper" type="mesh" rgba="0.06 0.06 0.06 0.35" />
+        </body>
+        <body name="l_fore_sole" pos="0.028 -0.0265 -0.075" euler="0.02 0.1 -0.2">
+            <site name="l_toes_touch" type="box" pos="0.0 -0.0075 0.0625" size=".075 .03 .065" euler="0 0 0" class="myo_leg_touch" />
+            <inertial mass="0.61424" pos="0 -0.01 0.065" diaginertia="0.00061 0.00125 0.00085" />
+            <geom name="l_fore_sole_geom" mesh="l_fore_sole" type="mesh" rgba="0.2 0.2 0.2 1" />
+        </body>
+        <body name="l_fore_upper" pos="0.038 0.0175 -0.0615" euler="0 0.1 -0.2">
+            <inertial mass="0.10402" pos="0 0.01 0.055" diaginertia="0.00012 0.0002 0.00015" euler="0 0 -0.2" />
+            <geom name="l_fore_upper_geom" mesh="l_fore_upper" type="mesh" rgba="0.06 0.06 0.06 0.35" />
+        </body>
+    </worldbody>
+    <tendon>
+        <spatial name="pf_cable1_r" limited="false" range="0 0.1" rgba="1.5 1.5 1.5 1" width="0.0035">
+            <site site="pf_cable1_r_P1" />
+            <site site="pf_cable1_r_P2" />
+        </spatial>
+        <spatial name="df_cable1_r" limited="false" range="0 0.1" rgba="1.5 1.5 1.5 1" width="0.0035">
+            <site site="df_cable1_r_P1" />
+            <site site="df_cable1_r_P2" />
+        </spatial>
+        <spatial name="pf_cable2_r" limited="false" range="0 0.1" rgba="1.5 1.5 1.5 1" width="0.0035">
+            <site site="pf_cable2_r_P1" />
+            <site site="pf_cable2_r_P2" />
+        </spatial>
+        <spatial name="df_cable2_r" limited="false" range="0 0.1" rgba="1.5 1.5 1.5 1" width="0.0035">
+            <site site="df_cable2_r_P1" />
+            <site site="df_cable2_r_P2" />
+        </spatial>
+        <spatial name="pf_cable1_l" limited="false" range="0 0.1" rgba="1.5 1.5 1.5 1" width="0.0035">
+            <site site="pf_cable1_l_P1" />
+            <site site="pf_cable1_l_P2" />
+        </spatial>
+        <spatial name="df_cable1_l" limited="false" range="0 0.1" rgba="1.5 1.5 1.5 1" width="0.0035">
+            <site site="df_cable1_l_P1" />
+            <site site="df_cable1_l_P2" />
+        </spatial>
+        <spatial name="pf_cable2_l" limited="false" range="0 0.1" rgba="1.5 1.5 1.5 1" width="0.0035">
+            <site site="pf_cable2_l_P1" />
+            <site site="pf_cable2_l_P2" />
+        </spatial>
+        <spatial name="df_cable2_l" limited="false" range="0 0.1" rgba="1.5 1.5 1.5 1" width="0.0035">
+            <site site="df_cable2_l_P1" />
+            <site site="df_cable2_l_P2" />
+        </spatial>
+    </tendon>
+</mujoco>

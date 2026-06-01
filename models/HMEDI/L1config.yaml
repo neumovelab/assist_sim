@@ -1,0 +1,57 @@
+device:
+  name: "HMEDI_L1"
+  model_xml: "L1model.xml"
+
+# HMEDI's hip-flexion assistance is driven by two spatial-tendon "cable"
+# actuators (Exo_R/Exo_L) that wrap over sites on the torso + thigh
+# subassemblies. Both the cables and their tendon-transmission actuators
+# are authored in L1model.xml (<tendon> and <actuator> sections) and
+# imported into the combined model by the pipeline with the device prefix.
+# Joint-transmission actuators (none for HMEDI) would be authored here in
+# the YAML's `actuators:` section.
+
+attachments:
+  default:
+    # Pelvis
+    - device_body: "hmedi waistband"
+      parent_body: "pelvis"
+    # Torso
+    - device_body: "hmedi_torso"
+      parent_body: "torso"
+    # Femur R (femurflap + thigh each carry a nested MM03 cobra actuator body)
+    - device_body: "hmedi femurflap_r"
+      parent_body: "femur_r"
+    - device_body: "hmedi thigh_r"
+      parent_body: "femur_r"
+    # Femur L
+    - device_body: "hmedi femurflap_l"
+      parent_body: "femur_l"
+    - device_body: "hmedi thigh_l"
+      parent_body: "femur_l"
+  # myoLeg80's `torso` body sits inside a `<body name="root" euler="0 0 -1.57">`
+  # frame whose orientation differs from 22/26's torso. Rather than fight the
+  # frame mismatch with a corrective quat, the legacy 80-muscle HMEDI model
+  # bypasses `torso` entirely and attaches the device torso piece directly to
+  # `pelvis` (which has the same quat as 22/26's pelvis). We mirror that: the
+  # pos here is the legacy 80 value, equivalent to (22-torso-relative pos)
+  # + (22-torso-pos in 22-pelvis) = (-0.125, 0.25, -0.1) + (-0.1007, 0.0815, 0)
+  # ≈ (-0.23, 0.33, -0.1). No quat override needed.
+  myoLeg80:
+    - device_body: "hmedi waistband"
+      parent_body: "pelvis"
+    # `pos` here is the FRAME offset (composes with the device body's authored
+    # pos: -0.125, 0.25, -0.1). The legacy 80-muscle HMEDI places this body at
+    # pelvis-relative (-0.23, 0.33, -0.1); the frame offset that yields that
+    # total with our body pos is (-0.23 - -0.125, 0.33 - 0.25, -0.1 - -0.1) =
+    # (-0.105, 0.08, 0).
+    - device_body: "hmedi_torso"
+      parent_body: "pelvis"
+      pos: [-0.105, 0.08, 0]
+    - device_body: "hmedi femurflap_r"
+      parent_body: "femur_r"
+    - device_body: "hmedi thigh_r"
+      parent_body: "femur_r"
+    - device_body: "hmedi femurflap_l"
+      parent_body: "femur_l"
+    - device_body: "hmedi thigh_l"
+      parent_body: "femur_l"

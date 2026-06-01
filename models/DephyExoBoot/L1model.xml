@@ -1,0 +1,116 @@
+<!-- =================================================
+    Copyright 2025 NeuMove Laboratory, Northeastern University
+    Model   :: Terrain Configuration (MuJoCoV2.0)
+    Author  :: Calder Robbins (robbins.cal@northeastern.edu)
+    License :: Under Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
+====================================================== -->
+<mujoco model="DephyExoBootL1">
+    <compiler angle="radian"/>
+
+    <default class="main">
+        <default class="myo_leg_touch">
+            <site type="box" group="3" rgba="0.8 0.2 .2 .4"/>
+        </default>
+        <default class="myo_connect_marker">
+            <site size="0.02" group="5" rgba="1 0 0.67 1"/>
+        </default>
+    </default>
+
+    <asset>
+        <mesh file="mesh/Battery.stl" name="battery_geom"/>
+        <mesh file="mesh/Raspberry Pi 5.stl" name="raspberry_pi_geom"/>
+        <mesh file="mesh/Fanny pack.stl" name="fanny_pack_geom"/>
+        <mesh file="mesh/exo_1_l.stl" name="exo_1_l_geom"/>
+        <mesh file="mesh/exo_1_r.stl" name="exo_1_r_geom"/>
+        <mesh file="mesh/exo_2_l.stl" name="exo_2_l_geom"/>
+        <mesh file="mesh/exo_2_r.stl" name="exo_2_r_geom"/>
+        <mesh file="mesh/tacboot_mid_l.stl" name="tb_mid_l_geom"/>
+        <mesh file="mesh/tacboot_shank_l.stl" name="tb_shank_l_geom"/>
+        <mesh file="mesh/tacboot_toe_l.stl" name="tb_toe_l_geom"/>
+        <mesh file="mesh/tacboot_mid_r.stl" name="tb_mid_r_geom"/>
+        <mesh file="mesh/tacboot_shank_r.stl" name="tb_shank_r_geom"/>
+        <mesh file="mesh/tacboot_toe_r.stl" name="tb_toe_r_geom"/>
+    </asset>
+
+    <worldbody>
+        <!-- Pelvis -->
+        <body name="fanny_pack" pos="-0.1 0.05 -0.1475">
+            <inertial diaginertia="0.0000044 0.0000042 0.0000066" mass="0.001" pos="-0.065 0.0 0.15" quat="1 1 0 0"/>
+            <geom name="fanny_pack_geom" mesh="fanny_pack_geom" type="mesh" rgba="0.06 0.06 0.06 0.35"/>
+            <site name="pelvis_fanny_marker" class="myo_connect_marker" pos="0.099965 -0.049996 0.147499"/>
+            <body name="battery_l" pos="-0.11 0.01 0.075">
+                <geom name="battery_geom_l" mesh="battery_geom" type="mesh" rgba="0.98 0.784 0.0 1"/>
+                <site name="cable_l_P1" pos="0 0 -0.05"/>
+            </body>
+            <body name="raspberry_pi" pos="-0.125 0.0 0.125">
+                <geom name="raspberry_pi_geom" mesh="raspberry_pi_geom" type="mesh" rgba="0.0 0.54 0.98 1"/>
+            </body>
+            <body name="battery_r" pos="-0.11 0.01 0.165">
+                <geom name="battery_geom_r" mesh="battery_geom" type="mesh" rgba="0.98 0.784 0.0 1"/>
+                <site name="cable_r_P1" pos="0 0 0.1"/>
+            </body>
+        </body>
+
+        <!-- Tibia R -->
+        <body name="exo_1_r" pos="0.005 -0.215 -0.0735">
+            <inertial diaginertia="0.01755 0.00323 0.01758" mass="0.9" pos="0 0 0.125" quat="1 0 0 0"/>
+            <geom name="exo_1_r_geom" mesh="exo_1_r_geom" type="mesh" rgba="0.3 0.3 0.3 1"/>
+        </body>
+        <body name="tb_shank_r" pos="-0.0475 -0.44 0.0085">
+            <inertial diaginertia="0.00044 0.00042 0.00066" mass="0.233" pos="0.065 0.1 0" quat="0 0 1 0"/>
+            <geom name="tb_shank_r_geom" mesh="tb_shank_r_geom" type="mesh" rgba="0.06 0.06 0.06 0.35"/>
+            <site name="knee_tb_shank_r_marker" class="myo_connect_marker" pos="0.047478 0.440012 -0.008545"/>
+        </body>
+
+        <!-- Calc R -->
+        <body name="tb_mid_r" pos="0 0 0">
+            <site name="r_foot_touch" type="box" pos="0.025 -0.04 0.0" size=".05 .03 .05" euler="0 0 0" class="myo_leg_touch"/>
+            <inertial diaginertia="0.00044 0.00042 0.00066" mass="0.233" pos="0.05 -0.015 0.0" quat="1 1 0 0"/>
+            <geom name="tb_mid_r_geom" mesh="tb_mid_r_geom" type="mesh" rgba="0.06 0.06 0.06 0.35"/>
+            <site name="ankle_tb_mid_r_marker" class="myo_connect_marker" pos="0.048790 0.041924 -0.007949"/>
+        </body>
+        <body name="exo_2_r" pos="0.04 0.035 0.03">
+            <inertial diaginertia="0.00034 0.00007 0.00033" mass="0.191" pos="0 0 0.035" quat="1 0 0 0"/>
+            <geom name="exo_2_r_geom" mesh="exo_2_r_geom" type="mesh" rgba="0.3 0.3 0.3 1"/>
+        </body>
+
+        <!-- Toes R -->
+        <body name="tb_toe_r" pos="-0.18 0.0 0">
+            <site name="r_toes_touch" type="box" pos="0.215 -0.04 -0.005" size=".075 .03 .06" euler="0 0 0" class="myo_leg_touch"/>
+            <inertial diaginertia="0.00044 0.00042 0.00066" mass="0.233" pos="0.2 -0.015 0.0" quat="1 1 0 0"/>
+            <geom name="tb_toe_r_geom" mesh="tb_toe_r_geom" type="mesh" rgba="0.06 0.06 0.06 0.35"/>
+            <site name="toe_tb_toe_r_marker" class="myo_connect_marker" pos="0.180000 0.000000 0.000000"/>
+        </body>
+
+        <!-- Tibia L -->
+        <body name="exo_1_l" pos="0.005 -0.215 -0.1085">
+            <inertial diaginertia="0.01755 0.00323 0.01758" mass="0.9" pos="0 0 0.05" quat="1 0 0 0"/>
+            <geom name="exo_1_l_geom" mesh="exo_1_l_geom" type="mesh" rgba="0.3 0.3 0.3 1"/>
+        </body>
+        <body name="tb_shank_l" pos="-0.0475 -0.44 -0.01">
+            <inertial diaginertia="0.00044 0.00042 0.00066" mass="0.233" pos="0.065 0.1 0" quat="0 0 1 0"/>
+            <geom name="tb_shank_l_geom" mesh="tb_shank_l_geom" type="mesh" rgba="0.06 0.06 0.06 0.35"/>
+            <site name="knee_tb_shank_l_marker" class="myo_connect_marker" pos="0.047509 0.440038 0.010024"/>
+        </body>
+
+        <!-- Calc L -->
+        <body name="tb_mid_l" pos="0 0 0">
+            <site name="l_foot_touch" type="box" pos="0.025 -0.04 0.0" size=".05 .03 .05" euler="0 0 0" class="myo_leg_touch"/>
+            <inertial diaginertia="0.00044 0.00042 0.00066" mass="0.233" pos="0.05 -0.015 0.0" quat="1 1 0 0"/>
+            <geom name="tb_mid_l_geom" mesh="tb_mid_l_geom" type="mesh" rgba="0.06 0.06 0.06 0.35"/>
+            <site name="ankle_tb_mid_l_marker" class="myo_connect_marker" pos="0.048762 0.041977 0.007887"/>
+        </body>
+        <body name="exo_2_l" pos="0.04 0.035 -0.085">
+            <inertial diaginertia="0.00034 0.00007 0.00033" mass="0.191" pos="0 0 -0.05" quat="1 0 0 0"/>
+            <geom name="exo_2_l_geom" mesh="exo_2_l_geom" type="mesh" rgba="0.3 0.3 0.3 1"/>
+        </body>
+
+        <!-- Toes L -->
+        <body name="tb_toe_l" pos="-0.18 0 -0.0075">
+            <site name="l_toes_touch" type="box" pos="0.215 -0.04 -0.002" size=".075 .03 .06" euler="0 0 0" class="myo_leg_touch"/>
+            <inertial diaginertia="0.00044 0.00042 0.00066" mass="0.233" pos="0.2 -0.015 0.0" quat="1 1 0 0"/>
+            <geom name="tb_toe_l_geom" mesh="tb_toe_l_geom" type="mesh" rgba="0.06 0.06 0.06 0.35"/>
+            <site name="toe_tb_toe_l_marker" class="myo_connect_marker" pos="0.179956 -0.000004 0.007499"/>
+        </body>
+    </worldbody>
+</mujoco>

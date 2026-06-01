@@ -1,0 +1,38 @@
+<mujoco model="TutorialL1">
+    <compiler angle="radian" />
+    <default class="main" />
+    <asset>
+        <mesh file="mesh/actuator_l.stl" name="actuator_l" />
+        <mesh file="mesh/actuator_r.stl" name="actuator_r" />
+        <mesh file="mesh/foot_attachment_l.stl" name="foot_attachment_l" />
+        <mesh file="mesh/foot_attachment_r.stl" name="foot_attachment_r" />
+        <mesh file="mesh/shin_cuff_l.stl" name="shin_cuff_l" />
+        <mesh file="mesh/shin_cuff_r.stl" name="shin_cuff_r" />
+    </asset>
+    <worldbody>
+        <body name="shin_cuff_r" pos="0 -0.0475 0.006" euler="0 -0.1 0">
+            <inertial mass="0.09" pos="0.0 -0.15 0.015" diaginertia="0.00018 0.00029 0.00013" />
+            <geom name="shin_cuff_r_geom" mesh="shin_cuff_r" type="mesh" rgba="0.741 0.616 0.0 1" />
+        </body>
+        <body name="actuator_r" pos="-0.0095 -0.3025 0.0435" euler="0 -0.1 0">
+            <inertial mass="0.325" pos="0 -0.01 0" diaginertia="0.00111 0.00129 0.00137" />
+            <geom name="actuator_r_geom" mesh="actuator_r" type="mesh" rgba="0.251 0.545 0.298 1" />
+        </body>
+        <body name="foot_attachment_r" pos="0.0815 0.02 -0.032" euler="0 -0.1 0">
+            <inertial mass="0.75" pos="-0.01 0 0.05" diaginertia="0.00067 0.00264 0.00247" />
+            <geom name="foot_attachment_r_geom" mesh="foot_attachment_r" type="mesh" rgba="0.286 0.29 0.576 1" />
+        </body>
+        <body name="shin_cuff_l" pos="-0.0075 -0.197 -0.08" euler="0 0.1 0">
+            <inertial mass="0.09" pos="0.0 0.0 0.065" diaginertia="0.00018 0.00029 0.00013" />
+            <geom name="shin_cuff_l_geom" mesh="shin_cuff_l" type="mesh" rgba="0.741 0.616 0.0 1" />
+        </body>
+        <body name="actuator_l" pos="-0.0125 -0.302 -0.0735" euler="0 0.1 0">
+            <inertial mass="0.325" pos="0 -0.01 0.05" diaginertia="0.00111 0.00129 0.00137" />
+            <geom name="actuator_l_geom" mesh="actuator_l" type="mesh" rgba="0.251 0.545 0.298 1" />
+        </body>
+        <body name="foot_attachment_l" pos="0.0815 0.02 -0.053" euler="0 0.1 0">
+            <inertial mass="0.75" pos="-0.01 0 0.05" diaginertia="0.00067 0.00264 0.00247" />
+            <geom name="foot_attachment_l_geom" mesh="foot_attachment_l" type="mesh" rgba="0.286 0.29 0.576 1" />
+        </body>
+    </worldbody>
+</mujoco>

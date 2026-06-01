@@ -1,0 +1,60 @@
+device:
+  name: "Tutorial_L1"
+  model_xml: "L1model.xml"
+
+attachments:
+  # Tibia R
+  - device_body: "shin_cuff_r"
+    parent_body: "tibia_r"
+  - device_body: "actuator_r"
+    parent_body: "tibia_r"
+  # Calcn R
+  - device_body: "foot_attachment_r"
+    parent_body: "calcn_r"
+  # Tibia L
+  - device_body: "shin_cuff_l"
+    parent_body: "tibia_l"
+  - device_body: "actuator_l"
+    parent_body: "tibia_l"
+  # Calcn L
+  - device_body: "foot_attachment_l"
+    parent_body: "calcn_l"
+
+actuators:
+  - name: "Exo_R"
+    type: "general"
+    joint: "ankle_angle_r"
+    gaintype: "fixed"
+    gainprm: [100, 0, 0]
+    biastype: "none"
+    biasprm: [0, 0, 0]
+    dyntype: "none"
+    dynprm: [1, 0, 0]
+    ctrlrange: [-1, 0]
+    ctrllimited: true
+    gear: [1.0]
+  - name: "Exo_L"
+    type: "general"
+    joint: "ankle_angle_l"
+    gaintype: "fixed"
+    gainprm: [100, 0, 0]
+    biastype: "none"
+    biasprm: [0, 0, 0]
+    dyntype: "none"
+    dynprm: [1, 0, 0]
+    ctrlrange: [-1, 0]
+    ctrllimited: true
+    gear: [1.0]
+
+keyframe_overrides:
+  stand:
+    pelvis_ty: 0.915
+  walk_left:
+    pelvis_ty: 0.885
+  walk_right:
+    pelvis_ty: 0.885
+  squat:
+    pelvis_ty: 0.73
+  lunge:
+    pelvis_ty: 0.675
+    knee_angle_l: -1.25

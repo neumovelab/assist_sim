@@ -1,0 +1,120 @@
+device:
+  name: "OSL_A_L1"
+  model_xml: "A_L1model.xml"
+
+# --- Prosthetic: remove biological lower leg below the amputation ---
+body_removals:
+  - "talus_r"   # cascades to calcn_r, toes_r
+
+# --- Prosthetic: replace tibia mesh with residual-limb version ---
+# The residual stump mesh (osl_tibia_fibula_trans_r) covers BOTH tibia and
+# fibula. The mesh_replacements below only swap the tibia geom; the separate
+# fibula geom on the same body must be removed (geom_removals) so it doesn't
+# clip through the residual stump. Mirrors legacy 22 OSL_A, which has a single
+# combined-mesh geom on tibia_r.
+mesh_replacements:
+  default:
+    - geom: "tibia_r_geom_1"
+      mesh: "osl_tibia_fibula_trans_r"
+  myoLeg80:
+    - geom: "r_tibia"
+      mesh: "osl_tibia_fibula_trans_r"
+
+# --- Prosthetic: drop the surviving fibula geom (covered by stump mesh) ---
+geom_removals:
+  default:
+    - "tibia_r_geom_2"
+  myoLeg80:
+    - "r_fibula"
+
+# --- Attach prosthetic chain to the residual tibia ---
+attachments:
+  - device_body: "osl_generic_socket"
+    parent_body: "tibia_r"
+
+# --- Remove muscles that crossed the removed ankle/foot ---
+actuator_removals:
+  default:
+    - "soleus_r"
+    - "tibant_r"
+    - "edl_r"
+    - "fdl_r"
+  myoLeg80:
+    - "soleus_r"
+    - "tibant_r"
+    - "edl_r"
+    - "fdl_r"
+    - "gaslat_r"
+    - "gasmed_r"
+    - "bfsh_r"
+    - "ehl_r"
+    - "tibpost_r"
+    - "perlong_r"
+    - "fhl_r"
+    - "perbrev_r"
+
+# --- Remove tendons for fully removed muscles ---
+tendon_removals:
+  default:
+    - "soleus_r_tendon"
+    - "tib_ant_r_tendon"
+    - "edl_r_tendon"
+    - "fdl_r_tendon"
+  myoLeg80:
+    - "soleus_r_tendon"
+    - "tibant_r_tendon"
+    - "edl_r_tendon"
+    - "fdl_r_tendon"
+    - "gaslat_r_tendon"
+    - "gasmed_r_tendon"
+    - "bfsh_r_tendon"
+    - "ehl_r_tendon"
+    - "tibpost_r_tendon"
+    - "perlong_r_tendon"
+    - "fhl_r_tendon"
+    - "perbrev_r_tendon"
+
+# --- Tendon waypoint truncation ---
+
+# Surviving r-side tendons on OSL_A (transtibial) that may want tuning:
+#   - gastroc_r_tendon  (P3 auto-pruned; P2 now terminal on wrap-site body)
+#   - bifemsh_r_tendon  (knee-crossing; insertion was on tibia_r)
+
+# tendon_modifications:
+#   # `default` is used for the 22/26-muscle MSKs which share tendon naming
+#   # (gastroc_r_tendon, etc.). The 80-muscle MSK uses different tendon names
+#   # (gasmed_r / gaslat_r split, no shared gastroc), so we explicitly empty the
+#   # myoLeg80 override and add 80-specific entries here as needed.
+#   default:
+#     - name: "gastroc_r_tendon"
+#       wraps:
+#         - reposition_site: "gastroc_r_med_gas_r-P2"
+#           pos: [0.0, 0.0, 0.0]
+#   myoLeg80: []
+
+# --- Add prosthetic actuator ---
+actuators:
+  - name: "osl_ankle_torque_actuator"
+    type: "motor"
+    joint: "osl_ankle_angle_r"
+    gainprm: [58.4]
+    ctrlrange: [-2.88, 2.88]
+    ctrllimited: true
+    gear: [1.0]
+
+keyframe_overrides:
+  default:
+    stand:
+      pelvis_ty: 0.91
+    walk_left:
+      pelvis_ty: 0.88
+    walk_right:
+      pelvis_ty: 0.88
+    squat:
+      pelvis_ty: 0.735
+      OSL_A_osl_ankle_angle_r: 0.385
+    lunge:
+      pelvis_ty: 0.67
+  myoLeg80:
+    squat:
+      OSL_A_osl_ankle_angle_r: 0.385

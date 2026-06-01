@@ -1,0 +1,88 @@
+<mujoco model="HMEDIL1">
+    <compiler angle="radian" />
+    <default class="main" />
+    <asset>
+        <mesh file="mesh/ASSEM_MEDI FemurFlap_L.stl" name="ASSEM_MEDI femurflap_l_geom" />
+        <mesh file="mesh/ASSEM_MEDI FemurFlap_R.stl" name="ASSEM_MEDI femurflap_r_geom" />
+        <mesh file="mesh/ASSEM_MEDI MM03 Cobra 150.stl" name="ASSEM_MEDI mm03_150_l_geom" />
+        <mesh file="mesh/ASSEM_MEDI MM03 Cobra 150.stl" name="ASSEM_MEDI mm03_150_r_geom" />
+        <mesh file="mesh/ASSEM_MEDI MM03 Cobra.stl" name="ASSEM_MEDI mm03_l_geom" />
+        <mesh file="mesh/ASSEM_MEDI MM03 Cobra.stl" name="ASSEM_MEDI mm03_r_geom" />
+        <mesh file="mesh/ASSEM_MEDI thigh INDV.stl" name="ASSEM_MEDI thigh_l_geom" />
+        <mesh file="mesh/ASSEM_MEDI thigh INDV.stl" name="ASSEM_MEDI thigh_r_geom" />
+        <mesh file="mesh/ASSEM_MEDI Torso_Reduced.stl" name="ASSEM_MEDI torso_geom" />
+        <mesh file="mesh/ASSEM_MEDI WaistBand.stl" name="ASSEM_MEDI waistband_geom" />
+    </asset>
+    <worldbody>
+        <body name="hmedi waistband" pos="-0.07 0.02 -0.17">
+            <inertial diaginertia="0.000000001 0.000000001 0.000000001" mass="0.001" pos="-0.065 0.0 0.15" quat="1 1 0 0" />
+            <geom name="ASSEM_MEDI waistband_geom" mesh="ASSEM_MEDI waistband_geom" type="mesh" rgba="0.341 0.341 0.341 1" />
+        </body>
+        <body name="hmedi femurflap_r" pos="-0.065 -0.02 -0.08">
+            <inertial diaginertia="0.000000001 0.000000001 0.000000001" mass="0.001" pos="-0.065 0.0 0.15" quat="1 1 0 0" />
+            <geom name="ASSEM_MEDI femurflap_r_geom" mesh="ASSEM_MEDI femurflap_r_geom" type="mesh" rgba="0.341 0.341 0.341 1" />
+            <body name="mm03 cobra_r" pos="-0.0415 0.0275 0.0685">
+                <inertial diaginertia="0.000000001 0.000000001 0.000000001" mass="0.00001" pos="0 0 0" quat="1 1 0 0" />
+                <geom name="ASSEM_MEDI mm03_r_geom" mesh="ASSEM_MEDI mm03_r_geom" type="mesh" rgba="0.8 0.8 0.8 1" />
+                <site name="cable_r_P2" pos="0 0 0.015" />
+            </body>
+        </body>
+        <body name="hmedi thigh_r" pos="-0.01 -0.35 -0.065">
+            <inertial diaginertia="0.000000001 0.000000001 0.000000001" mass="0.001" pos="-0.065 0.0 0.15" quat="1 1 0 0" />
+            <geom name="ASSEM_MEDI thigh_r_geom" mesh="ASSEM_MEDI thigh_r_geom" type="mesh" rgba="0.341 0.341 0.341 1" />
+            <body name="mm03 cobra_150_r" pos="-0.0635 0.035 0.04">
+                <inertial diaginertia="0.000000001 0.000000001 0.000000001" mass="0.00001" pos="0 0 0" quat="1 1 0 0" />
+                <geom name="ASSEM_MEDI mm03_150_r_geom" mesh="ASSEM_MEDI mm03_150_r_geom" type="mesh" rgba="0.8 0.8 0.8 1" />
+                <site name="cable_r_P3" pos="0 0 0.0225" />
+            </body>
+        </body>
+        <body name="hmedi femurflap_l" pos="-0.065 -0.02 -0.085">
+            <inertial diaginertia="0.000000001 0.000000001 0.000000001" mass="0.001" pos="-0.065 0.0 0.15" quat="1 1 0 0" />
+            <geom name="ASSEM_MEDI femurflap_l_geom" mesh="ASSEM_MEDI femurflap_l_geom" type="mesh" rgba="0.341 0.341 0.341 1" />
+            <body name="mm03 cobra_l" pos="-0.0415 0.0275 0.0675">
+                <inertial diaginertia="0.000000001 0.000000001 0.000000001" mass="0.00001" pos="0 0 0" quat="1 1 0 0" />
+                <geom name="ASSEM_MEDI mm03_l_geom" mesh="ASSEM_MEDI mm03_l_geom" type="mesh" rgba="0.8 0.8 0.8 1" />
+                <site name="cable_l_P2" pos="0 0 0.015" />
+            </body>
+        </body>
+        <body name="hmedi thigh_l" pos="-0.01 -0.35 -0.065">
+            <inertial diaginertia="0.000000001 0.000000001 0.000000001" mass="0.001" pos="-0.065 0.0 0.15" quat="1 1 0 0" />
+            <geom name="ASSEM_MEDI thigh_l_geom" mesh="ASSEM_MEDI thigh_l_geom" type="mesh" rgba="0.341 0.341 0.341 1" />
+            <body name="mm03 cobra_150_l" pos="-0.0635 0.035 0.04">
+                <inertial diaginertia="0.000000001 0.000000001 0.000000001" mass="0.00001" pos="0 0 0" quat="1 1 0 0" />
+                <geom name="ASSEM_MEDI mm03_150_l_geom" mesh="ASSEM_MEDI mm03_150_l_geom" type="mesh" rgba="0.8 0.8 0.8 1" />
+                <site name="cable_l_P3" pos="0 0 0.0225" />
+            </body>
+        </body>
+        <body name="hmedi_torso" pos="-0.125 0.25 -0.1">
+            <inertial diaginertia="0.00044 0.00042 0.00066" mass="0.233" pos="-0.035 -0.025 0.1" quat="1 0 1 0" />
+            <geom name="ASSEM_MEDI torso_geom" mesh="ASSEM_MEDI torso_geom" type="mesh" rgba="0.788 0.788 0.788 1" />
+            <site name="cable_r_P1" pos="0 -0.07 0.18" />
+            <site name="cable_l_P1" pos="0 -0.07 0.025" />
+        </body>
+    </worldbody>
+    <tendon>
+        <spatial name="cable_r" limited="true" range="0 2" rgba="0.2 0.2 0.2 1" width="0.0055">
+            <site site="cable_r_P1" />
+            <site site="cable_r_P2" />
+            <site site="cable_r_P3" />
+        </spatial>
+        <spatial name="cable_l" limited="true" range="0 2" rgba="0.2 0.2 0.2 1" width="0.0055">
+            <site site="cable_l_P1" />
+            <site site="cable_l_P2" />
+            <site site="cable_l_P3" />
+        </spatial>
+    </tendon>
+    <actuator>
+        <general name="Exo_R" tendon="cable_r"
+                 gaintype="fixed" gainprm="100 0 0"
+                 biastype="none" biasprm="0 0 0"
+                 dyntype="none" dynprm="1 0 0"
+                 ctrllimited="true" ctrlrange="-1 0" gear="1.0" />
+        <general name="Exo_L" tendon="cable_l"
+                 gaintype="fixed" gainprm="100 0 0"
+                 biastype="none" biasprm="0 0 0"
+                 dyntype="none" dynprm="1 0 0"
+                 ctrllimited="true" ctrlrange="-1 0" gear="1.0" />
+    </actuator>
+</mujoco>

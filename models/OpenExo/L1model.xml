@@ -1,0 +1,38 @@
+<mujoco model="OpenExoL1">
+    <compiler angle="radian" />
+    <default class="main" />
+    <asset>
+        <mesh file="mesh/blade_l.stl" name="exo_blade_l_geom" />
+        <mesh file="mesh/blade_r.stl" name="exo_blade_r_geom" />
+        <mesh file="mesh/cuff_l.stl" name="exo_cuff_l_geom" />
+        <mesh file="mesh/cuff_r.stl" name="exo_cuff_r_geom" />
+        <mesh file="mesh/shaft_l.stl" name="exo_shaft_l_geom" />
+        <mesh file="mesh/shaft_r.stl" name="exo_shaft_r_geom" />
+    </asset>
+    <worldbody>
+        <body name="exo_shaft_r" pos="-0.025 -0.215 0.05">
+            <inertial diaginertia="0.00465 0.00065 0.00501" mass="0.732" pos="0 0 0.025" quat="1 0 0 0" />
+            <geom name="exo_shaft_r_geom" mesh="exo_shaft_r_geom" type="mesh" rgba="0.4 0.4 0.4 1" />
+        </body>
+        <body name="exo_cuff_r" pos="-0.05 -0.13 -0.065">
+            <inertial diaginertia="0.00002 0.00011 0.00009" mass="0.04872" pos="0.025 0 0.05" quat="1 0 0 0" />
+            <geom name="exo_cuff_r_geom" mesh="exo_cuff_r_geom" type="mesh" rgba="0.3 0.3 0.3 1" />
+        </body>
+        <body name="exo_blade_r" pos="0.1 0.055 -0.0575" euler="0 -0.15 0">
+            <inertial diaginertia="0.00002 0.00011 0.00009" mass="0.04872" pos="0 -0.06 0.05" quat="1 0 0 0" />
+            <geom name="exo_blade_r_geom" mesh="exo_blade_r_geom" type="mesh" rgba="0.3 0.3 0.3 1" />
+        </body>
+        <body name="exo_shaft_l" pos="-0.025 -0.215 -0.095">
+            <inertial diaginertia="0.00465 0.00065 0.00501" mass="0.732" pos="0 0 0.025" quat="1 0 0 0" />
+            <geom name="exo_shaft_l_geom" mesh="exo_shaft_l_geom" type="mesh" rgba="0.4 0.4 0.4 1" />
+        </body>
+        <body name="exo_cuff_l" pos="-0.05 -0.13 -0.055">
+            <inertial diaginertia="0.00002 0.00011 0.00009" mass="0.04872" pos="0.025 0 0.05" quat="1 0 0 0" />
+            <geom name="exo_cuff_l_geom" mesh="exo_cuff_l_geom" type="mesh" rgba="0.3 0.3 0.3 1" />
+        </body>
+        <body name="exo_blade_l" pos="0.075 0.055 -0.0775" euler="0 0.15 0">
+            <inertial diaginertia="0.00002 0.00011 0.00009" mass="0.04872" pos="0 -0.06 0.09" quat="1 0 0 0" />
+            <geom name="exo_blade_l_geom" mesh="exo_blade_l_geom" type="mesh" rgba="0.3 0.3 0.3 1" />
+        </body>
+    </worldbody>
+</mujoco>

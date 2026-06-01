@@ -1,0 +1,104 @@
+device:
+  name: "Humotech_L1"
+  model_xml: "L1model.xml"
+
+attachments:
+  # Tibia R
+  - device_body: "shin_cuff_r"
+    parent_body: "tibia_r"
+  - device_body: "shin_main_r"
+    parent_body: "tibia_r"
+  # Calcn R
+  - device_body: "heel_ring_r"
+    parent_body: "calcn_r"
+  - device_body: "heel_connector_r"
+    parent_body: "calcn_r"
+  - device_body: "sole_attachment_r"
+    parent_body: "calcn_r"
+  - device_body: "r_aft_sole"
+    parent_body: "calcn_r"
+  - device_body: "r_aft_upper"
+    parent_body: "calcn_r"
+  # Toes R
+  - device_body: "r_fore_sole"
+    parent_body: "toes_r"
+  - device_body: "r_fore_upper"
+    parent_body: "toes_r"
+  # Tibia L
+  - device_body: "shin_cuff_l"
+    parent_body: "tibia_l"
+  - device_body: "shin_main_l"
+    parent_body: "tibia_l"
+  # Calcn L
+  - device_body: "heel_ring_l"
+    parent_body: "calcn_l"
+  - device_body: "heel_connector_l"
+    parent_body: "calcn_l"
+  - device_body: "sole_attachment_l"
+    parent_body: "calcn_l"
+  - device_body: "l_aft_sole"
+    parent_body: "calcn_l"
+  - device_body: "l_aft_upper"
+    parent_body: "calcn_l"
+  # Toes L
+  - device_body: "l_fore_sole"
+    parent_body: "toes_l"
+  - device_body: "l_fore_upper"
+    parent_body: "toes_l"
+
+joint_overrides:
+  - name: "mtp_angle_r"
+    range: [0.2, 0.5]
+  - name: "mtp_angle_l"
+    range: [0.2, 0.5]
+
+actuators:
+  - name: "Exo_R"
+    type: "general"
+    joint: "ankle_angle_r"
+    gaintype: "fixed"
+    gainprm: [100, 0, 0]
+    biastype: "none"
+    biasprm: [0, 0, 0]
+    dyntype: "none"
+    dynprm: [1, 0, 0]
+    ctrlrange: [-1, 0]
+    ctrllimited: true
+    gear: [1.0]
+  - name: "Exo_L"
+    type: "general"
+    joint: "ankle_angle_l"
+    gaintype: "fixed"
+    gainprm: [100, 0, 0]
+    biastype: "none"
+    biasprm: [0, 0, 0]
+    dyntype: "none"
+    dynprm: [1, 0, 0]
+    ctrlrange: [-1, 0]
+    ctrllimited: true
+    gear: [1.0]
+
+keyframe_overrides:
+  stand:
+    pelvis_ty: 0.96075
+    mtp_angle_r: 0.2
+    mtp_angle_l: 0.2
+  walk_left:
+    pelvis_ty: 0.9335
+    mtp_angle_r: 0.2
+    mtp_angle_l: 0.2
+  walk_right:
+    pelvis_ty: 0.9335
+    mtp_angle_r: 0.2
+    mtp_angle_l: 0.2
+  squat:
+    pelvis_ty: 0.78
+    mtp_angle_r: 0.325
+    mtp_angle_l: 0.325
+  lunge:
+    pelvis_ty: 0.725
+    pelvis_tilt: -0.55
+    mtp_angle_r: 0.4
+    knee_angle_l: -1.09
+    ankle_angle_l: 0.045
+    mtp_angle_l: 0.26
