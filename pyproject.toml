@@ -1,0 +1,64 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "assist_sim"
+version = "0.1.0"
+description = "Programmatic combination of musculoskeletal models and assistive devices for MyoAssist training"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+authors = [
+    { name = "Calder Robbins", email = "robbins.cal@northeastern.edu" },
+]
+keywords = [
+    "mujoco",
+    "musculoskeletal",
+    "biomechanics",
+    "simulation",
+    "prosthetics",
+    "exoskeleton",
+    "myoassist",
+    "myosuite",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering",
+]
+dependencies = [
+    "mujoco==3.3.3",
+    "PyYAML>=6.0.2",
+    "numpy>=1.24",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+]
+
+[project.scripts]
+assist-sim = "assist_sim.__main__:main"
+
+[project.urls]
+Homepage = "https://github.com/NeuMove/assist_sim"
+Source = "https://github.com/NeuMove/assist_sim"
+"Bug Tracker" = "https://github.com/NeuMove/assist_sim/issues"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["assist_sim*"]
+exclude = ["tests*", "examples*", "docs*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]

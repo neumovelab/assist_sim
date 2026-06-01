@@ -1,0 +1,7 @@
+# Runtime dependencies. Mirrors pyproject.toml [project.dependencies].
+# Pinned for reproducibility; pyproject.toml declares the project's
+# install_requires range.
+
+mujoco==3.3.3
+PyYAML>=6.0.2
+numpy>=1.24

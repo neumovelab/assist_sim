@@ -216,3 +216,13 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Combined-model exports (build artifacts; rebuild from configs)
+exports/
+
+# Optional local cache directory for load_combined_model(..., cache_dir=...)
+.assist_sim_cache/
+
+# Editor / IDE
+.vscode/
+.idea/
