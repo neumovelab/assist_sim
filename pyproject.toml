@@ -48,14 +48,26 @@ dev = [
 assist-sim = "assist_sim.__main__:main"
 
 [project.urls]
-Homepage = "https://github.com/NeuMove/assist_sim"
-Source = "https://github.com/NeuMove/assist_sim"
-"Bug Tracker" = "https://github.com/NeuMove/assist_sim/issues"
+Homepage = "https://github.com/neumovelab/assist_sim"
+Source = "https://github.com/neumovelab/assist_sim"
+"Bug Tracker" = "https://github.com/neumovelab/assist_sim/issues"
 
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["assist_sim*"]
 exclude = ["tests*", "examples*", "docs*"]
+
+# Bundle device configs, model XMLs, and meshes inside the wheel.  Without this
+# block, a `pip install assist_sim` user would get the Python code but zero
+# device configs (models/ would be empty on their system).  Mirrors the
+# pip-installable wheel pattern used by `myo_sim`.
+[tool.setuptools.package-data]
+assist_sim = [
+    "models/**/*.yaml",
+    "models/**/*.xml",
+    "models/**/*.stl",
+    "py.typed",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

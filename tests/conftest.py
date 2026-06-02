@@ -11,10 +11,14 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
-MODELS = REPO_ROOT / "models"
 
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
+
+# Resolve via the registry rather than hard-coding the path -- the bundled
+# device configs live inside the package now (assist_sim/models/) so they
+# survive wheel installs.
+from assist_sim.registry import MODELS_ROOT as MODELS  # noqa: E402
 
 
 # ----------------------------------------------------------------------

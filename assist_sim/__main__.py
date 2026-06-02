@@ -1,8 +1,10 @@
-"""Command-line interface for the model combination pipeline.
+"""Command-line interface for assist_sim.
 
-    python -m pipeline list                      # show discoverable combinations
-    python -m pipeline validate MSK DEVICE       # check a pair resolves
-    python -m pipeline combine MSK DEVICE [-o OUT.xml] [--cache-dir DIR]
+    python -m assist_sim list                      # show discoverable combinations
+    python -m assist_sim validate MSK DEVICE       # check a pair resolves
+    python -m assist_sim combine MSK DEVICE [-o OUT.xml] [--cache-dir DIR]
+
+Also available as the ``assist-sim`` script after install.
 """
 
 from __future__ import annotations
@@ -21,14 +23,27 @@ from . import (
 
 
 def _cmd_list(_: argparse.Namespace) -> int:
+    from .registry import DEVICE_CONFIGS, MSK_MODELS, _COMPATIBLE_MSK_KEYS
+
     combos = get_available_combinations()
-    if not combos:
-        print("No models discovered under models/.")
+    if combos:
+        for msk_key, devices in combos.items():
+            print(f"{msk_key}:")
+            for device in devices:
+                print(f"    - {device}")
         return 0
-    for msk_key, devices in combos.items():
-        print(f"{msk_key}:")
-        for device in devices:
-            print(f"    - {device}")
+
+    # No MSKs resolved -- either myo_sim isn't installed or doesn't have any
+    # of the listed MSK files yet.  Report what we DID find so the user can
+    # tell which half is missing.
+    print("No MSK x device combinations resolvable.")
+    print()
+    print(f"  Compatible MSK keys (curated): {sorted(_COMPATIBLE_MSK_KEYS)}")
+    print(f"  MSK files resolvable now:      {sorted(MSK_MODELS) or '(none -- is `myo_sim` installed?)'}")
+    print(f"  Device configs discovered:     {sorted(DEVICE_CONFIGS)}")
+    print()
+    print("Install myo_sim (pip install myo_sim, or a git+http URL until the")
+    print("PyPI wheel ships) to enable MSK resolution.")
     return 0
 
 

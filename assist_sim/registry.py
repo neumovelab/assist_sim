@@ -27,7 +27,11 @@ import yaml
 from .errors import closest_matches
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-MODELS_ROOT = REPO_ROOT / "models"
+
+# Device configs + meshes ship inside the package (so they're available after
+# a wheel install, not just editable installs).  Resolve via importlib.resources
+# so this works identically in editable, wheel, and zipped distributions.
+MODELS_ROOT = Path(str(_files("assist_sim").joinpath("models")))
 
 # ----------------------------------------------------------------------
 # MSK registry (explicit, resolved via myo_sim)

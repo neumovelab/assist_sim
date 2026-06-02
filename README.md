@@ -13,20 +13,21 @@ on disk is never modified.
 ## Quickstart
 
 ```python
+from assist_sim import load_combined
+model, data = load_combined("myoLeg22_2D", "DephyExoBoot_L1")
+# `model` and `data` are ready for mj.mj_step / mj.viewer
+```
+
+This resolves the MSK path through `myo_sim` (must be installed) and the
+device config from the bundled `assist_sim/models/`. For full path control:
+
+```python
 from assist_sim import load_combined_model
 
 model, data = load_combined_model(
     human_xml="path/to/myo_sim/leg/myoLeg22_2D.xml",
-    device_config="models/DephyExoBoot/L1config.yaml",
+    device_config="path/to/your/Device/L1config.yaml",
 )
-# `model` and `data` are ready for mj.mj_step / mj.viewer
-```
-
-Or by registry key (once `myo_sim` is installed):
-
-```python
-from assist_sim import load_combined
-model, data = load_combined("myoLeg22_2D", "DephyExoBoot_L1")
 ```
 
 Or from the CLI:
@@ -88,7 +89,7 @@ pytest
 | [docs/device-config-reference.md](docs/device-config-reference.md) | Every YAML field with examples |
 | [docs/available-models.md](docs/available-models.md) | Devices + MSKs + which combinations are tested |
 | [docs/troubleshooting.md](docs/troubleshooting.md) | Common errors and how to fix |
-| [docs/how-to/](docs/how-to/) | Task-focused guides (add a device, modify a config, debug, export) |
+| [docs/how-to/](docs/how-to/) | Task-focused guides (add a device, use custom devices, modify a config, debug, export) |
 
 ## License
 
