@@ -18,14 +18,14 @@ models/
 
 The registry key derives from the directory name + the config stem:
 `MyDevice/L1config.yaml` → `MyDevice_L1`. Add additional variants by
-authoring sibling configs (`A_L1config.yaml`, `KA_L1config.yaml`) — see
+authoring sibling configs (`A_L1config.yaml`, `KA_L1config.yaml`) -- see
 OpenSourceLeg for an example.
 
-## Step 1 — Author `L1model.xml`
+## Step 1 -- Author `L1model.xml`
 
 The device XML is a standalone MuJoCo XML that contains *only* the device's
 physical description. It must be loadable by `MjSpec.from_file` on its own
-(though it may not simulate meaningfully — bodies don't need to be
+(though it may not simulate meaningfully -- bodies don't need to be
 connected to a world here; they get grafted onto the MSK at attach time).
 
 Minimum shape:
@@ -79,10 +79,10 @@ Minimum shape:
   name on attach.
 - For prosthetics, also include any *replacement meshes* (e.g. residual
   stump meshes) in `<asset>`. They don't need to be referenced by any geom
-  in the device XML — they're loaded into the combined spec when the
+  in the device XML -- they're loaded into the combined spec when the
   pipeline executes `mesh_replacements`.
 
-## Step 2 — Author `L1config.yaml`
+## Step 2 -- Author `config.yaml`
 
 The YAML drives the combination. See
 [device-config-reference.md](../device-config-reference.md) for the full
@@ -98,7 +98,7 @@ attachments:
     parent_body: "tibia_r"
 ```
 
-For a real exoskeleton you'll typically also have:
+For an exoskeleton you'll typically have:
 
 ```yaml
 joint_overrides:
@@ -148,7 +148,7 @@ tendon_removals:
   - "tib_ant_r_tendon"
 ```
 
-## Step 3 — Verify discovery
+## Step 3 -- Verify discovery
 
 ```python
 from assist_sim.registry import DEVICE_CONFIGS, refresh
@@ -162,7 +162,7 @@ Or from the CLI:
 python -m assist_sim list
 ```
 
-## Step 4 — Compile + visually inspect
+## Step 4 -- Compile + visually inspect
 
 ```bash
 python examples/quickstart.py myoLeg22_2D MyDevice_L1
@@ -181,7 +181,7 @@ issues at this step:
   needs a different attachment pose, use the per-MSK `attachments:`
   form (see HMEDI for an example).
 
-## Step 5 — Add to tests + docs
+## Step 5 -- Add to tests + docs
 
 Add the new device to the smoke regression in
 `tests/test_smoke_combinations.py` (frozen `(nq, nu, nbody, nmesh)`
@@ -195,6 +195,6 @@ legacy structure.
 
 ## See also
 
-- [device-config-reference.md](../device-config-reference.md) — full schema
-- [how-to/debug-a-combined-model.md](debug-a-combined-model.md) — when
+- [device-config-reference.md](../device-config-reference.md) -- full schema
+- [how-to/debug-a-combined-model.md](debug-a-combined-model.md) -- when
   things look wrong in the viewer

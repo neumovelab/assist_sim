@@ -21,20 +21,21 @@ frameworks. Four packages collaborate:
   task) and the policy training loop.
 - **`myoassist.terrains`** is a separate package that owns the *scene*
   layer (ground plane, hfields, skybox). `assist_sim` outputs are
-  *model-only* — no ground body, no terrain include — and
+  *model-only* -- no ground body, no terrain include -- and
   `myoassist.terrains` layers the scene on top before simulation.
 
-> *Diagram placeholder — figure of package flow
-> will replace this in a later docs pass.*
+> *Diagram placeholder -- figure of package flow
+> will replace this in a later docs pass.* 
+<!-- # TODO: #1 -->
 
 ## The two-phase pipeline
 
-When `load_combined_model(...)` is called, the model flows through two
-distinct phases.  The inputs are a baseline MSK XML and a device YAML;
+When `load_combined_model(...)` is called, the model goes through two
+phases. The inputs are a baseline MSK XML and a device YAML;
 the outputs are an `(MjModel, MjData)` pair ready to step and (optionally)
 an exported combined XML.
 
-**Phase 1 — Preprocess (XML pass).**  An ElementTree pass over the MSK
+**Phase 1 -- Preprocess (XML pass).**  An ElementTree pass over the MSK
 XML applies every operation that *removes* content from the model.  In
 order:
 
@@ -43,7 +44,7 @@ order:
 - Merge duplicate top-level sections (`worldbody`, `asset`, `default`,
   `contact`, `sensor`, `tendon`, `actuator`, `equality`, `keyframe`) that
   the inlining may have produced, mirroring MuJoCo's compile-time merge.
-- Apply body / geom / actuator / tendon removals — the prosthetic surgery
+- Apply body / geom / actuator / tendon removals -- the prosthetic surgery
   side of the pipeline.
 - Apply tendon wrap edits (auto-prune wraps whose sites lived on removed
   bodies; honor any `tendon_modifications` overrides).
@@ -52,14 +53,14 @@ order:
 - Cascade cleanup: remove contact pairs, sensors, and equality constraints
   that reference any removed element.
 - Strip the terrain content (ground body, ground-plane geom, terrain
-  include) — assist_sim outputs are model-only.
+  include) -- assist_sim outputs are model-only.
 
 A temp XML is written to disk at the end of Phase 1, in the same directory
 as the source MSK (so relative paths still resolve).
 
-**Phase 2 — MjSpec (attach pass).**  `MjSpec.from_file` loads the
+**Phase 2 -- MjSpec (attach pass).**  `MjSpec.from_file` loads the
 preprocessed temp XML and the device XML.  Every operation here is either
-additive or an in-place attribute edit (no `MjSpec.delete` calls — those
+additive or an in-place attribute edit (no `MjSpec.delete` calls -- those
 don't exist on MuJoCo 3.3.3):
 
 - Attach each device body under its parent body in the MSK, applying the
@@ -72,25 +73,21 @@ don't exist on MuJoCo 3.3.3):
   from the device XML, with the device prefix.
 - Add YAML-declared joint-transmission actuators.
 - Compile the spec into an `MjModel`.
-- Rebuild keyframes by joint *name* (model-agnostic) — restores authored
+- Rebuild keyframes by joint *name* (model-agnostic) -- restores authored
   values to surviving joints, applies `keyframe_overrides`, then
   recompiles to lock the keyframe table into the final model.
 
 The compiled `MjModel` and a fresh `MjData` are returned.  If `export_xml`
 was provided, the spec is also serialized to a clean XML at that path.
 
-> *Diagram placeholder — a figure of the two phases (with their
-> ordered passes and the temp-XML handoff) will replace
-> in a later docs pass.*
-
 ### Why two phases
 
 MuJoCo 3.3.3 (the version pinned by downstream `myoassist`) does not expose
 `MjSpec.delete`. Anything that *removes* content from the model has to happen
-before the spec is constructed — i.e. at the XML level. Hence Phase 1
+before the spec is constructed -- i.e. at the XML level. Hence Phase 1
 operates on `ElementTree`. Anything that *adds* or *edits in place*
 (attachments, joint property changes, actuators, keyframe writes) works fine
-on the spec — Phase 2.
+on the spec -- Phase 2.
 
 This split also produces cleaner semantics: removals are model surgery (done
 once, on the baseline), and the spec-level operations are device-side
@@ -140,12 +137,12 @@ support per-MSK overrides.
 
 ## What `assist_sim` does *not* do
 
-- **Provide MSK models** — those live in `myo_sim`.
-- **Provide terrain / scene** — that's `myoassist.terrains`.
-- **Train policies** — that's `myoassist`.
-- **Simulate** — `assist_sim` produces models; you simulate them with
+- **Provide MSK models** -- those live in `myo_sim`.
+- **Provide terrain / scene** -- that's `myoassist.terrains`.
+- **Train policies** -- that's `myoassist`.
+- **Simulate** -- `assist_sim` produces models; you simulate them with
   MuJoCo as you would any model.
-- **Provide a viewer** — `examples/quickstart.py` opens `mujoco.viewer` for
+- **Provide a viewer** -- `examples/quickstart.py` opens `mujoco.viewer` for
   inspection, but the package itself has no viewer logic.
 
 This narrow scope is intentional: `assist_sim` is the *model composition*

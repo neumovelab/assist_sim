@@ -1,7 +1,7 @@
 # How To: Debug a Combined Model
 
-When the combined model compiles but something's wrong — geometry in the
-wrong place, missing tendon, joint not actuating, viewer looks weird —
+When the combined model compiles but something's wrong -- geometry in the
+wrong place, missing tendon, joint not actuating, viewer looks weird --
 here's where to look.
 
 ## Step 0: read the error message
@@ -15,7 +15,7 @@ Did you mean: 'grac_r_tendon'?
 
 The section name (`tendon_modifications`) tells you which YAML block to
 fix. The `did you mean ...` suggestion uses fuzzy matching against the
-real names in the MSK + device — usually the right answer is one of those.
+real names in the MSK + device -- usually the right answer is one of those.
 
 If `load_combined_model` succeeded but the result is wrong, continue.
 
@@ -58,18 +58,18 @@ load_combined_model(
 
 Then open `combined.xml` in an editor. The XML is the canonical view of
 what got combined; everything you see in `MjModel` came from this file
-(modulo MuJoCo's own auto-additions like default textures).
+(including MuJoCo's own auto-additions like default textures).
 
 What to look for:
 
-- **Body hierarchy** — is your device body attached where the YAML said?
+- **Body hierarchy** -- is your device body attached where the YAML said?
   The combined XML should have e.g. `<body name="MyDevice_L1_my_part"
   ...>` nested under the parent body.
-- **Actuators** — every actuator from the device XML (with the device
+- **Actuators** -- every actuator from the device XML (with the device
   prefix) plus everything in `actuators:` (without prefix).
-- **Tendons** — spatial tendons from the device XML (with prefix) plus
+- **Tendons** -- spatial tendons from the device XML (with prefix) plus
   the MSK's surviving tendons.
-- **Keyframes** — `<key name="stand" qpos="..."/>` should have the
+- **Keyframes** -- `<key name="stand" qpos="..."/>` should have the
   authored MSK values plus any `keyframe_overrides`.
 
 ## Step 3: keep the preprocess temp file

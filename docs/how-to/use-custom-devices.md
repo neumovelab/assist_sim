@@ -2,10 +2,10 @@
 
 `assist_sim` ships with seven bundled devices (Dephy, HMEDI, Humotech,
 OpenExo, Tutorial, and the two OSL variants). If you're authoring your
-own device — for a new exoskeleton, a different prosthetic geometry, an
-internal lab project — this guide covers where it lives and how to use it.
+own device -- for a new exoskeleton, a different prosthetic geometry, an
+internal lab project -- this guide covers where it lives and how to use it.
 
-## Folder layout (always the same)
+## Directory layout
 
 Whether bundled or user-authored, every device follows the same shape:
 
@@ -23,7 +23,7 @@ and authoring walkthrough.
 
 ## Three usage patterns
 
-### Pattern A — direct path (v0.1.0 — supported today)
+### Pattern A -- direct path (v0.1.0)
 
 Pass an absolute path to `load_combined_model` for the device YAML:
 
@@ -36,15 +36,14 @@ model, data = load_combined_model(
 )
 ```
 
-**Pros:** zero setup. Works immediately. No registry edits, no env vars,
-no changes to the package.
+<!-- **Pros:** zero setup. Works immediately. No registry edits, no env vars,
+no changes to the package. -->
 
-**Cons:** the custom device doesn't appear in
+**Note:** the custom device will not appear in
 `get_available_combinations()`, the CLI's `assist-sim list`, or any
-other discovery output. You have to know the path. Good for quick
-experiments and one-offs.
+other discovery output. You have to know the path.
 
-### Pattern B — env var (planned, not yet implemented)
+<!-- ### Pattern B -- env var (planned, not yet implemented)
 
 > *Status: deferred. Documented as the intended UX once a user needs it.*
 
@@ -64,10 +63,10 @@ model, data = load_combined("myoLeg22_2D", "MyExo_L1")   # works, found via env 
 CLI listing would include them too. The semicolon/colon path separator
 follows the platform convention (`os.pathsep`).
 
-If you find yourself needing this pattern, open an issue — implementation
+If you find yourself needing this pattern, open an issue -- implementation
 is mechanical and we'll add it when there's real demand.
 
-### Pattern C — programmatic registration (planned, not yet implemented)
+### Pattern C -- programmatic registration (planned, not yet implemented)
 
 > *Status: deferred. Documented as the intended UX once a user needs it.*
 
@@ -88,7 +87,7 @@ another (e.g. different training scripts loading different device sets),
 or when env vars aren't reliable in your runtime (notebook environments,
 CI runners, etc.).
 
-Like B, this is deferred until a user asks.
+Like B, this is deferred until a user asks. -->
 
 ## Naming considerations
 
@@ -100,7 +99,7 @@ Like B, this is deferred until a user asks.
   directory name + variant for consistency (`MyExo_L1`, not just
   `MyExo`).
 - If two devices end up with the same registry key (bundled + custom),
-  the bundled one wins. Pick a distinctive name to avoid collision —
+  the bundled one wins. Pick a distinctive name to avoid collision --
   there's no built-in shadowing.
 
 ## Custom MSK models
@@ -116,17 +115,17 @@ If you have a new MSK you want supported:
 2. Once it ships in `myo_sim`, add an entry to `_COMPATIBLE_MSK_KEYS`
    in `assist_sim/registry.py`.
 
-There's no "load this random MSK XML from a path I provide" pattern
+There's no "load this MSK XML from a path I provide" pattern
 because the pipeline relies on per-MSK conventions (frame orientation,
 joint naming, tendon/site naming) that are baked into the device YAMLs.
 Adding an unknown MSK risks silent incompatibility with existing
-devices, hence the curated registry.
+devices, hence the curated registry. If you would like custom MSK + device models, directly adding the device to the MSK model xml following similar procedures and formatting is best practice.
 
 ## See also
 
-- [how-to/add-a-device.md](add-a-device.md) — full device-authoring
+- [how-to/add-a-device.md](add-a-device.md) -- full device-authoring
   walkthrough
-- [device-config-reference.md](../device-config-reference.md) — YAML
+- [device-config-reference.md](../device-config-reference.md) -- YAML
   schema reference
-- [troubleshooting.md](../troubleshooting.md) — diagnosing errors when
+- [troubleshooting.md](../troubleshooting.md) -- diagnosing errors when
   a custom device doesn't compile

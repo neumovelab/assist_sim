@@ -1,6 +1,6 @@
 # Available Models
 
-Inventory of what ships in this repo and what's compatible with what.
+Inventory of what's compatible with what.
 
 ## MSK models (via `myo_sim`)
 
@@ -10,11 +10,7 @@ Three MSK keys are pipeline-compatible:
 |---|---|---|---|
 | `myoLeg22_2D` | `myo_sim/leg/myoLeg22_2D.xml` | 53 | 22-muscle 2D, custom lower-limb-focused variant |
 | `myoLeg26_3D` | `myo_sim/leg/myoLeg26_3D.xml` | 60 | 26-muscle 3D, custom lower-limb-focused variant |
-| `myoLeg80`    | `myo_sim/leg/myolegs.xml`     | 35 | Upstream 80-muscle MyoLeg with simplified torso, no arms |
-
-The custom 22/26 variants are being upstreamed to `myo_sim`. Until merged
-and published, install `myo_sim` from a git tag carrying them
-(see [getting-started.md](getting-started.md#myo_sim)).
+| `myoLeg80`    | `myo_sim/leg/myolegs.xml`     | 35 | Upstream 80-muscle MyoLeg with simplified torso, no arm articulation |
 
 ### Important MSK differences
 
@@ -25,7 +21,7 @@ and published, install `myo_sim` from a git tag carrying them
   / elbow / wrist joints); 22/26 carry a full HAT + arm chain.
 - **80 uses a `freejoint`** as the root; 22/26 have slide joints
   (`pelvis_tx`, `pelvis_ty`, `pelvis_tilt`). Keyframes that override
-  `pelvis_ty` in 22/26 are no-ops on 80 (the joint doesn't exist).
+  `pelvis_ty` in 22/26 are not applied to 80 (the joint doesn't exist).
 - **Tendon and site naming differs** between the lower-limb-focused 22/26
   and the full-anatomy 80. Per-MSK config overrides handle this.
 
@@ -48,7 +44,7 @@ device YAML's `device.name`).
 
 ## Compatibility matrix
 
-✓ = tested; — = not supported (and not currently planned).
+✓ = tested.
 
 | Device | myoLeg22_2D | myoLeg26_3D | myoLeg80 |
 |---|:-:|:-:|:-:|
@@ -56,12 +52,9 @@ device YAML's `device.name`).
 | `HMEDI_L1`            | ✓ | ✓ | ✓ |
 | `Humotech_L1`         | ✓ | ✓ | ✓ |
 | `OpenExo_L1`          | ✓ | ✓ | ✓ |
-| `Tutorial_L1`         | ✓ | ✓ | — |
+| `Tutorial_L1`         | ✓ | ✓ | ✓ |
 | `OpenSourceLeg_A_L1`  | ✓ | ✓ | ✓ |
 | `OpenSourceLeg_KA_L1` | ✓ | ✓ | ✓ |
-
-`Tutorial_L1` × myoLeg80 isn't authored because the 80-muscle model is
-intended for advanced workflows and Tutorial is an onboarding device.
 
 ## Verifying combinations locally
 

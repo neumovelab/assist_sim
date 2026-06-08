@@ -4,7 +4,7 @@ MSK models live in `myo_sim`, not in this repo. Adding a new MSK is a
 two-step process: contribute the MSK to `myo_sim`, then register it
 here.
 
-## Step 1 — Contribute the MSK to `myo_sim`
+## Step 1 -- Contribute the MSK to `myo_sim`
 
 Upstream the new MSK XML to `MyoHub/myo_sim` via PR. Conventions in
 `myo_sim` (per upstream):
@@ -22,10 +22,10 @@ fork or branch:
 pip install git+https://github.com/<your-fork>/myo_sim.git@<branch>
 ```
 
-`assist_sim` consumes whatever's installed — it doesn't care whether
+`assist_sim` consumes whatever's installed -- it doesn't care whether
 the source is upstream or a fork.
 
-## Step 2 — Register the MSK in `assist_sim`
+## Step 2 -- Register the MSK in `assist_sim`
 
 Add an entry to `_COMPATIBLE_MSK_KEYS` in `assist_sim/registry.py`:
 
@@ -42,7 +42,7 @@ Each entry maps a registry key to a `(subpackage, filename)` tuple.
 `importlib.resources.files(subpackage).joinpath(filename)` resolves
 the file at runtime.
 
-## Step 3 — Verify resolution
+## Step 3 -- Verify resolution
 
 ```python
 from assist_sim.registry import resolve
@@ -60,7 +60,7 @@ import myo_sim
 print(list(importlib.resources.files("myo_sim.leg").iterdir()))
 ```
 
-## Step 4 — Update devices for compatibility
+## Step 4 -- Update devices for compatibility
 
 If your new MSK has unique conventions (different body / tendon names,
 different world orientation, different DOFs), devices that previously
@@ -77,12 +77,12 @@ Two common patterns:
    per-MSK `attachments` block (see HMEDI's `myoLeg80` handling for
    an example).
 
-## Step 5 — Add tests + docs
+## Step 5 -- Add tests + docs
 
 - Add the new MSK to the `EXPECTED` dict in
   `tests/test_smoke_combinations.py` for each device combination you
   expect to work. The `(nq, nu, nbody, nmesh)` tuples are frozen
-  signatures — get them by running a one-off probe and pasting in
+  signatures -- get them by running a one-off probe and pasting in
   the actual values.
 - Update [available-models.md](../available-models.md) with the new
   MSK and its compatibility row.
@@ -90,7 +90,7 @@ Two common patterns:
   (different facing direction, no arms, freejoint root, etc.), add
   a paragraph to [available-models.md](../available-models.md#important-msk-differences).
 
-## Step 6 — Update quickstart's camera dispatch
+## Step 6 -- Update quickstart's camera dispatch
 
 The viewer's initial camera azimuth in `examples/quickstart.py` is
 chosen per-MSK because each MSK faces a different direction in world
@@ -112,5 +112,5 @@ viewer (the right-side panel shows the current camera state).
 
 ## See also
 
-- [concepts.md](../concepts.md#naming-conventions) — registry key conventions
-- [available-models.md](../available-models.md) — full MSK + device matrix
+- [concepts.md](../concepts.md#naming-conventions) -- registry key conventions
+- [available-models.md](../available-models.md) -- full MSK + device matrix

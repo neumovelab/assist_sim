@@ -61,7 +61,7 @@ print(f"nq={model.nq}  nu={model.nu}  nbody={model.nbody}")
 # nq=53  nu=24  nbody=50
 ```
 
-That's it. `model` is a standard MuJoCo `MjModel` — step it, render it,
+`model` is a standard MuJoCo `MjModel` -- step it, render it,
 inspect it, use it as the env's model in your training framework.
 
 ## Visual inspection
@@ -97,7 +97,7 @@ version bump. See [usage.md](usage.md) for details.
 
 ## What next?
 
-- [concepts.md](concepts.md) — how the two-phase pipeline works
-- [usage.md](usage.md) — the full API surface
-- [how-to/add-a-device.md](how-to/add-a-device.md) — authoring a new device
-- [device-config-reference.md](device-config-reference.md) — YAML schema reference
+- [concepts.md](concepts.md) -- how the two-phase pipeline works
+- [usage.md](usage.md) -- the full API surface
+- [how-to/add-a-device.md](how-to/add-a-device.md) -- authoring a new device
+- [device-config-reference.md](device-config-reference.md) -- YAML schema reference

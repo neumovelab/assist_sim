@@ -2,7 +2,7 @@
 
 Every device under `models/<DeviceDir>/` carries a YAML config (typically
 named `L1config.yaml` or `<variant>_L1config.yaml`). This doc is the schema
-reference — every section, every field, with examples.
+reference -- every section, every field, with examples.
 
 For walkthroughs see [how-to/add-a-device.md](how-to/add-a-device.md).
 
@@ -45,7 +45,7 @@ device:
 |---|---|---|---|
 | `name` | string | yes | Namespace prefix applied to every body / site / mesh / joint / actuator / tendon imported from the device XML. Convention: PascalCase + `_L1` suffix (e.g. `DephyExoBoot_L1`, `OpenSourceLeg_A_L1`). |
 | `model_xml` | path | yes | Path to the device's MuJoCo XML, relative to this YAML file. |
-| `compatible_msk` | list | no | Restricts which MSKs this device may combine with. Absent → compatible with all. |
+| `compatible_msk` | list | no | Restricts which MSKs this device may combine with. If absent, default to compatible with all. |
 
 ## `attachments`
 
@@ -114,7 +114,7 @@ joint_overrides:
 ## `actuators`
 
 Add new actuators to the combined model. For joint-transmission actuators
-only — tendon-transmission actuators are authored in the device XML directly.
+only -- tendon-transmission actuators are authored in the device XML directly.
 
 ```yaml
 actuators:
@@ -184,7 +184,7 @@ Use when joint names differ across MSKs (e.g. `pelvis_ty` doesn't exist in
 
 Replace keyframes entirely with explicit qpos/qvel arrays. Model-specific
 (must match `nq` / `nv` exactly). Avoid unless you really need to author
-full arrays — use `keyframe_overrides` instead for model-agnostic patches.
+full arrays -- use `keyframe_overrides` instead for model-agnostic patches.
 
 ```yaml
 keyframes:
@@ -297,7 +297,7 @@ on the same body, e.g. `tibia_r_geom_1` vs `r_tibia`).
 
 ## `geom_removals`
 
-Surgical geom removal — for cases where `mesh_replacements` swaps one geom
+Geom removal -- for cases where `mesh_replacements` swaps one geom
 on a body but a sibling geom needs to disappear too.
 
 ```yaml
@@ -308,13 +308,13 @@ geom_removals:
     - "r_fibula"
 ```
 
-Canonical use: transtibial amputation where the residual mesh covers
+Use: transtibial amputation where the residual mesh covers
 tibia + fibula but the MSK had them as two separate geoms. The strip
 cascades into contact pair cleanup.
 
 Per-MSK supported.
 
-## Per-MSK overrides — summary
+## Per-MSK overrides -- summary
 
 Sections that support the `default:` + `<msk_key>:` dispatch:
 
@@ -332,7 +332,7 @@ Sections that support the `default:` + `<msk_key>:` dispatch:
 | `geom_removals` | ✓ |
 
 Sections marked "planned" use the flat list form for now; per-MSK support
-is incremental as real configs need it.
+is incremental as configs need it.
 
 ## Authoring rules of thumb
 
@@ -347,6 +347,6 @@ is incremental as real configs need it.
    joints.** `keyframe_overrides` can refer to either bare names (MSK
    joints) or prefixed names (device joints like `OSL_KA_L1_osl_knee_angle_r`),
    but the bare-then-prefixed fallback in the resolver means you can
-   often omit the prefix — the resolver tries both.
+   often omit the prefix -- the resolver tries both.
 4. **For unnamed joint inside a body, you still must remove the body if
    you want it gone.** Removals are by body name; the joints come along.

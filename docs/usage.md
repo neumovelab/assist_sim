@@ -5,7 +5,7 @@ architectural background.
 
 ## Python API
 
-### `load_combined_model` — the low-level entrypoint
+### `load_combined_model` -- the low-level entrypoint
 
 ```python
 from assist_sim import load_combined_model
@@ -23,7 +23,7 @@ model, data = load_combined_model(
 Returns a compiled model + an `MjData` initialized from `qpos0`. The
 baseline `human_xml` is never modified on disk.
 
-### `load_combined` — registry-aware convenience
+### `load_combined` -- registry-aware convenience
 
 ```python
 from assist_sim import load_combined
@@ -40,7 +40,7 @@ path via local autodiscovery) and calls `load_combined_model` under the
 hood. Auto-passes `msk_key=msk` for per-MSK override resolution. The
 preferred entrypoint once `myo_sim` is installed.
 
-### `resolve_model_path` — compile + export, return XML path
+### `resolve_model_path` -- compile + export, return XML path
 
 ```python
 from assist_sim import resolve_model_path
@@ -123,7 +123,7 @@ The registry has two halves:
   and confirming the file exists in `myo_sim`.
 - **Device configs** are autodiscovered by scanning `models/*/config.yaml`.
   Adding a new device dir with a `*config.yaml` makes it available next
-  import — no registry edit needed.
+  import -- no registry edit needed.
 
 ```python
 from assist_sim.registry import (
@@ -151,8 +151,8 @@ device_config mtime, device_model_xml path, device_model_xml mtime,
 pipeline version, msk_key)`. Any change → cache miss → fresh compile.
 
 **On disk**:
-- `<cache_dir>/<key>.xml` — the exported combined XML
-- `<cache_dir>/<key>.meta.json` — input fingerprints for debugging stale entries
+- `<cache_dir>/<key>.xml` -- the exported combined XML
+- `<cache_dir>/<key>.meta.json` -- input fingerprints for debugging stale entries
 
 **No global cache.** No `~/.cache/...` magic. Users who want to evict can
 `rm -r <cache_dir>`.

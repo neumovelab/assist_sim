@@ -1,9 +1,9 @@
 # How To: Export and Load Combined Models
 
-When you want a *file* on disk (not just an in-memory `MjModel`) — for
+When you want a *file* on disk (not just an in-memory `MjModel`) -- for
 sharing, for inspection in `simulate.exe`, for consumption by a tool
-that expects a path. This guide covers the export options and the
-re-load story.
+that expects a path. This guide covers the export and
+re-load options.
 
 ## Export from Python
 
@@ -63,7 +63,7 @@ data = mj.MjData(model)
 ```
 
 This is just standard MuJoCo. The exported XML is a self-contained model
-(modulo the mesh files, which are referenced by relative path from the
+(with the mesh files, which are referenced by relative path from the
 XML's directory).
 
 ## Re-loading after moving the XML
@@ -91,26 +91,26 @@ model, data = load_combined_model(
 )
 ```
 
-First call: full pipeline → writes a cached XML + meta.json keyed on the
+First call: full pipeline; writes a cached XML + meta.json keyed on the
 inputs.
 
-Second call (unchanged inputs): cache hit → loads the cached XML
+Second call (unchanged inputs): cache hit; loads the cached XML
 directly. Significantly faster.
 
-Edit any input file → cache miss → fresh compile.
+Edit any input file ; cache miss; fresh compile.
 
 Cache files:
 
-- `<cache_dir>/<sha1_key>.xml` — the combined XML
-- `<cache_dir>/<sha1_key>.meta.json` — input paths + mtimes (for
+- `<cache_dir>/<sha1_key>.xml` -- the combined XML
+- `<cache_dir>/<sha1_key>.meta.json` -- input paths + mtimes (for
   debugging which entry is which)
 
 **Invalidation rules:**
-- Any input file mtime change → cache miss
-- `assist_sim.__version__` bump → all entries miss
+- Any input file mtime change ; cache miss
+- `assist_sim.__version__` bump ; all entries miss
 
 **Eviction:** `rm -r <cache_dir>` whenever. No background cleanup, no
-size cap. Caching is a single-user local optimization, not a service.
+size cap. Caching is a single-user local optimization.
 
 ## Common workflows
 
@@ -120,7 +120,7 @@ size cap. Caching is a single-user local optimization, not a service.
 # First run: full compile
 python examples/quickstart.py myoLeg22_2D MyDevice_L1
 # Edit models/MyDevice/L1config.yaml
-# Re-run: cache miss (YAML mtime changed) → fresh compile
+# Re-run: cache miss (YAML mtime changed); fresh compile
 python examples/quickstart.py myoLeg22_2D MyDevice_L1
 ```
 
@@ -133,19 +133,7 @@ python -m assist_sim compile myoLeg22_2D DephyExoBoot_L1 \
 
 The other tool loads the XML directly via `MjModel.from_xml_path`.
 
-### Pre-warm a cache for a CI run
-
-```python
-from assist_sim import get_available_combinations, load_combined
-
-for msk, devs in get_available_combinations().items():
-    for dev in devs:
-        load_combined(msk, dev, cache_dir="./.cache")
-```
-
-Cold one-time pass; subsequent CI invocations hit cache.
-
 ## See also
 
-- [usage.md](../usage.md) — the full API
-- [troubleshooting.md](../troubleshooting.md) — mesh-path / cache-stale issues
+- [usage.md](../usage.md) -- the full API
+- [troubleshooting.md](../troubleshooting.md) -- mesh-path / cache-stale issues

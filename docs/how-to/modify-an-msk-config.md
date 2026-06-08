@@ -17,7 +17,7 @@ Use them when:
 
 Don't use them when:
 
-- A single block works for all MSKs — keep it as the flat-list form.
+- A single block works for all MSKs -- keep it as the flat-list form.
 - The difference is small enough to handle in the device XML itself
   (e.g. a body's `pos`/`quat` in the device XML rarely needs per-MSK
   variation).
@@ -35,7 +35,7 @@ Don't use them when:
 | `geom_removals` | ✓ |
 
 See [device-config-reference.md](../device-config-reference.md#per-msk-overrides-summary)
-for the running list — sections are migrated as real configs demand them.
+for the running list -- sections are migrated as real configs demand them.
 
 ## Schema shape
 
@@ -97,7 +97,7 @@ Why `myoLeg80: []` (empty list) instead of just omitting it?
 
 - If only `default:` is provided, every MSK gets that block.
 - For 80, the tendon names `rect_fem_r_tendon` / `vasti_r_tendon` don't
-  exist (80 uses `recfem_r_tendon` / `vasint_r_tendon` etc.) — applying
+  exist (80 uses `recfem_r_tendon` / `vasint_r_tendon` etc.) -- applying
   the default would raise `unknown tendon`.
 - The empty `myoLeg80: []` opts 80 out cleanly without affecting 22/26.
 
@@ -128,7 +128,7 @@ attachments:
 ```
 
 When using the per-MSK form for attachments, **list every attachment in
-each block** — the resolver returns the whole list, not a diff. If you
+each block** -- the resolver returns the whole list, not a diff. If you
 forget an attachment in the per-MSK block, that part won't be attached
 on that MSK.
 
@@ -166,6 +166,6 @@ Both should compile and look right.
 
 ## See also
 
-- [device-config-reference.md](../device-config-reference.md) — the full
+- [device-config-reference.md](../device-config-reference.md) -- the full
   schema, including which sections support per-MSK
 - [how-to/debug-a-combined-model.md](debug-a-combined-model.md)
