@@ -85,9 +85,7 @@ def load_combined_model(
         from . import cache as _cache
 
         cache_dir = Path(cache_dir)
-        paths = _cache.input_paths(
-            human_xml, device_config, str(config.model_xml_path)
-        )
+        paths = _cache.input_paths(human_xml, device_config, str(config.model_xml_path))
         key = _cache.compute_key(paths, __version__, msk_key)
 
         hit = _cache.try_load(cache_dir, key)

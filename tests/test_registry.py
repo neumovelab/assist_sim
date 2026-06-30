@@ -16,6 +16,7 @@ FIXTURES = Path(__file__).resolve().parent / "fixtures"
 # Explicit MSK registry
 # ----------------------------------------------------------------------
 
+
 def test_compatible_msk_keys_are_locked():
     """The set of pipeline-compatible MSK keys is curated, not autodiscovered."""
     assert set(registry._COMPATIBLE_MSK_KEYS) == {
@@ -54,6 +55,7 @@ def test_missing_myo_sim_raises_importerror():
 # Device autodiscovery
 # ----------------------------------------------------------------------
 
+
 @pytest.fixture
 def temp_models(tmp_path):
     """Build a temp models/ tree (devices only) and point the registry at it."""
@@ -64,8 +66,7 @@ def temp_models(tmp_path):
     dev.mkdir(parents=True)
     shutil.copy(FIXTURES / "minimal_device.xml", dev / "L1model.xml")
     (dev / "L1config.yaml").write_text(
-        'device:\n  name: "MyDev"\n  model_xml: "L1model.xml"\n'
-        "attachments:\n  - device_body: dev_a\n    parent_body: pelvis\n",
+        'device:\n  name: "MyDev"\n  model_xml: "L1model.xml"\nattachments:\n  - device_body: dev_a\n    parent_body: pelvis\n',
         encoding="utf-8",
     )
 

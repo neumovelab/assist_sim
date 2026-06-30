@@ -43,7 +43,7 @@ MODELS_ROOT = Path(str(_files("assist_sim").joinpath("models")))
 _COMPATIBLE_MSK_KEYS: Dict[str, Tuple[str, str]] = {
     "myoLeg22_2D": ("myo_sim.leg", "myoLeg22_2D.xml"),
     "myoLeg26_3D": ("myo_sim.leg", "myoLeg26_3D.xml"),
-    "myoLeg80":    ("myo_sim.leg", "myolegs.xml"),
+    "myoLeg80": ("myo_sim.leg", "myolegs.xml"),
 }
 
 
@@ -55,15 +55,8 @@ def _resolve_msk(key: str) -> Path:
     """Resolve an MSK key to an absolute filesystem path via myo_sim package."""
     if key not in _COMPATIBLE_MSK_KEYS:
         suggestions = closest_matches(key, _COMPATIBLE_MSK_KEYS)
-        hint = (
-            f" Did you mean {', '.join(repr(s) for s in suggestions)}?"
-            if suggestions
-            else ""
-        )
-        raise ValueError(
-            f"Unknown MSK model '{key}'. "
-            f"Available: {sorted(_COMPATIBLE_MSK_KEYS)}.{hint}"
-        )
+        hint = f" Did you mean {', '.join(repr(s) for s in suggestions)}?" if suggestions else ""
+        raise ValueError(f"Unknown MSK model '{key}'. Available: {sorted(_COMPATIBLE_MSK_KEYS)}.{hint}")
 
     pkg, filename = _COMPATIBLE_MSK_KEYS[key]
     try:
@@ -159,6 +152,7 @@ def refresh() -> None:
 # Resolution + queries
 # ----------------------------------------------------------------------
 
+
 def _resolve_device_key(device_key: str) -> str:
     if device_key in DEVICE_CONFIGS:
         return device_key
@@ -166,14 +160,8 @@ def _resolve_device_key(device_key: str) -> str:
         return _DEVICE_ALIASES[device_key]
     candidates = list(DEVICE_CONFIGS) + list(_DEVICE_ALIASES)
     suggestions = closest_matches(device_key, candidates)
-    hint = (
-        f" Did you mean {', '.join(repr(s) for s in suggestions)}?"
-        if suggestions
-        else ""
-    )
-    raise ValueError(
-        f"Unknown device '{device_key}'. Available: {sorted(DEVICE_CONFIGS)}.{hint}"
-    )
+    hint = f" Did you mean {', '.join(repr(s) for s in suggestions)}?" if suggestions else ""
+    raise ValueError(f"Unknown device '{device_key}'. Available: {sorted(DEVICE_CONFIGS)}.{hint}")
 
 
 def _compatible(device_key: str, msk_key: str) -> bool:
@@ -193,8 +181,7 @@ def resolve(msk_key: str, device_key: str) -> Tuple[Path, Path]:
     key = _resolve_device_key(device_key)
     if not _compatible(key, msk_key):
         raise ValueError(
-            f"Device '{device_key}' is not compatible with MSK '{msk_key}'. "
-            f"Compatible MSKs: {_COMPATIBLE_MSK.get(key)}"
+            f"Device '{device_key}' is not compatible with MSK '{msk_key}'. Compatible MSKs: {_COMPATIBLE_MSK.get(key)}"
         )
     return msk_path, DEVICE_CONFIGS[key]
 
@@ -208,9 +195,7 @@ def get_available_combinations() -> Dict[str, List[str]]:
     """
     result: Dict[str, List[str]] = {}
     for msk_key in sorted(MSK_MODELS):
-        devices = [
-            dk for dk in sorted(DEVICE_CONFIGS) if _compatible(dk, msk_key)
-        ]
+        devices = [dk for dk in sorted(DEVICE_CONFIGS) if _compatible(dk, msk_key)]
         result[msk_key] = devices
     return result
 

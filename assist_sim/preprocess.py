@@ -33,6 +33,7 @@ _QVEL_WIDTH = {"free": 6, "ball": 3, "slide": 1, "hinge": 1}
 @dataclass
 class JointIndex:
     """A joint's position in the document-order qpos / qvel layout."""
+
     name: Optional[str]
     jtype: str
     qpos_start: int
@@ -44,6 +45,7 @@ class JointIndex:
 @dataclass
 class KeyframeData:
     """A keyframe decomposed into per-joint qpos / qvel slices (by name)."""
+
     time: float
     qpos_by_joint: Dict[str, List[float]] = field(default_factory=dict)
     qvel_by_joint: Dict[str, List[float]] = field(default_factory=dict)
@@ -52,6 +54,7 @@ class KeyframeData:
 @dataclass
 class PreprocessResult:
     """Output of :func:`preprocess_human_xml`."""
+
     path: str
     keyframes: Dict[str, KeyframeData]
     removed_joints: Set[str]
@@ -64,6 +67,7 @@ class PreprocessResult:
 # ----------------------------------------------------------------------
 # ElementTree helpers
 # ----------------------------------------------------------------------
+
 
 def _build_parent_map(root: ET.Element) -> Dict[ET.Element, ET.Element]:
     """Map every element to its parent (ElementTree has no upward link)."""
@@ -146,13 +150,9 @@ def parse_keyframes(
             if not j.name:
                 continue
             if qpos is not None and j.qpos_start + j.qpos_width <= len(qpos):
-                data.qpos_by_joint[j.name] = qpos[
-                    j.qpos_start : j.qpos_start + j.qpos_width
-                ]
+                data.qpos_by_joint[j.name] = qpos[j.qpos_start : j.qpos_start + j.qpos_width]
             if qvel is not None and j.qvel_start + j.qvel_width <= len(qvel):
-                data.qvel_by_joint[j.name] = qvel[
-                    j.qvel_start : j.qvel_start + j.qvel_width
-                ]
+                data.qvel_by_joint[j.name] = qvel[j.qvel_start : j.qvel_start + j.qvel_width]
         result[name] = data
     return result
 
@@ -203,9 +203,7 @@ def inline_mujoco_includes(root: ET.Element, base_dir: Path, depth: int = 0) -> 
                 raise FileNotFoundError(f"include not found: {inc_path}")
             inc_root = ET.parse(str(inc_path)).getroot()
             if inc_root.tag not in ("mujocoinclude", "mujoco"):
-                raise ValueError(
-                    f"unsupported include root <{inc_root.tag}> in {inc_path}"
-                )
+                raise ValueError(f"unsupported include root <{inc_root.tag}> in {inc_path}")
             idx = list(root).index(child)
             root.remove(child)
             for offset, imported in enumerate(list(inc_root)):
@@ -220,10 +218,21 @@ def inline_mujoco_includes(root: ET.Element, base_dir: Path, depth: int = 0) -> 
 
 # Top-level sections that MuJoCo merges by appending children.  Anything in this
 # set may legally appear multiple times at the same depth after include inlining.
-_MERGEABLE_SECTIONS = frozenset({
-    "worldbody", "asset", "default", "contact", "sensor",
-    "tendon", "actuator", "equality", "keyframe", "size", "custom",
-})
+_MERGEABLE_SECTIONS = frozenset(
+    {
+        "worldbody",
+        "asset",
+        "default",
+        "contact",
+        "sensor",
+        "tendon",
+        "actuator",
+        "equality",
+        "keyframe",
+        "size",
+        "custom",
+    }
+)
 
 
 def merge_top_level_duplicates(root: ET.Element) -> None:
@@ -297,6 +306,7 @@ def _collect_descendants(
 # Removal / cascade passes
 # ----------------------------------------------------------------------
 
+
 def _all_body_names(root: ET.Element) -> List[str]:
     return [b.get("name") for b in root.iter("body") if b.get("name")]
 
@@ -313,9 +323,7 @@ def _remove_bodies(
     for name in body_names:
         elem = _find_body(root, name)
         if elem is None:
-            raise unknown_reference(
-                name, _all_body_names(root), section="body_removals", kind="body"
-            )
+            raise unknown_reference(name, _all_body_names(root), section="body_removals", kind="body")
         j, g, s, b = _collect_descendants(elem)
         rj |= j
         rg |= g
@@ -336,19 +344,13 @@ def _remove_geoms_by_name(root: ET.Element, names: List[str]) -> Set[str]:
     """
     if not names:
         return set()
-    available: List[str] = [
-        g.get("name") for g in root.iter("geom") if g.get("name")
-    ]
+    available: List[str] = [g.get("name") for g in root.iter("geom") if g.get("name")]
     removed: Set[str] = set()
     parent_map = _build_parent_map(root)
     for name in names:
-        elem = next(
-            (g for g in root.iter("geom") if g.get("name") == name), None
-        )
+        elem = next((g for g in root.iter("geom") if g.get("name") == name), None)
         if elem is None:
-            raise unknown_reference(
-                name, available, section="geom_removals", kind="geom"
-            )
+            raise unknown_reference(name, available, section="geom_removals", kind="geom")
         parent_map[elem].remove(elem)
         removed.add(name)
     return removed
@@ -363,11 +365,7 @@ def _remove_named(
 ) -> None:
     if not names:
         return
-    available = (
-        [c.get("name") for c in section_root if c.get("name")]
-        if section_root is not None
-        else []
-    )
+    available = [c.get("name") for c in section_root if c.get("name")] if section_root is not None else []
     for name in names:
         elem = _find_named_child(section_root, name)
         if elem is None:
@@ -408,11 +406,7 @@ def _apply_tendon_modifications(
     """
     if not modifications:
         return
-    available_tendons = (
-        [c.get("name") for c in tendon_root if c.get("name")]
-        if tendon_root is not None
-        else []
-    )
+    available_tendons = [c.get("name") for c in tendon_root if c.get("name")] if tendon_root is not None else []
     site_to_body, all_site_names = _site_body_map(root)
 
     for mod in modifications:
@@ -450,10 +444,7 @@ def _apply_tendon_modifications(
 
             new_name = f"{edit.site}__mod"
             if new_name in all_site_names:
-                raise ValueError(
-                    f"tendon_modifications[{mod.name}]: synthesized site "
-                    f"'{new_name}' already exists (collision)."
-                )
+                raise ValueError(f"tendon_modifications[{mod.name}]: synthesized site '{new_name}' already exists (collision).")
 
             if edit.op == "reposition_site":
                 target_body = site_to_body.get(edit.site)
@@ -517,21 +508,15 @@ def _cascade_cleanup(
             }
             body_ref = {e.get("body1"), e.get("body2")}
             site_ref = {e.get("site1"), e.get("site2")}
-            if (refs & joint_refs) or (body_ref & body_refs) or (
-                site_ref & removed_sites
-            ):
+            if (refs & joint_refs) or (body_ref & body_refs) or (site_ref & removed_sites):
                 equality.remove(e)
 
     contact = root.find("contact")
     if contact is not None:
         for p in list(contact):
-            if p.tag == "pair" and (
-                p.get("geom1") in removed_geoms or p.get("geom2") in removed_geoms
-            ):
+            if p.tag == "pair" and (p.get("geom1") in removed_geoms or p.get("geom2") in removed_geoms):
                 contact.remove(p)
-            elif p.tag == "exclude" and (
-                p.get("body1") in removed_bodies or p.get("body2") in removed_bodies
-            ):
+            elif p.tag == "exclude" and (p.get("body1") in removed_bodies or p.get("body2") in removed_bodies):
                 contact.remove(p)
 
     sensor = root.find("sensor")
@@ -544,9 +529,7 @@ def _cascade_cleanup(
                 s.get("geom"),
                 s.get("body"),
             }
-            if (refs & joint_refs) or (refs & removed_sites) or (
-                refs & removed_geoms
-            ) or (refs & removed_bodies):
+            if (refs & joint_refs) or (refs & removed_sites) or (refs & removed_geoms) or (refs & removed_bodies):
                 sensor.remove(s)
 
 
@@ -558,9 +541,7 @@ def _remove_keyframes(root: ET.Element) -> None:
 
 def _write_temp_xml(root: ET.Element, src_path: Path, tag: str) -> str:
     """Serialize *root* to a temp XML next to *src_path*; return its path."""
-    fd, tmp_path = tempfile.mkstemp(
-        suffix=".xml", prefix=f"{src_path.stem}__{tag}_", dir=str(src_path.parent)
-    )
+    fd, tmp_path = tempfile.mkstemp(suffix=".xml", prefix=f"{src_path.stem}__{tag}_", dir=str(src_path.parent))
     os.close(fd)
     ET.ElementTree(root).write(tmp_path, encoding="utf-8", xml_declaration=False)
     return tmp_path
@@ -569,6 +550,7 @@ def _write_temp_xml(root: ET.Element, src_path: Path, tag: str) -> str:
 # ----------------------------------------------------------------------
 # Public entry points
 # ----------------------------------------------------------------------
+
 
 def preprocess_human_xml(
     human_xml: str,
@@ -616,9 +598,7 @@ def preprocess_human_xml(
         kind="actuator",
     )
     tendon_root = root.find("tendon")
-    _remove_named(
-        tendon_root, tendon_removals, section="tendon_removals", kind="tendon"
-    )
+    _remove_named(tendon_root, tendon_removals, section="tendon_removals", kind="tendon")
 
     _apply_tendon_modifications(root, tendon_root, tendon_modifications)
     _auto_prune_wraps(tendon_root, rs, rg)
@@ -630,6 +610,7 @@ def preprocess_human_xml(
     # model is also model-only -- not just the exported XML.  assist_sim outputs
     # are model-only; downstream consumers (myoassist.terrains) layer the scene.
     from .utils import _strip_terrain
+
     _strip_terrain(root, terrain_paths)
 
     path = _write_temp_xml(root, src, "human_pp")

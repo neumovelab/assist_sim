@@ -114,9 +114,7 @@ def test_strip_drops_lingering_terrain_include_directives(tmp_path):
 
 
 def test_strip_noop_when_no_terrain_paths():
-    root = ET.fromstring(
-        """<mujoco><worldbody><body name="ground"/></worldbody></mujoco>"""
-    )
+    root = ET.fromstring("""<mujoco><worldbody><body name="ground"/></worldbody></mujoco>""")
     _strip_terrain(root, [])
     # Without terrain paths, nothing is stripped (the strip is driven by the
     # terrain XML's contents).

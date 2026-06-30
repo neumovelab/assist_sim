@@ -53,9 +53,7 @@ def export_combined_xml(
     _deduplicate_defaults(root)
     _deduplicate_meshes(root)
     if mesh_dirs:
-        normalized = [
-            md if isinstance(md, tuple) else (md, "") for md in mesh_dirs
-        ]
+        normalized = [md if isinstance(md, tuple) else (md, "") for md in mesh_dirs]
         _rewrite_mesh_paths(root, output_path.parent, normalized)
         _strip_resource_dirs(root)
 
@@ -70,6 +68,7 @@ def export_combined_xml(
 # ------------------------------------------------------------------
 # Internal helpers
 # ------------------------------------------------------------------
+
 
 def _strip_terrain(
     root: ET.Element,
@@ -97,10 +96,7 @@ def _strip_terrain(
     # white clear color regardless of whether a skybox is defined).  Keeping
     # the terrain-config-derived 2D texture + its material around -- with no
     # geom referencing them -- is harmless and keeps the skybox visible.
-    terrain_info: dict[str, set[str]] = {
-        tag: set()
-        for tag in ("hfield", "body", "geom", "site")
-    }
+    terrain_info: dict[str, set[str]] = {tag: set() for tag in ("hfield", "body", "geom", "site")}
     for tp in terrain_paths:
         if not tp.exists():
             continue
@@ -139,12 +135,7 @@ def _strip_terrain(
         for pair in list(contact_root.findall("pair")):
             g1, g2 = pair.get("geom1"), pair.get("geom2")
             b1, b2 = pair.get("body1"), pair.get("body2")
-            if (
-                g1 in removed_geom_names
-                or g2 in removed_geom_names
-                or b1 in removed_body_names
-                or b2 in removed_body_names
-            ):
+            if g1 in removed_geom_names or g2 in removed_geom_names or b1 in removed_body_names or b2 in removed_body_names:
                 contact_root.remove(pair)
 
     # Drop any pre-existing terrain <include> directives surviving the round-trip.
@@ -248,6 +239,7 @@ def _deduplicate_defaults(root: ET.Element) -> None:
     attach_body call re-creates the device's default class tree.  This
     function keeps only the first occurrence of each class name.
     """
+
     def _dedup_children(parent: ET.Element) -> None:
         seen_classes: set[str] = set()
         to_remove: list[ET.Element] = []
@@ -298,5 +290,3 @@ def _deduplicate_meshes(root: ET.Element) -> None:
 
     for mesh in to_remove:
         asset_elem.remove(mesh)
-
-

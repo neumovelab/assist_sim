@@ -77,6 +77,4 @@ def try_load(cache_dir: Path, key: str) -> Optional[Tuple[mj.MjModel, mj.MjData]
 
 def write_meta(cache_dir: Path, key: str, meta: dict) -> None:
     """Write provenance for a cache entry next to its XML."""
-    (Path(cache_dir) / f"{key}.meta.json").write_text(
-        json.dumps(meta, indent=2), encoding="utf-8"
-    )
+    (Path(cache_dir) / f"{key}.meta.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")

@@ -85,19 +85,14 @@ def test_per_msk_tendon_modifications(tmp_path):
 def test_per_msk_keyframe_overrides(tmp_path):
     config = DeviceConfig.from_yaml(_write_config(tmp_path, PER_MSK_YAML))
     assert config.resolve_keyframe_overrides()["stand"].joint_values == {"pelvis_ty": 0.91}
-    assert (
-        config.resolve_keyframe_overrides("myoLeg80")["stand"].joint_values
-        == {"pelvis_ty": 0.95}
-    )
+    assert config.resolve_keyframe_overrides("myoLeg80")["stand"].joint_values == {"pelvis_ty": 0.95}
 
 
 def test_default_form_still_works(tmp_path):
     config = DeviceConfig.from_yaml(_write_config(tmp_path, DEFAULT_YAML))
     # any msk_key falls back to the single default form
     assert config.resolve_actuator_removals("anything") == ["soleus_r"]
-    assert config.resolve_keyframe_overrides("anything")["stand"].joint_values == {
-        "pelvis_ty": 0.91
-    }
+    assert config.resolve_keyframe_overrides("anything")["stand"].joint_values == {"pelvis_ty": 0.91}
 
 
 PER_MSK_ATTACH_YAML = """\

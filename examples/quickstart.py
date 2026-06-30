@@ -126,10 +126,7 @@ def main() -> None:
         device_config=str(device_path),
         msk_key=args.msk,
     )
-    print(
-        f"  nq={model.nq}  nu={model.nu}  nbody={model.nbody}  "
-        f"nmesh={model.nmesh}  nkey={model.nkey}"
-    )
+    print(f"  nq={model.nq}  nu={model.nu}  nbody={model.nbody}  nmesh={model.nmesh}  nkey={model.nkey}")
 
     # Load the first keyframe if any, so the model isn't sitting at qpos0.
     if model.nkey > 0:
@@ -145,11 +142,7 @@ def main() -> None:
     # Rendering panel.
     model.vis.quality.shadowsize = 0
 
-    print(
-        "\nOpening paused viewer.  Drag to rotate, scroll to zoom, "
-        "ctrl-drag to pan.\n"
-        "Press Enter to exit.\n"
-    )
+    print("\nOpening paused viewer.  Drag to rotate, scroll to zoom, ctrl-drag to pan.\nPress Enter to exit.\n")
 
     # launch_passive() returns a Handle in a separate window; the simulation
     # does NOT step (paused).  Keep the script alive until the user signals exit.

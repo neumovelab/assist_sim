@@ -104,9 +104,7 @@ class ModelCombiner:
             # First compile gives the final qpos/dof layout used to rebuild
             # keyframes by joint name (no MjSpec.delete needed).
             model = human_spec.compile()
-            self._rebuild_keyframes(
-                human_spec, model, pp.keyframes, device_config, prefix, msk_key
-            )
+            self._rebuild_keyframes(human_spec, model, pp.keyframes, device_config, prefix, msk_key)
             model = human_spec.compile()
             data = mj.MjData(model)
 
@@ -349,12 +347,8 @@ class ModelCombiner:
             qpos = list(model.qpos0)
             qvel = [0.0] * model.nv
 
-            ModelCombiner._restore_joint_slices(
-                model, kf_data.qpos_by_joint, qpos, model.jnt_qposadr
-            )
-            ModelCombiner._restore_joint_slices(
-                model, kf_data.qvel_by_joint, qvel, model.jnt_dofadr
-            )
+            ModelCombiner._restore_joint_slices(model, kf_data.qpos_by_joint, qpos, model.jnt_qposadr)
+            ModelCombiner._restore_joint_slices(model, kf_data.qvel_by_joint, qvel, model.jnt_dofadr)
 
             override = overrides.get(kf_name)
             if override is not None:
@@ -381,9 +375,7 @@ class ModelCombiner:
         for joint_name, value in override.joint_values.items():
             jid = mj.mj_name2id(model, mj.mjtObj.mjOBJ_JOINT, joint_name)
             if jid < 0 and prefix:
-                jid = mj.mj_name2id(
-                    model, mj.mjtObj.mjOBJ_JOINT, prefix + joint_name
-                )
+                jid = mj.mj_name2id(model, mj.mjtObj.mjOBJ_JOINT, prefix + joint_name)
             if jid < 0:
                 # MSKs differ (e.g. myoLeg80 has freejoint root, not pelvis_ty).
                 continue

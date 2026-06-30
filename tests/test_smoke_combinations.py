@@ -23,15 +23,15 @@ from .conftest import needs_myo_sim
 # the ground body is now stripped at preprocess time (assist_sim emits
 # model-only XMLs; downstream consumers layer terrain on top).
 EXPECTED = {
-    ("myoLeg22_2D", "DephyExoBoot_L1"):     (53, 24, 50, 44),
-    ("myoLeg26_3D", "DephyExoBoot_L1"):     (60, 28, 50, 44),
-    ("myoLeg22_2D", "OpenSourceLeg_A_L1"):  (52, 19, 37, 35),
-    ("myoLeg26_3D", "OpenSourceLeg_A_L1"):  (59, 23, 37, 35),
+    ("myoLeg22_2D", "DephyExoBoot_L1"): (53, 24, 50, 44),
+    ("myoLeg26_3D", "DephyExoBoot_L1"): (60, 28, 50, 44),
+    ("myoLeg22_2D", "OpenSourceLeg_A_L1"): (52, 19, 37, 35),
+    ("myoLeg26_3D", "OpenSourceLeg_A_L1"): (59, 23, 37, 35),
     ("myoLeg22_2D", "OpenSourceLeg_KA_L1"): (44, 17, 36, 37),
     ("myoLeg26_3D", "OpenSourceLeg_KA_L1"): (51, 21, 36, 37),
-    ("myoLeg80",    "DephyExoBoot_L1"):     (35, 82, 30, 31),
-    ("myoLeg80",    "OpenSourceLeg_A_L1"):  (33, 69, 17, 22),
-    ("myoLeg80",    "OpenSourceLeg_KA_L1"): (29, 56, 19, 24),
+    ("myoLeg80", "DephyExoBoot_L1"): (35, 82, 30, 31),
+    ("myoLeg80", "OpenSourceLeg_A_L1"): (33, 69, 17, 22),
+    ("myoLeg80", "OpenSourceLeg_KA_L1"): (29, 56, 19, 24),
 }
 
 
@@ -83,6 +83,7 @@ def test_hmedi_torso_per_msk_attachment_on_80(models_dir):
     """myoLeg80 attaches hmedi_torso to pelvis (not torso) with a compensating
     pos offset.  Pure config-resolution test -- doesn't require myo_sim to run."""
     from assist_sim.config import DeviceConfig
+
     config = DeviceConfig.from_yaml(str(models_dir / "HMEDI" / "L1config.yaml"))
     default_atts = {a.device_body: a for a in config.resolve_attachments()}
     msk80_atts = {a.device_body: a for a in config.resolve_attachments("myoLeg80")}

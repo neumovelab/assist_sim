@@ -112,9 +112,7 @@ def test_combined_keyframes_preserve_source_values():
     for name, value in expected.items():
         jid = mj.mj_name2id(model, mj.mjtObj.mjOBJ_JOINT, name)
         assert jid >= 0, f"joint {name} missing from compiled model"
-        assert qpos[int(model.jnt_qposadr[jid])] == pytest.approx(value, abs=1e-6), (
-            f"keyframe lost authored value for {name}"
-        )
+        assert qpos[int(model.jnt_qposadr[jid])] == pytest.approx(value, abs=1e-6), f"keyframe lost authored value for {name}"
 
 
 def test_widths_for_slide_and_hinge(minimal_human):

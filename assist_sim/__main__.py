@@ -66,10 +66,7 @@ def _cmd_combine(args: argparse.Namespace) -> int:
         export_xml=args.output,
         cache_dir=args.cache_dir,
     )
-    print(
-        f"Combined {args.msk} x {args.device}: "
-        f"nq={model.nq} nu={model.nu} nbody={model.nbody} nmesh={model.nmesh}"
-    )
+    print(f"Combined {args.msk} x {args.device}: nq={model.nq} nu={model.nu} nbody={model.nbody} nmesh={model.nmesh}")
     if args.output:
         print(f"Exported to {Path(args.output).resolve()}")
     return 0

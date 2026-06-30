@@ -20,10 +20,7 @@ def _parse_per_msk_list(raw_value, parse_item):
           myoLeg80: [...]
     """
     if isinstance(raw_value, dict):
-        by_msk = {
-            key: [parse_item(x) for x in (items or [])]
-            for key, items in raw_value.items()
-        }
+        by_msk = {key: [parse_item(x) for x in (items or [])] for key, items in raw_value.items()}
         default = by_msk.get("default", [])
         return default, by_msk
     default = [parse_item(x) for x in (raw_value or [])]
@@ -31,19 +28,13 @@ def _parse_per_msk_list(raw_value, parse_item):
 
 
 def _kf_overrides_from_map(mapping: dict) -> "Dict[str, KeyframeOverride]":
-    return {
-        kf: KeyframeOverride(joint_values=jv)
-        for kf, jv in mapping.items()
-        if isinstance(jv, dict)
-    }
+    return {kf: KeyframeOverride(joint_values=jv) for kf, jv in mapping.items() if isinstance(jv, dict)}
 
 
 def _is_per_msk_keyframe_overrides(raw: dict) -> bool:
     """A per-MSK keyframe_overrides block nests one level deeper than default."""
     for value in raw.values():
-        if isinstance(value, dict) and any(
-            isinstance(inner, dict) for inner in value.values()
-        ):
+        if isinstance(value, dict) and any(isinstance(inner, dict) for inner in value.values()):
             return True
     return False
 
@@ -65,9 +56,7 @@ def _parse_wrap_edit(raw: dict) -> "WrapEdit":
     """Parse one wrap-edit dict; exactly one op key selects the operation."""
     ops_present = [op for op in _WRAP_OPS if op in raw]
     if len(ops_present) != 1:
-        raise ValueError(
-            f"each wrap edit must have exactly one of {_WRAP_OPS}; got {raw}"
-        )
+        raise ValueError(f"each wrap edit must have exactly one of {_WRAP_OPS}; got {raw}")
     op = ops_present[0]
     site = raw[op]
     new_body = raw.get("new_body")
@@ -87,6 +76,7 @@ class Attachment:
     on its parent via the attachment frame.  Both default to ``None`` (identity
     frame -- the device XML's own frame is used unchanged).
     """
+
     device_body: str
     parent_body: str
     pos: Optional[List[float]] = None
@@ -96,6 +86,7 @@ class Attachment:
 @dataclass
 class JointOverride:
     """Overrides properties of an existing joint in the human model."""
+
     name: str
     range: Optional[List[float]] = None
     damping: Optional[float] = None
@@ -106,6 +97,7 @@ class JointOverride:
 @dataclass
 class ActuatorDef:
     """Defines a new actuator to add to the combined model."""
+
     name: str
     type: str
     joint: str
@@ -123,6 +115,7 @@ class ActuatorDef:
 @dataclass
 class MeshReplacement:
     """Swap a geom's mesh on the human model (e.g. residual-limb bone)."""
+
     geom: str
     mesh: str
 
@@ -140,6 +133,7 @@ class WrapEdit:
       rewritten to reference it.
     - ``replace_site``: same, but the new site is created on ``new_body``.
     """
+
     op: str
     site: str
     new_body: Optional[str] = None
@@ -154,6 +148,7 @@ class TendonModification:
     the preprocess layer; ``wraps`` is only needed to re-anchor or reposition
     surviving wraps, or to drop a specific wrap explicitly.
     """
+
     name: str
     wraps: List[WrapEdit] = field(default_factory=list)
 
@@ -161,6 +156,7 @@ class TendonModification:
 @dataclass
 class KeyframeDef:
     """Defines a keyframe for the combined model (legacy full-array mode)."""
+
     time: float = 0.0
     qpos: Optional[List[float]] = None
     qvel: Optional[List[float]] = None
@@ -174,6 +170,7 @@ class KeyframeOverride:
     values from the human model.  Works with any human model that has
     the referenced joint names, regardless of nq.
     """
+
     joint_values: Dict[str, float] = field(default_factory=dict)
 
 
@@ -184,6 +181,7 @@ class DeviceConfig:
     Bundles the device model XML path with all metadata needed to
     integrate the device into a musculoskeletal model.
     """
+
     name: str
     model_xml: str
     attachments: List[Attachment]
@@ -201,27 +199,13 @@ class DeviceConfig:
 
     # Per-MSK override maps (each guaranteed a "default" entry). Populated by
     # from_yaml; resolve_* methods select the matching MSK key or fall back.
-    _tendon_modifications_by_msk: Dict[str, List["TendonModification"]] = field(
-        default_factory=dict, repr=False
-    )
-    _actuator_removals_by_msk: Dict[str, List[str]] = field(
-        default_factory=dict, repr=False
-    )
-    _keyframe_overrides_by_msk: Dict[str, Dict[str, "KeyframeOverride"]] = field(
-        default_factory=dict, repr=False
-    )
-    _mesh_replacements_by_msk: Dict[str, List["MeshReplacement"]] = field(
-        default_factory=dict, repr=False
-    )
-    _tendon_removals_by_msk: Dict[str, List[str]] = field(
-        default_factory=dict, repr=False
-    )
-    _attachments_by_msk: Dict[str, List["Attachment"]] = field(
-        default_factory=dict, repr=False
-    )
-    _geom_removals_by_msk: Dict[str, List[str]] = field(
-        default_factory=dict, repr=False
-    )
+    _tendon_modifications_by_msk: Dict[str, List["TendonModification"]] = field(default_factory=dict, repr=False)
+    _actuator_removals_by_msk: Dict[str, List[str]] = field(default_factory=dict, repr=False)
+    _keyframe_overrides_by_msk: Dict[str, Dict[str, "KeyframeOverride"]] = field(default_factory=dict, repr=False)
+    _mesh_replacements_by_msk: Dict[str, List["MeshReplacement"]] = field(default_factory=dict, repr=False)
+    _tendon_removals_by_msk: Dict[str, List[str]] = field(default_factory=dict, repr=False)
+    _attachments_by_msk: Dict[str, List["Attachment"]] = field(default_factory=dict, repr=False)
+    _geom_removals_by_msk: Dict[str, List[str]] = field(default_factory=dict, repr=False)
 
     # Resolved at load time -- absolute path to the device XML
     _config_dir: Path = field(default=Path("."), repr=False)
@@ -250,39 +234,23 @@ class DeviceConfig:
 
     def resolve_actuator_removals(self, msk_key: Optional[str] = None) -> List[str]:
         """Actuator removals for the given MSK (per-MSK override or default)."""
-        return self._resolve(
-            self._actuator_removals_by_msk, msk_key, self.actuator_removals
-        )
+        return self._resolve(self._actuator_removals_by_msk, msk_key, self.actuator_removals)
 
-    def resolve_tendon_modifications(
-        self, msk_key: Optional[str] = None
-    ) -> List["TendonModification"]:
+    def resolve_tendon_modifications(self, msk_key: Optional[str] = None) -> List["TendonModification"]:
         """Tendon modifications for the given MSK (per-MSK override or default)."""
-        return self._resolve(
-            self._tendon_modifications_by_msk, msk_key, self.tendon_modifications
-        )
+        return self._resolve(self._tendon_modifications_by_msk, msk_key, self.tendon_modifications)
 
-    def resolve_keyframe_overrides(
-        self, msk_key: Optional[str] = None
-    ) -> Dict[str, "KeyframeOverride"]:
+    def resolve_keyframe_overrides(self, msk_key: Optional[str] = None) -> Dict[str, "KeyframeOverride"]:
         """Keyframe overrides for the given MSK (per-MSK override or default)."""
-        return self._resolve(
-            self._keyframe_overrides_by_msk, msk_key, self.keyframe_overrides
-        )
+        return self._resolve(self._keyframe_overrides_by_msk, msk_key, self.keyframe_overrides)
 
-    def resolve_mesh_replacements(
-        self, msk_key: Optional[str] = None
-    ) -> List["MeshReplacement"]:
+    def resolve_mesh_replacements(self, msk_key: Optional[str] = None) -> List["MeshReplacement"]:
         """Mesh replacements for the given MSK (per-MSK override or default)."""
-        return self._resolve(
-            self._mesh_replacements_by_msk, msk_key, self.mesh_replacements
-        )
+        return self._resolve(self._mesh_replacements_by_msk, msk_key, self.mesh_replacements)
 
     def resolve_tendon_removals(self, msk_key: Optional[str] = None) -> List[str]:
         """Tendon removals for the given MSK (per-MSK override or default)."""
-        return self._resolve(
-            self._tendon_removals_by_msk, msk_key, self.tendon_removals
-        )
+        return self._resolve(self._tendon_removals_by_msk, msk_key, self.tendon_removals)
 
     def resolve_geom_removals(self, msk_key: Optional[str] = None) -> List[str]:
         """Geom removals for the given MSK (per-MSK override or default).
@@ -290,22 +258,16 @@ class DeviceConfig:
         Used for surgical geom removal (e.g. dropping the fibula geom that
         survives the tibia mesh-replacement on transtibial amputation).
         """
-        return self._resolve(
-            self._geom_removals_by_msk, msk_key, self.geom_removals
-        )
+        return self._resolve(self._geom_removals_by_msk, msk_key, self.geom_removals)
 
-    def resolve_attachments(
-        self, msk_key: Optional[str] = None
-    ) -> List["Attachment"]:
+    def resolve_attachments(self, msk_key: Optional[str] = None) -> List["Attachment"]:
         """Attachments for the given MSK (per-MSK override or default).
 
         Lets a device declare a different attachment frame (``pos`` / ``quat``)
         per MSK, e.g. when the parent body's local frame differs across MSKs
         (myoLeg80's ``torso`` sits under a yaw-rotated ``root``).
         """
-        return self._resolve(
-            self._attachments_by_msk, msk_key, self.attachments
-        )
+        return self._resolve(self._attachments_by_msk, msk_key, self.attachments)
 
     # ------------------------------------------------------------------
     # YAML loading
@@ -346,10 +308,7 @@ class DeviceConfig:
 
         model_xml_abs = (config_dir / model_xml).resolve()
         if not model_xml_abs.exists():
-            raise FileNotFoundError(
-                f"Device model XML not found: {model_xml_abs} "
-                f"(referenced from {yaml_path})"
-            )
+            raise FileNotFoundError(f"Device model XML not found: {model_xml_abs} (referenced from {yaml_path})")
 
         # --- attachments ---
         # Accept either a flat list (legacy form) or a per-MSK dict where
@@ -373,9 +332,7 @@ class DeviceConfig:
         attachments_by_msk: Dict[str, List[Attachment]] = {}
         if isinstance(raw_attachments, dict):
             if "default" not in raw_attachments:
-                raise ValueError(
-                    "attachments dict form must include a 'default' entry"
-                )
+                raise ValueError("attachments dict form must include a 'default' entry")
             for msk_key, items in raw_attachments.items():
                 attachments_by_msk[msk_key] = _parse_attachment_list(items)
             attachments = attachments_by_msk["default"]
@@ -420,24 +377,16 @@ class DeviceConfig:
         def _parse_mesh_rep(m):
             return MeshReplacement(geom=m["geom"], mesh=m["mesh"])
 
-        mesh_replacements, mesh_replacements_by_msk = _parse_per_msk_list(
-            raw.get("mesh_replacements", []), _parse_mesh_rep
-        )
+        mesh_replacements, mesh_replacements_by_msk = _parse_per_msk_list(raw.get("mesh_replacements", []), _parse_mesh_rep)
 
         # --- prosthetic: actuator removals (default or per-MSK) ---
-        actuator_removals, actuator_removals_by_msk = _parse_per_msk_list(
-            raw.get("actuator_removals", []), lambda s: s
-        )
+        actuator_removals, actuator_removals_by_msk = _parse_per_msk_list(raw.get("actuator_removals", []), lambda s: s)
 
         # --- prosthetic: tendon removals (default or per-MSK) ---
-        tendon_removals, tendon_removals_by_msk = _parse_per_msk_list(
-            raw.get("tendon_removals", []), lambda s: s
-        )
+        tendon_removals, tendon_removals_by_msk = _parse_per_msk_list(raw.get("tendon_removals", []), lambda s: s)
 
         # --- prosthetic: geom removals (default or per-MSK) ---
-        geom_removals, geom_removals_by_msk = _parse_per_msk_list(
-            raw.get("geom_removals", []), lambda s: s
-        )
+        geom_removals, geom_removals_by_msk = _parse_per_msk_list(raw.get("geom_removals", []), lambda s: s)
 
         # --- prosthetic: tendon modifications (WrapEdit schema, default/per-MSK) ---
         def _parse_tendon_mod(t):
@@ -451,9 +400,7 @@ class DeviceConfig:
         )
 
         # --- keyframe overrides (model-agnostic, default or per-MSK) ---
-        keyframe_overrides, keyframe_overrides_by_msk = _parse_keyframe_overrides(
-            raw.get("keyframe_overrides", {})
-        )
+        keyframe_overrides, keyframe_overrides_by_msk = _parse_keyframe_overrides(raw.get("keyframe_overrides", {}))
 
         # --- keyframes (legacy full-array mode, backward compat) ---
         keyframes: Dict[str, KeyframeDef] = {}

@@ -20,6 +20,7 @@ from .errors import closest_matches
 @dataclass
 class _Names:
     """Resolved name sets parsed from an XML model (no compile)."""
+
     bodies: Set[str] = field(default_factory=set)
     joints: Set[str] = field(default_factory=set)
     geoms: Set[str] = field(default_factory=set)
@@ -109,11 +110,7 @@ def validate_config(human_xml: str, config: DeviceConfig) -> List[str]:
 
     for att in config.attachments:
         add(_check(att.parent_body, human.bodies, "body", "attachments.parent_body"))
-        add(
-            _check(
-                att.device_body, device.bodies, "device body", "attachments.device_body"
-            )
-        )
+        add(_check(att.device_body, device.bodies, "device body", "attachments.device_body"))
 
     for jo in config.joint_overrides:
         add(_check(jo.name, human.joints, "joint", "joint_overrides"))
