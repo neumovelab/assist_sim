@@ -34,6 +34,9 @@ jobs:
           pip install -e .
           pip install -r requirements-dev.txt
 
+      - name: Lint (ruff)
+        run: ruff check .
+
       - name: Run tests
         run: pytest -q --tb=short
 

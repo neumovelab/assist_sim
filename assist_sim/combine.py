@@ -19,7 +19,7 @@ import mujoco as mj
 
 from .config import ActuatorDef, DeviceConfig
 from .errors import unknown_reference
-from .preprocess import KeyframeData, preprocess_human_xml, prepare_device_xml
+from .preprocess import preprocess_human_xml, prepare_device_xml
 
 # Maps from string names used in YAML to mujoco enum values
 _GAINTYPE_MAP = {

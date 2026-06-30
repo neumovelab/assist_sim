@@ -42,6 +42,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest>=7.0",
+    "ruff",
 ]
 
 [project.scripts]
@@ -74,3 +75,12 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
+
+# Lint/format config -- mirrors myo_sim so tooling is consistent across both repos.
+[tool.ruff]
+line-length = 128
+extend-exclude = [".claude", "external"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W"]
+ignore = ["E501"]

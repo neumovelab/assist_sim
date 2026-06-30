@@ -8,7 +8,7 @@ same everywhere.
 from __future__ import annotations
 
 import difflib
-from typing import Iterable, List, Optional
+from typing import Iterable, List
 
 
 def closest_matches(name: str, candidates: Iterable[str], limit: int = 3) -> List[str]:

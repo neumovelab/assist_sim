@@ -4,3 +4,4 @@
 -r requirements.txt
 
 pytest>=7.0
+ruff
