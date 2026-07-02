@@ -4,20 +4,20 @@ Provides a single function to programmatically combine a musculoskeletal
 baseline model (sourced from the ``myo_sim`` package) with a device model
 defined locally under ``models/``, using the MuJoCo mjSpec API.
 
-Usage::
+Usage (by registry key -- the MSK is composed on demand by myo_sim)::
+
+    from assist_sim import load_combined
+
+    model, data = load_combined("myoLeg26_3D", "DephyExoBoot_L1")
+
+Or from explicit paths, if you already have a baseline MSK XML on disk::
 
     from assist_sim import load_combined_model
 
     model, data = load_combined_model(
-        human_xml="external/myo_sim/leg/myoLeg22_2D.xml",
-        device_config="models/DephyExoBoot/L1config.yaml",
+        human_xml="path/to/myolegs26.xml",
+        device_config="assist_sim/models/DephyExoBoot/L1config.yaml",
     )
-
-Or, by registry key (preferred once myo_sim is installed)::
-
-    from assist_sim import load_combined
-
-    model, data = load_combined(msk="myoLeg22_2D", device="DephyExoBoot_L1")
 """
 
 import shutil
@@ -37,7 +37,7 @@ from .loading import (  # noqa: F401
 
 # Bump whenever a pipeline change affects compiled-model output; the cache
 # key includes this so stale cached XMLs are invalidated automatically.
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 # Keep the public surface small: load_combined_model is the documented path.
 # ModelCombiner stays importable from assist_sim.combine for advanced callers

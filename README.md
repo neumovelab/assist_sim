@@ -14,18 +14,19 @@ on disk is never modified.
 
 ```python
 from assist_sim import load_combined
-model, data = load_combined("myoLeg22_2D", "DephyExoBoot_L1")
+model, data = load_combined("myoLeg26_3D", "DephyExoBoot_L1")
 # `model` and `data` are ready for mj.mj_step / mj.viewer
 ```
 
-This resolves the MSK path through `myo_sim` (must be installed) and the
-device config from the bundled `assist_sim/models/`. For full path control:
+This composes the MSK on demand through `myo_sim` (must be installed) and the
+device config from the bundled `assist_sim/models/`. For full path control (if
+you already have a baseline MSK XML on disk):
 
 ```python
 from assist_sim import load_combined_model
 
 model, data = load_combined_model(
-    human_xml="path/to/myo_sim/leg/myoLeg22_2D.xml",
+    human_xml="path/to/myolegs26.xml",
     device_config="path/to/your/Device/L1config.yaml",
 )
 ```
@@ -33,27 +34,31 @@ model, data = load_combined_model(
 Or from the CLI:
 
 ```bash
-python -m assist_sim compile myoLeg22_2D DephyExoBoot_L1 --export combined.xml
+python -m assist_sim compile myoLeg26_3D DephyExoBoot_L1 --export combined.xml
 python -m assist_sim list
 ```
 
 Visual inspection of any combination:
 
 ```bash
-python examples/quickstart.py myoLeg22_2D DephyExoBoot_L1
+python examples/quickstart.py myoLeg26_3D DephyExoBoot_L1
 ```
 
 ## Available Combinations
 
-| Device key            | myoLeg22_2D | myoLeg26_3D | myoLeg80 |
+`myoLeg26_3D` (myo_sim's legs-only `myolegs26`) is wired and tested on the
+pinned MuJoCo 3.3.3. `myoLeg80` (needs mujoco 3.3.4+) and `myoLeg22_2D` (a
+planned 26→22 reduction) resolve to a clear error until Phase 2.
+
+| Device key            | myoLeg26_3D | myoLeg80 | myoLeg22_2D |
 |-----------------------|:-:|:-:|:-:|
-| `DephyExoBoot_L1`     | ✓ | ✓ | ✓ |
-| `HMEDI_L1`            | ✓ | ✓ | ✓ |
-| `Humotech_L1`         | ✓ | ✓ | ✓ |
-| `OpenExo_L1`          | ✓ | ✓ | ✓ |
-| `Tutorial_L1`         | ✓ | ✓ | ✓ |
-| `OpenSourceLeg_A_L1`  | ✓ | ✓ | ✓ |
-| `OpenSourceLeg_KA_L1` | ✓ | ✓ | ✓ |
+| `DephyExoBoot_L1`     | ✓ | — | — |
+| `OpenSourceLeg_A_L1`  | ✓ | — | — |
+| `OpenSourceLeg_KA_L1` | ✓ | — | — |
+| `Humotech_L1`         | ✓ | — | — |
+| `OpenExo_L1`          | ✓ | — | — |
+| `Tutorial_L1`         | ✓ | — | — |
+| `HMEDI_L1`            | n/a (needs torso) | — | — |
 
 See [docs/available-models.md](docs/available-models.md) for descriptions of
 each device + tested combinations.

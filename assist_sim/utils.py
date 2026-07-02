@@ -145,6 +145,38 @@ def _strip_terrain(
             root.remove(inc)
 
 
+def _strip_myosuite_scene(root: ET.Element) -> None:
+    """Remove the myosuite scene bundled by a myo_sim composed model.
+
+    ``myo_sim.build_spec`` output carries the shared myosuite scene (floor
+    plane, decorative backdrop mesh, pedestal cylinder, logo, scene lights and
+    cameras).  assist_sim emits model-only XMLs -- downstream consumers (e.g.
+    ``myoassist.terrains``) layer the scene on top -- so this drops the scene
+    while leaving the musculoskeletal model untouched.
+
+    The model lives entirely inside worldbody ``<body>`` subtrees; the scene
+    contributes worldbody-*direct* ``<geom>`` / ``<light>`` / ``<camera>``
+    children (ground + backdrop) which are removed structurally, so unnamed
+    scene primitives (e.g. the pedestal cylinder) are caught too.  Meshes no
+    longer referenced by any surviving geom (the backdrop + logo meshes) are
+    then dropped from ``<asset>``.  Textures/materials are left in place -- like
+    the terrain strip they are harmless unreferenced and keep the skybox
+    renderable.
+    """
+    worldbody = root.find("worldbody")
+    if worldbody is not None:
+        for child in list(worldbody):
+            if child.tag in ("geom", "light", "camera"):
+                worldbody.remove(child)
+
+    asset = root.find("asset")
+    if asset is not None:
+        referenced = {g.get("mesh") for g in root.iter("geom") if g.get("mesh")}
+        for mesh in list(asset.findall("mesh")):
+            if mesh.get("name") not in referenced:
+                asset.remove(mesh)
+
+
 def _ensure_minimal_visual(root: ET.Element) -> None:
     """Emit a baseline ``<visual>`` block if none survived the export.
 

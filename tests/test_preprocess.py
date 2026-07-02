@@ -102,18 +102,20 @@ from .conftest import needs_myo_sim  # noqa: E402
 
 
 @needs_myo_sim
-def test_inline_includes_split_msk():
-    """Split chain/assets MSKs have includes expanded so body_removals resolve."""
+def test_body_removal_resolves_on_composed_msk():
+    """Body removal + cascade works on the composed myolegs26 MSK.  The
+    ``myo_sim.build_spec`` output is already fully inlined (no ``<include>``),
+    so this also asserts the inlining pass leaves a flat model untouched."""
     from assist_sim.registry import resolve
 
-    human = str(resolve("myoLeg80", "DephyExoBoot_L1")[0])
+    human = str(resolve("myoLeg26_3D", "DephyExoBoot_L1")[0])
     cfg = _config(body_removals=["talus_r"])
-    result = preprocess_human_xml(human, cfg, msk_key="myoLeg80")
+    result = preprocess_human_xml(human, cfg, msk_key="myoLeg26_3D")
     root = ET.parse(result.path).getroot()
     Path(result.path).unlink(missing_ok=True)
     assert _find_body(root, "talus_r") is None
-    assert _find_body(root, "tibia_r") is not None
-    # chain/assets includes are inlined; no nested include tags remain under worldbody.
+    assert _find_body(root, "tibia_r") is not None  # parent survives
+    # no nested include tags remain under worldbody.
     wb = root.find("worldbody")
     assert wb is not None
     assert list(wb.iter("include")) == []

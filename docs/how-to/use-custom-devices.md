@@ -57,7 +57,7 @@ key the same way bundled ones do:
 
 ```python
 from assist_sim import load_combined
-model, data = load_combined("myoLeg22_2D", "MyExo_L1")   # works, found via env var
+model, data = load_combined("myoLeg26_3D", "MyExo_L1")   # works, found via env var
 ```
 
 CLI listing would include them too. The semicolon/colon path separator
@@ -78,7 +78,7 @@ refresh()
 
 # Now `MyExo_L1` (or whatever's in that dir) is discoverable.
 from assist_sim import load_combined
-model, data = load_combined("myoLeg22_2D", "MyExo_L1")
+model, data = load_combined("myoLeg26_3D", "MyExo_L1")
 ```
 
 Same outcome as Pattern B but driven from Python instead of the

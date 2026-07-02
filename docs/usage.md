@@ -29,7 +29,7 @@ baseline `human_xml` is never modified on disk.
 from assist_sim import load_combined
 
 model, data = load_combined(
-    msk: str,            # e.g. "myoLeg22_2D"
+    msk: str,            # e.g. "myoLeg26_3D"
     device: str,         # e.g. "DephyExoBoot_L1"
     cache_dir: Path | None = None,
 ) -> tuple[mj.MjModel, mj.MjData]
@@ -63,7 +63,7 @@ and returns the absolute path.
 from assist_sim import get_available_combinations
 
 combos = get_available_combinations()
-# {'myoLeg22_2D': ['DephyExoBoot_L1', 'HMEDI_L1', ...], ...}
+# {'myoLeg26_3D': ['DephyExoBoot_L1', 'HMEDI_L1', ...], ...}
 ```
 
 Returns a dict of `msk_key -> [device_key, ...]` honoring each device's
@@ -75,7 +75,7 @@ resolvable through the installed `myo_sim`.
 ```python
 from assist_sim import validate_combination
 
-assert validate_combination("myoLeg22_2D", "DephyExoBoot_L1")
+assert validate_combination("myoLeg26_3D", "DephyExoBoot_L1")
 ```
 
 Returns `True` if the pair resolves and is compatible. Catches the various
@@ -105,7 +105,7 @@ Examples:
 
 ```bash
 # Compile + write combined XML
-python -m assist_sim compile myoLeg22_2D DephyExoBoot_L1 --export combined.xml
+python -m assist_sim compile myoLeg26_3D DephyExoBoot_L1 --export combined.xml
 
 # List everything available
 python -m assist_sim list

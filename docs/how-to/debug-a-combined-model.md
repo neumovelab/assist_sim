@@ -25,7 +25,7 @@ If `load_combined_model` succeeded but the result is wrong, continue.
 from assist_sim import load_combined
 import mujoco as mj
 
-model, data = load_combined("myoLeg22_2D", "MyDevice_L1")
+model, data = load_combined("myoLeg26_3D", "MyDevice_L1")
 
 # How big is the model?
 print(f"nq={model.nq} nu={model.nu} nbody={model.nbody}")
@@ -93,7 +93,7 @@ device attachment. Useful when:
 ## Step 4: visually inspect in the viewer
 
 ```bash
-python examples/quickstart.py myoLeg22_2D MyDevice_L1
+python examples/quickstart.py myoLeg26_3D MyDevice_L1
 ```
 
 The paused viewer lets you spin the model. Drag to rotate, scroll to
@@ -137,7 +137,7 @@ For a pre-flight check that doesn't fully compile the model:
 from assist_sim.validate import validate_config
 
 issues = validate_config(
-    human_xml="path/to/myo_sim/leg/myoLeg22_2D.xml",
+    human_xml="path/to/myolegs26.xml",
     config=DeviceConfig.from_yaml("models/MyDevice/L1config.yaml"),
 )
 for issue in issues:

@@ -6,27 +6,32 @@ of the YAML the bad reference came from -- read those first.
 
 ## Install / import
 
-### `ImportError: ... myo_sim ... not installed`
+### `ImportError: ... myo_sim ... is not installed`
 
 ```
-ImportError: The MSK model 'myoLeg22_2D' lives in the myo_sim package,
-which is not installed (looked for myo_sim.leg.myoLeg22_2D.xml).
+ImportError: The MSK model 'myoLeg26_3D' is composed by the myo_sim package,
+which is not installed. Install it with `pip install myo_sim` ...
 ```
 
-`myo_sim` ships the MSK XML files; `assist_sim` resolves them via
-`importlib.resources`. Install it:
+`myo_sim` composes the MSK models; `assist_sim` gets them via
+`myo_sim.build_spec(...)`. Install it:
 
 ```bash
 pip install myo_sim   # once on PyPI
 # or, interim:
-pip install git+https://github.com/MyoHub/myo_sim.git@<tag>
+pip install git+https://github.com/MyoHub/myo_sim.git@mm_refactor
 ```
 
-### `FileNotFoundError: MSK model file missing inside myo_sim`
+### `ImportError: MSK model 'myoLeg80' requires ... mujoco>=3.3.4`
 
-`myo_sim` is installed but doesn't include the specific MSK key you
-requested. Likely the upstream version hasn't merged 22/26 yet. Try a
-newer tag, or fall back to `myoLeg80` (which is upstream-ready).
+`myoLeg80` (the 80-muscle passive-torso model) can only be built on
+MuJoCo 3.3.4+, which the pinned `mujoco==3.3.3` predates (Phase 2 of the
+integration). Use `myoLeg26_3D` on 3.3.3, or wait for the Phase-2 bump.
+
+### `ValueError: MSK model 'myoLeg22_2D' is not available yet`
+
+`myoLeg22_2D` has no source model yet -- it is a planned 26→22 mjspec
+reduction of `myolegs26`. Use `myoLeg26_3D` for now.
 
 ### `ModuleNotFoundError: No module named 'assist_sim'`
 

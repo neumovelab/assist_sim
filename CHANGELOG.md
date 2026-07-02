@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] — myo_sim composed-model integration (Phase 1)
+
+Wires `assist_sim` onto `myo_sim`'s `mm_refactor` branch, where leg models are
+composed at runtime rather than shipped as static XML.
+
+### Changed
+
+- **MSK resolution now composes via `myo_sim.build_spec`.** `_resolve_msk` calls
+  `myo_sim.build_spec(<model>)`, serializes the returned `MjSpec`, strips the
+  bundled myosuite scene, and caches a model-only XML (keyed by the myo_sim +
+  mujoco versions) that feeds the existing preprocess+combine pipeline. Replaces
+  the old `importlib.resources` `(subpackage, filename)` lookup, which pointed at
+  static files that no longer exist. `_COMPATIBLE_MSK_KEYS` entries are now
+  `_MskSource(myo_sim_model, min_mujoco, note)`.
+- **`myoLeg26_3D` → `myolegs26`** (legs-only, 26-muscle) is wired and tested; it
+  is the only MSK buildable on the pinned `mujoco==3.3.3`.
+- **`get_available_combinations`** uses a cheap availability check (no compile at
+  import time; models are composed lazily on first resolve).
+
+### Added
+
+- **`utils._strip_myosuite_scene`** — removes the myosuite scene (floor,
+  backdrop, pedestal, logo, scene lights/cameras) so composed MSKs enter the
+  pipeline model-only.
+
+### Gated / planned
+
+- **`myoLeg80` → `myolegs`** (passive torso) needs `mujoco>=3.3.4` for its
+  `MjSpec.delete`-based conversion — resolving it on 3.3.3 raises a clear
+  `ImportError` (Phase 2).
+- **`myoLeg22_2D`** has no source yet (a planned 26→22 mjspec reduction) and
+  raises a clear `ValueError` when resolved.
+
 ## [0.1.0] — Initial release
 
 First public release. Ports the model-combination pipeline and aligns the package

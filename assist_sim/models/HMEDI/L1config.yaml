@@ -1,6 +1,10 @@
 device:
   name: "HMEDI_L1"
   model_xml: "L1model.xml"
+  # HMEDI's torso band attaches to a `torso` body, so it needs a torso'd MSK.
+  # The legs-only myolegs26 (myoLeg26_3D) has no torso; myoLeg80 does. myoLeg80
+  # is buildable from Phase 2 (mujoco 3.3.4+), so HMEDI is gated until then.
+  compatible_msk: [myoLeg80]
 
 # HMEDI's hip-flexion assistance is driven by two spatial-tendon "cable"
 # actuators (Exo_R/Exo_L) that wrap over sites on the torso + thigh

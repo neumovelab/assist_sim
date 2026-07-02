@@ -1,11 +1,16 @@
 """Frozen regression net: every supported MSK x device combination.
 
 Asserts the compiled ``(nq, nu, nbody, nmesh)`` for each combination matches a
-frozen expected tuple.  The MSK side of each pair is resolved via the
+frozen expected tuple.  The MSK side of each pair is composed at runtime via the
 ``myo_sim`` package (see ``assist_sim.registry``); tests requiring myo_sim are
 skipped automatically when it isn't installed.
 
-The numbers below were captured on ``mujoco==3.3.3`` and must hold there.
+Phase 1 of the myo_sim integration wires the legs-only ``myolegs26`` model,
+which is the only MSK buildable on the pinned ``mujoco==3.3.3``.  ``myoLeg80``
+(passive torso) needs ``MjSpec.delete`` from mujoco 3.3.4+ (Phase 2) and
+``myoLeg22_2D`` has no source yet (a planned 26->22 mjspec reduction); both are
+covered by :func:`test_gated_msk_raises`.  The numbers below were captured on
+``mujoco==3.3.3`` and must hold there.
 """
 
 from __future__ import annotations
@@ -14,24 +19,24 @@ import mujoco as mj
 import pytest
 
 from assist_sim import load_combined_model
-from assist_sim.registry import resolve
+from assist_sim.registry import _msk_available, resolve
 
 from .conftest import needs_myo_sim
 
-# (msk_key, device_key) -> (nq, nu, nbody, nmesh)
-# nbody / nmesh are one less than the legacy pre-baked combined models because
-# the ground body is now stripped at preprocess time (assist_sim emits
-# model-only XMLs; downstream consumers layer terrain on top).
+# (msk_key, device_key) -> (nq, nu, nbody, nmesh), captured on mujoco 3.3.3.
+# assist_sim emits model-only XMLs: the bundled myosuite scene (floor, backdrop,
+# pedestal, logo) is stripped, so no ground body / scene mesh is counted here.
 EXPECTED = {
-    ("myoLeg22_2D", "DephyExoBoot_L1"): (53, 24, 50, 44),
-    ("myoLeg26_3D", "DephyExoBoot_L1"): (60, 28, 50, 44),
-    ("myoLeg22_2D", "OpenSourceLeg_A_L1"): (52, 19, 37, 35),
-    ("myoLeg26_3D", "OpenSourceLeg_A_L1"): (59, 23, 37, 35),
-    ("myoLeg22_2D", "OpenSourceLeg_KA_L1"): (44, 17, 36, 37),
-    ("myoLeg26_3D", "OpenSourceLeg_KA_L1"): (51, 21, 36, 37),
-    ("myoLeg80", "DephyExoBoot_L1"): (35, 82, 30, 31),
-    ("myoLeg80", "OpenSourceLeg_A_L1"): (33, 69, 17, 22),
-    ("myoLeg80", "OpenSourceLeg_KA_L1"): (29, 56, 19, 24),
+    ("myoLeg26_3D", "DephyExoBoot_L1"): (47, 28, 37, 28),
+    ("myoLeg26_3D", "OpenSourceLeg_A_L1"): (46, 23, 24, 19),
+    ("myoLeg26_3D", "OpenSourceLeg_KA_L1"): (38, 21, 23, 21),
+}
+
+# MSKs that are registered but not buildable in Phase 1, and the error each
+# raises when resolved.  ValueError: no source yet; ImportError: needs 3.3.4.
+GATED = {
+    "myoLeg22_2D": ValueError,
+    "myoLeg80": ImportError,
 }
 
 
@@ -66,11 +71,23 @@ def test_combination_is_simulatable(keys):
 
 
 @needs_myo_sim
+@pytest.mark.parametrize("msk_key,exc", list(GATED.items()))
+def test_gated_msk_raises(msk_key, exc):
+    """MSKs without a Phase-1 source raise a clear error (no silent fallback)."""
+    with pytest.raises(exc):
+        resolve(msk_key, "DephyExoBoot_L1")
+
+
+@needs_myo_sim
+@pytest.mark.skipif(
+    not _msk_available("myoLeg80"),
+    reason="HMEDI's torso band targets a torso'd MSK (myoLeg80), buildable only on mujoco>=3.3.4 (Phase 2)",
+)
 def test_hmedi_cable_tendons_and_actuators_imported():
     """HMEDI's device-XML <tendon>/<actuator> sections (cable_r/l + Exo_R/L)
     must reach the combined model with the device prefix."""
-    msk_path, device_path = resolve("myoLeg22_2D", "HMEDI_L1")
-    model, _ = load_combined_model(human_xml=str(msk_path), device_config=str(device_path))
+    msk_path, device_path = resolve("myoLeg80", "HMEDI_L1")
+    model, _ = load_combined_model(human_xml=str(msk_path), device_config=str(device_path), msk_key="myoLeg80")
     actuators = {mj.mj_id2name(model, mj.mjtObj.mjOBJ_ACTUATOR, i) for i in range(model.nu)}
     tendons = {mj.mj_id2name(model, mj.mjtObj.mjOBJ_TENDON, i) for i in range(model.ntendon)}
     assert "HMEDI_L1_Exo_R" in actuators

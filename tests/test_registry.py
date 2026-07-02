@@ -24,10 +24,13 @@ def test_compatible_msk_keys_are_locked():
         "myoLeg26_3D",
         "myoLeg80",
     }
-    # Every entry maps to a (package, filename) tuple.
-    for key, (pkg, fname) in registry._COMPATIBLE_MSK_KEYS.items():
-        assert pkg.startswith("myo_sim"), f"{key} -> {pkg}"
-        assert fname.endswith(".xml")
+    # Every entry binds a myo_sim composed model (or None when planned) and a
+    # minimum MuJoCo version.
+    for key, src in registry._COMPATIBLE_MSK_KEYS.items():
+        assert src.myo_sim_model is None or isinstance(src.myo_sim_model, str), key
+        assert len(src.min_mujoco) == 3, key
+    # myoLeg26_3D is the Phase-1 model, backed by myo_sim's legs-only myolegs26.
+    assert registry._COMPATIBLE_MSK_KEYS["myoLeg26_3D"].myo_sim_model == "myolegs26"
 
 
 def test_unknown_msk_raises_with_suggestion():
@@ -36,19 +39,21 @@ def test_unknown_msk_raises_with_suggestion():
         registry._resolve_msk("myoLeg22")
 
 
-def test_missing_myo_sim_raises_importerror():
-    """When myo_sim is not installed, _resolve_msk raises an ImportError that
-    points the user at the install instructions."""
-    if registry._files.__module__ == "importlib.resources":
-        # The real importlib.resources is used.  We can't easily fake an absent
-        # myo_sim without sys.modules surgery; instead, just check that the
-        # known-good key path either returns a Path (myo_sim present) or
-        # raises ImportError/FileNotFoundError (myo_sim absent).
-        try:
-            result = registry._resolve_msk("myoLeg22_2D")
-        except (ImportError, FileNotFoundError):
-            return  # expected when myo_sim not installed
-        assert isinstance(result, Path)
+def test_planned_msk_raises_value_error():
+    """A registered-but-not-yet-available MSK (no myo_sim source) errors, not
+    warns, with an explanation."""
+    with pytest.raises(ValueError, match="not available yet"):
+        registry._resolve_msk("myoLeg22_2D")
+
+
+def test_resolve_msk_composes_or_raises():
+    """With myo_sim present, resolving the Phase-1 MSK composes a model-only XML
+    on disk; without it, _resolve_msk raises an ImportError pointing at install."""
+    try:
+        result = registry._resolve_msk("myoLeg26_3D")
+    except ImportError:
+        return  # expected when myo_sim not installed
+    assert isinstance(result, Path) and result.exists()
 
 
 # ----------------------------------------------------------------------

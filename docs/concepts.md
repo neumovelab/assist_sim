@@ -8,9 +8,13 @@ pipeline, and how it fits with `myo_sim` and downstream training frameworks.
 `assist_sim` sits between an upstream MSK source and downstream training
 frameworks. Four packages collaborate:
 
-- **`myo_sim`** ships the baseline MSK XML files (myoLeg22_2D, myoLeg26_3D,
-  myoleg80) and their meshes. `assist_sim` depends on it as a pip-installed
-  package, resolving MSK paths through `importlib.resources`.
+- **`myo_sim`** provides the baseline MSK models and their meshes. On the
+  `mm_refactor` branch these leg models are *composed at runtime* (no static
+  XML), so `assist_sim` obtains an editable `MjSpec` via
+  `myo_sim.build_spec(<model>)`, serializes it, strips the bundled myosuite
+  scene, and caches the model-only XML. Phase 1 wires `myoLeg26_3D` (the
+  legs-only `myolegs26`); `myoLeg80` and `myoLeg22_2D` follow in Phase 2 /
+  when the 26→22 reduction lands.
 - **`assist_sim`** (this repo) holds the *combination pipeline* and *device
   configurations*. It produces compiled `MjModel` objects (and optional
   exported XMLs) where an MSK and a device are combined into one runnable
@@ -52,8 +56,11 @@ order:
   removed joints, preserving authored values for surviving joints.
 - Cascade cleanup: remove contact pairs, sensors, and equality constraints
   that reference any removed element.
-- Strip the terrain content (ground body, ground-plane geom, terrain
-  include) -- assist_sim outputs are model-only.
+- Strip the scene / terrain content -- assist_sim outputs are model-only.
+  For a composed myo_sim MSK this happens at resolution time (the bundled
+  myosuite scene -- floor, backdrop, pedestal, logo, scene lights/cameras --
+  is removed before the XML enters the pipeline); for MSKs carrying a
+  `terrain_config` include, the terrain strip runs here in Phase 1.
 
 A temp XML is written to disk at the end of Phase 1, in the same directory
 as the source MSK (so relative paths still resolve).
@@ -98,9 +105,11 @@ authoring (additive, namespaced via the device prefix).
 ### Registry keys
 
 - **MSK keys**: `myoLeg22_2D`, `myoLeg26_3D`, `myoLeg80`. Curated list in
-  `assist_sim/registry.py:_COMPATIBLE_MSK_KEYS`. Each maps to a tuple
-  `(myo_sim_subpackage, filename)`; the file is loaded via
-  `importlib.resources`.
+  `assist_sim/registry.py:_COMPATIBLE_MSK_KEYS`. Each binds to a
+  `myo_sim.build_spec` model name and a minimum MuJoCo version; the model is
+  composed on demand and cached as a model-only XML. Keys with no source yet
+  (`myoLeg22_2D`) or that need a newer MuJoCo (`myoLeg80`) raise a clear error
+  when resolved.
 - **Device keys**: derived from `models/<DeviceDir>/<variant>config.yaml`.
   Example: `models/DephyExoBoot/L1config.yaml` → `DephyExoBoot_L1`,
   `models/OpenSourceLeg/A_L1config.yaml` → `OpenSourceLeg_A_L1`. The

@@ -23,15 +23,16 @@ separately).
 
 ### myo_sim
 
-`myo_sim` ships the baseline MSK XML files (`myoLeg22_2D.xml`,
-`myoLeg26_3D.xml`, `myolegs.xml`/myoLeg80). Three install options:
+`myo_sim` provides the baseline MSK models. On the `mm_refactor` branch it
+*composes* leg models at runtime, and `assist_sim` obtains them via
+`myo_sim.build_spec(<model>)`. Three install options:
 
 ```bash
 # (1) Once it's published to PyPI -- preferred long-term:
 pip install myo_sim
 
-# (2) From a git tag in the meantime:
-pip install git+https://github.com/MyoHub/myo_sim.git@<tag>
+# (2) From a git branch in the meantime:
+pip install git+https://github.com/MyoHub/myo_sim.git@mm_refactor
 
 # (3) Editable, for local development on myo_sim itself:
 git clone https://github.com/MyoHub/myo_sim.git
@@ -41,13 +42,13 @@ pip install -e ./myo_sim
 Verify:
 
 ```python
-import importlib.resources
-print(importlib.resources.files("myo_sim").joinpath("leg/myoLeg22_2D.xml"))
-# should print an absolute path that exists
+import myo_sim
+print("myolegs26" in myo_sim._COMPOSED_MODELS)   # True
+print(myo_sim.build_spec("myolegs26"))           # an editable MjSpec
 ```
 
 If `myo_sim` is missing, `assist_sim` will still import and you can use most
-of the API, but any call that resolves an MSK path (e.g. `load_combined`,
+of the API, but any call that resolves an MSK (e.g. `load_combined`,
 `registry.resolve`) raises an `ImportError` pointing back at the install
 instructions.
 
@@ -56,9 +57,9 @@ instructions.
 ```python
 from assist_sim import load_combined
 
-model, data = load_combined("myoLeg22_2D", "DephyExoBoot_L1")
+model, data = load_combined("myoLeg26_3D", "DephyExoBoot_L1")
 print(f"nq={model.nq}  nu={model.nu}  nbody={model.nbody}")
-# nq=53  nu=24  nbody=50
+# nq=47  nu=28  nbody=37
 ```
 
 `model` is a standard MuJoCo `MjModel` -- step it, render it,
@@ -70,9 +71,9 @@ The `examples/quickstart.py` script opens a paused MuJoCo viewer at the first
 keyframe of the combined model:
 
 ```bash
-python examples/quickstart.py                                # defaults: myoLeg22_2D + DephyExoBoot_L1
-python examples/quickstart.py myoLeg80 OpenSourceLeg_KA_L1   # explicit pair
-python examples/quickstart.py --list                         # list compatible MSK + device keys
+python examples/quickstart.py                                    # defaults: myoLeg26_3D + DephyExoBoot_L1
+python examples/quickstart.py myoLeg26_3D OpenSourceLeg_KA_L1     # explicit pair
+python examples/quickstart.py --list                             # list compatible MSK + device keys
 ```
 
 The viewer opens paused; drag to rotate, scroll to zoom, ctrl-drag to pan.

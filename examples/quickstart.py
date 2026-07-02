@@ -8,12 +8,12 @@ can rotate, pan, and visually inspect the model.  Nothing is written to disk
 Usage:
 
     python examples/quickstart.py                                  # defaults
-    python examples/quickstart.py myoLeg22_2D DephyExoBoot_L1      # explicit pair
+    python examples/quickstart.py myoLeg26_3D DephyExoBoot_L1      # explicit pair
     python examples/quickstart.py --list                           # show all keys
 
-Defaults to ``myoLeg22_2D`` + ``DephyExoBoot_L1``.
+Defaults to ``myoLeg26_3D`` + ``DephyExoBoot_L1``.
 
-Requires the ``myo_sim`` package to be installed (it ships the MSK model files).
+Requires the ``myo_sim`` package to be installed (it composes the MSK models).
 If it's missing, this script prints an install hint and exits.
 """
 
@@ -30,7 +30,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-DEFAULT_MSK = "myoLeg22_2D"
+DEFAULT_MSK = "myoLeg26_3D"
 DEFAULT_DEVICE = "DephyExoBoot_L1"
 
 
@@ -59,10 +59,11 @@ def _list_combinations() -> None:
         get_available_combinations,
     )
 
-    print("Compatible MSKs (resolved through myo_sim):")
+    print("Compatible MSKs (composed by myo_sim):")
     for key in sorted(_COMPATIBLE_MSK_KEYS):
-        pkg, fname = _COMPATIBLE_MSK_KEYS[key]
-        print(f"  {key:14s}  <- {pkg}/{fname}")
+        src = _COMPATIBLE_MSK_KEYS[key]
+        target = f"myo_sim.build_spec({src.myo_sim_model!r})" if src.myo_sim_model else "planned (no source yet)"
+        print(f"  {key:14s}  <- {target}")
 
     print("\nDevice configs (autodiscovered from models/):")
     for key in sorted(DEVICE_CONFIGS):

@@ -2,28 +2,34 @@
 
 Inventory of what's compatible with what.
 
-## MSK models (via `myo_sim`)
+## MSK models (composed by `myo_sim`)
 
-Three MSK keys are pipeline-compatible:
+`myo_sim` composes its leg models at runtime, so each MSK key is resolved by
+calling `myo_sim.build_spec(<model>)`, serializing to XML, and stripping the
+bundled myosuite scene (see [concepts.md](concepts.md)). Three keys are
+registered; which are buildable depends on the installed MuJoCo:
 
-| Key | Source (in `myo_sim`) | DOFs | Notes |
+| Key | `myo_sim.build_spec` | Base DOFs | Status |
 |---|---|---|---|
-| `myoLeg22_2D` | `myo_sim/leg/myoLeg22_2D.xml` | 53 | 22-muscle 2D, custom lower-limb-focused variant |
-| `myoLeg26_3D` | `myo_sim/leg/myoLeg26_3D.xml` | 60 | 26-muscle 3D, custom lower-limb-focused variant |
-| `myoLeg80`    | `myo_sim/leg/myolegs.xml`     | 35 | Upstream 80-muscle MyoLeg with simplified torso, no arm articulation |
+| `myoLeg26_3D` | `myolegs26` | 47 | **Available** (Phase 1) — 26-muscle, legs-only |
+| `myoLeg80`    | `myolegs`   | —  | Phase 2 — needs `mujoco>=3.3.4` (passive-torso conversion uses `MjSpec.delete`) |
+| `myoLeg22_2D` | *(planned)* | —  | Planned — a 26→22 mjspec reduction of `myolegs26`, not implemented yet |
 
-### Important MSK differences
+`myoLeg26_3D` is the only MSK buildable on the pinned `mujoco==3.3.3`. Resolving
+a gated/planned key raises a clear error (never a silent fallback).
 
-- **22/26** face world +X; **80** faces world −Y. Device attachments use
-  body frames so this rarely matters at the YAML level, but quickstart's
-  initial camera azimuth differs per-MSK.
-- **80 has no arm articulation** (single low-poly torso mesh, no shoulder
-  / elbow / wrist joints); 22/26 carry a full HAT + arm chain.
-- **80 uses a `freejoint`** as the root; 22/26 have slide joints
-  (`pelvis_tx`, `pelvis_ty`, `pelvis_tilt`). Keyframes that override
-  `pelvis_ty` in 22/26 are not applied to 80 (the joint doesn't exist).
-- **Tendon and site naming differs** between the lower-limb-focused 22/26
-  and the full-anatomy 80. Per-MSK config overrides handle this.
+### Important MSK notes (myolegs26)
+
+- **Legs-only.** `myolegs26` is intentionally trunk-less — no HAT, torso, arms,
+  or head. Devices whose attachments target a `torso` body (e.g. HMEDI's torso
+  band) need a torso'd MSK (`myoLeg80`, Phase 2).
+- **Free-root base.** The root is a `freejoint` (myosuite convention), not
+  `pelvis_tx`/`pelvis_ty` slide joints. Device keyframe overrides that target
+  `pelvis_ty` are silently skipped (the joint doesn't exist); the standing
+  height comes from the base `stand` keyframe's free-root height.
+- **Ships a `stand` keyframe** (fully at-rest, feet on the pedestal). The scene
+  is stripped by assist_sim, but the keyframe's authored joint values are
+  preserved by name through the pipeline.
 
 ## Device models
 
@@ -44,17 +50,21 @@ device YAML's `device.name`).
 
 ## Compatibility matrix
 
-✓ = tested.
+✓ = tested (frozen smoke signatures); — = not yet buildable (Phase 2 / planned);
+n/a = device needs a torso'd MSK.
 
-| Device | myoLeg22_2D | myoLeg26_3D | myoLeg80 |
+| Device | myoLeg26_3D | myoLeg80 | myoLeg22_2D |
 |---|:-:|:-:|:-:|
-| `DephyExoBoot_L1`     | ✓ | ✓ | ✓ |
-| `HMEDI_L1`            | ✓ | ✓ | ✓ |
-| `Humotech_L1`         | ✓ | ✓ | ✓ |
-| `OpenExo_L1`          | ✓ | ✓ | ✓ |
-| `Tutorial_L1`         | ✓ | ✓ | ✓ |
-| `OpenSourceLeg_A_L1`  | ✓ | ✓ | ✓ |
-| `OpenSourceLeg_KA_L1` | ✓ | ✓ | ✓ |
+| `DephyExoBoot_L1`     | ✓ | — | — |
+| `OpenSourceLeg_A_L1`  | ✓ | — | — |
+| `OpenSourceLeg_KA_L1` | ✓ | — | — |
+| `Humotech_L1`         | ✓ | — | — |
+| `OpenExo_L1`          | ✓ | — | — |
+| `Tutorial_L1`         | ✓ | — | — |
+| `HMEDI_L1`            | n/a (needs torso) | — | — |
+
+Phase 1 wires `myoLeg26_3D`. The `myoLeg80` and `myoLeg22_2D` columns activate
+in Phase 2 (mujoco 3.3.4 bump) and when the 26→22 reduction lands, respectively.
 
 ## Verifying combinations locally
 
@@ -77,5 +87,6 @@ print(get_available_combinations())
   + `L1model.xml` + meshes. Picked up automatically. See
   [how-to/add-a-device.md](how-to/add-a-device.md).
 - **A new MSK**: add an entry to `_COMPATIBLE_MSK_KEYS` in
-  `assist_sim/registry.py` pointing at the new file in `myo_sim`. See
+  `assist_sim/registry.py` binding the key to a `myo_sim.build_spec` model
+  name (and its minimum MuJoCo version). See
   [how-to/add-an-msk-model.md](how-to/add-an-msk-model.md).

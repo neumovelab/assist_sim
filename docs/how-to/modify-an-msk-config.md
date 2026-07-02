@@ -149,7 +149,7 @@ End-to-end:
 
 ```bash
 python examples/quickstart.py myoLeg80 MyDevice_L1
-python examples/quickstart.py myoLeg22_2D MyDevice_L1
+python examples/quickstart.py myoLeg26_3D MyDevice_L1
 ```
 
 Both should compile and look right.

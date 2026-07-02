@@ -18,11 +18,12 @@ from assist_sim.registry import resolve
 
 from .conftest import needs_myo_sim
 
-MSK_KEYS_22_26 = ["myoLeg22_2D", "myoLeg26_3D"]
+# Phase 1 wires the legs-only myolegs26 (the only MSK buildable on mujoco 3.3.3).
+PHASE1_MSK_KEYS = ["myoLeg26_3D"]
 
 
 @needs_myo_sim
-@pytest.mark.parametrize("msk_key", MSK_KEYS_22_26)
+@pytest.mark.parametrize("msk_key", PHASE1_MSK_KEYS)
 def test_prewalk_matches_compiled_offsets(msk_key):
     """The document-order joint table must align with the compiled
     ``jnt_qposadr`` / ``jnt_dofadr`` arrays for every named joint."""
@@ -58,12 +59,12 @@ def test_keyframe_decomposition_by_joint(minimal_human):
 
 
 @needs_myo_sim
-def test_include_inlining_merges_duplicate_worldbodies():
-    """Regression: a terrain include with its own <worldbody> would shadow the
-    MSK's worldbody.  ``merge_top_level_duplicates`` (called from
-    ``inline_mujoco_includes``) must collapse them so the joint table builds
-    correctly."""
-    path = resolve("myoLeg22_2D", "DephyExoBoot_L1")[0]
+def test_include_inlining_leaves_single_worldbody():
+    """``inline_mujoco_includes`` / ``merge_top_level_duplicates`` must yield a
+    single ``<worldbody>`` so the joint table builds correctly.  The composed
+    myolegs26 XML is already fully inlined (no includes), so this also guards
+    against the merge pass corrupting an already-flat model."""
+    path = resolve("myoLeg26_3D", "DephyExoBoot_L1")[0]
     root = ET.parse(str(path)).getroot()
     inline_mujoco_includes(root, path.parent)
     assert len(root.findall("worldbody")) == 1
@@ -87,25 +88,31 @@ def test_merge_top_level_duplicates_idempotent():
 
 @needs_myo_sim
 def test_combined_keyframes_preserve_source_values():
-    """End-to-end: a combined model's keyframes carry the MSK's authored
-    joint values, modulo keyframe_overrides. Regression for the bug where
-    only the override (pelvis_ty) survived and everything else was zero."""
-    msk_path, device_path = resolve("myoLeg22_2D", "DephyExoBoot_L1")
+    """End-to-end: a combined model's keyframes carry the MSK's authored joint
+    values by name. Regression for the bug where only overridden joints survived
+    and everything else was zeroed.
+
+    myolegs26 is a myosuite-convention model: a free ``root`` joint, not a
+    ``pelvis_ty`` slide, so DephyExoBoot's ``pelvis_ty`` keyframe override is a
+    no-op here (the free-root height comes from the base stand keyframe)."""
+    msk_path, device_path = resolve("myoLeg26_3D", "DephyExoBoot_L1")
     model, _ = load_combined_model(
         human_xml=str(msk_path),
         device_config=str(device_path),
+        msk_key="myoLeg26_3D",
     )
     kf = mj.mj_name2id(model, mj.mjtObj.mjOBJ_KEY, "stand")
     assert kf >= 0
     qpos = list(model.key_qpos[kf])
 
-    # pelvis_ty has an override (0.96) in DephyExoBoot's L1config.yaml.
-    pty = mj.mj_name2id(model, mj.mjtObj.mjOBJ_JOINT, "pelvis_ty")
-    assert qpos[int(model.jnt_qposadr[pty])] == pytest.approx(0.96)
+    # Free-root base, no pelvis_ty (the DephyExoBoot pelvis_ty override no-ops).
+    assert mj.mj_name2id(model, mj.mjtObj.mjOBJ_JOINT, "root") >= 0
+    assert mj.mj_name2id(model, mj.mjtObj.mjOBJ_JOINT, "pelvis_ty") < 0
 
-    # Non-overridden joints carry their MSK-authored values.
+    # Non-trivial authored joint values from the myolegs26 stand keyframe are
+    # preserved through preprocess + attach + recompile.
     expected = {
-        "knee_r_translation1": 0.00411,
+        "knee_r_translation1": -0.003639,
         "knee_r_translation2": -0.395,
         "ankle_angle_r": -0.0143,
     }

@@ -23,7 +23,7 @@ from . import (
 
 
 def _cmd_list(_: argparse.Namespace) -> int:
-    from .registry import DEVICE_CONFIGS, MSK_MODELS, _COMPATIBLE_MSK_KEYS
+    from .registry import DEVICE_CONFIGS, _COMPATIBLE_MSK_KEYS, _msk_available
 
     combos = get_available_combinations()
     if combos:
@@ -33,13 +33,20 @@ def _cmd_list(_: argparse.Namespace) -> int:
                 print(f"    - {device}")
         return 0
 
-    # No MSKs resolved -- either myo_sim isn't installed or doesn't have any
-    # of the listed MSK files yet.  Report what we DID find so the user can
-    # tell which half is missing.
-    print("No MSK x device combinations resolvable.")
+    # No MSKs buildable -- either myo_sim isn't installed or every MSK is gated
+    # on this environment.  Report per-key status so the user can tell why.
+    print("No MSK x device combinations buildable in this environment.")
     print()
-    print(f"  Compatible MSK keys (curated): {sorted(_COMPATIBLE_MSK_KEYS)}")
-    print(f"  MSK files resolvable now:      {sorted(MSK_MODELS) or '(none -- is `myo_sim` installed?)'}")
+    print("  MSK keys (curated):")
+    for key in sorted(_COMPATIBLE_MSK_KEYS):
+        src = _COMPATIBLE_MSK_KEYS[key]
+        if _msk_available(key):
+            status = "available"
+        elif src.myo_sim_model is None:
+            status = f"planned ({src.note})"
+        else:
+            status = f"gated ({src.note})"
+        print(f"    - {key}: {status}")
     print(f"  Device configs discovered:     {sorted(DEVICE_CONFIGS)}")
     print()
     print("Install myo_sim (pip install myo_sim, or a git+http URL until the")

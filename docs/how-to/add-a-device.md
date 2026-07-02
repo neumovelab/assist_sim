@@ -165,7 +165,7 @@ python -m assist_sim list
 ## Step 4 -- Compile + visually inspect
 
 ```bash
-python examples/quickstart.py myoLeg22_2D MyDevice_L1
+python examples/quickstart.py myoLeg26_3D MyDevice_L1
 ```
 
 If it opens the viewer and shows the device attached, you're done. Common

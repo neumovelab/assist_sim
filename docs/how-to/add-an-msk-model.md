@@ -6,41 +6,45 @@ here.
 
 ## Step 1 -- Contribute the MSK to `myo_sim`
 
-Upstream the new MSK XML to `MyoHub/myo_sim` via PR. Conventions in
-`myo_sim` (per upstream):
+Upstream the new MSK to `MyoHub/myo_sim` via PR. On the `mm_refactor` branch,
+leg models are *composed at runtime* and exposed as editable specs, so a new
+MSK means:
 
-- Lower-limb MSKs live under `myo_sim/leg/`
-- File naming follows existing patterns (e.g. `myolegs.xml` for the
-  primary 80-muscle, named variants for customized models)
-- Mesh files referenced via relative paths inside the package
+- Register a composed model (a `BuildStrategy` + `MODEL_REGISTRY` entry in
+  `myo_sim/build/compose.py`), and
+- Expose it via `myo_sim.build_spec(<name>)` (i.e. add it to
+  `GENERATE_SPEC_BUILDERS` / `FRAGMENT_SPEC_BUILDERS`) so `assist_sim` can get
+  an editable `MjSpec` for it. See `myolegs26` for a worked example.
 
-For the *interim* development period where `myo_sim` isn't yet
-PyPI-published with your MSK, you can use a git+http install of a
-fork or branch:
+For the *interim* development period where `myo_sim` isn't yet PyPI-published
+with your MSK, install a fork or branch:
 
 ```bash
 pip install git+https://github.com/<your-fork>/myo_sim.git@<branch>
 ```
 
-`assist_sim` consumes whatever's installed -- it doesn't care whether
-the source is upstream or a fork.
+`assist_sim` consumes whatever's installed -- it doesn't care whether the
+source is upstream or a fork.
 
 ## Step 2 -- Register the MSK in `assist_sim`
 
-Add an entry to `_COMPATIBLE_MSK_KEYS` in `assist_sim/registry.py`:
+Add an entry to `_COMPATIBLE_MSK_KEYS` in `assist_sim/registry.py`, binding the
+key to the `myo_sim.build_spec` model name and the minimum MuJoCo version that
+can build it:
 
 ```python
-_COMPATIBLE_MSK_KEYS: Dict[str, Tuple[str, str]] = {
-    "myoLeg22_2D": ("myo_sim.leg", "myoLeg22_2D.xml"),
-    "myoLeg26_3D": ("myo_sim.leg", "myoLeg26_3D.xml"),
-    "myoLeg80":    ("myo_sim.leg", "myolegs.xml"),
-    "MyNewMSK":    ("myo_sim.leg", "my_new_msk.xml"),    # NEW
+_COMPATIBLE_MSK_KEYS: Dict[str, _MskSource] = {
+    ...
+    "MyNewMSK": _MskSource("my_new_model", (3, 3, 3), ""),    # NEW
 }
 ```
 
-Each entry maps a registry key to a `(subpackage, filename)` tuple.
-`importlib.resources.files(subpackage).joinpath(filename)` resolves
-the file at runtime.
+`_MskSource(myo_sim_model, min_mujoco, note)`: `myo_sim_model` is the
+`build_spec` name (or `None` for a planned key with no source yet); `min_mujoco`
+gates models that need newer MuJoCo (e.g. passive-torso conversions need
+`(3, 3, 4)`); `note` explains a gated/planned state in the error the caller
+sees. At resolve time `assist_sim` calls `build_spec`, serializes the returned
+`MjSpec`, strips the bundled myosuite scene, and caches a model-only XML.
 
 ## Step 3 -- Verify resolution
 
@@ -48,16 +52,16 @@ the file at runtime.
 from assist_sim.registry import resolve
 
 msk_path, _ = resolve("MyNewMSK", "DephyExoBoot_L1")
-print(msk_path)        # should print an absolute Path that exists
+print(msk_path)        # a cached, model-only XML Path that exists
 ```
 
-If you get `FileNotFoundError`, the file isn't where the registry
-expects. Check the installed `myo_sim`'s layout:
+If you get an `ImportError`, either `myo_sim` isn't installed, the installed
+MuJoCo is older than `min_mujoco`, or `build_spec` failed -- the message says
+which. Confirm `myo_sim` knows the model:
 
 ```python
-import importlib.resources
 import myo_sim
-print(list(importlib.resources.files("myo_sim.leg").iterdir()))
+print("my_new_model" in myo_sim._COMPOSED_MODELS)
 ```
 
 ## Step 4 -- Update devices for compatibility

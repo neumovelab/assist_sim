@@ -12,11 +12,11 @@ Read `CONTRIBUTING.md` and `docs/concepts.md` before any substantial change.
 ```bash
 pip install -e .
 pip install -r requirements-dev.txt
-pytest                              # 50 pass, 24 skip without myo_sim
+pytest                              # 63 pass, 1 skip with myo_sim (HMEDI needs myoLeg80 / Phase 2)
 ruff check . && ruff format --check .
 
 python -m assist_sim list           # discoverable combinations (also: validate, combine)
-python examples/quickstart.py myoLeg22_2D DephyExoBoot_L1   # visual inspection
+python examples/quickstart.py myoLeg26_3D DephyExoBoot_L1   # visual inspection
 ```
 
 > Note: uv migration is planned for tooling parity with `myo_sim` (which uses `uv sync` /
@@ -50,10 +50,17 @@ resolvers.
 ## myo_sim integration status
 
 Baseline MSKs live in `myo_sim`, not here; assist_sim resolves them via `_COMPATIBLE_MSK_KEYS` in
-`registry.py`. On myo_sim's `mm_refactor_mjspec` branch, leg models are **composed at runtime**
-(no static XML, no path accessor), which the current resolver does not yet handle. The proposed
-fix (expose a leg `MjSpec` via myo_sim's `FRAGMENT_SPEC_BUILDERS`, serialize to XML, then run the
-existing pipeline) is written up in `myo_sim-leg-integration.md` — pending agreement with myo_sim.
+`registry.py`. On myo_sim's `mm_refactor` branch, leg models are **composed at runtime** (no static
+XML). **Phase 1 (done):** `_resolve_msk` calls `myo_sim.build_spec(<model>)`, serializes the
+returned `MjSpec` to XML, strips the bundled myosuite scene (`utils._strip_myosuite_scene`), and
+caches a model-only XML that feeds the existing preprocess+combine pipeline. Only `myoLeg26_3D`
+(→ legs-only `myolegs26`) is buildable on the pinned `mujoco==3.3.3`; `myoLeg80` (→ `myolegs`,
+passive-torso, needs `MjSpec.delete`) is gated on `mujoco>=3.3.4` and `myoLeg22_2D` awaits a 26→22
+mjspec reduction — both raise a clear error when resolved.
+
+**Phase 2 (next):** bump the pin to `mujoco>=3.3.4`, switch Phase-1 removals to in-memory
+`spec.delete()` (dropping the XML round-trip), which also unlocks `myoLeg80` and torso'd devices
+(e.g. HMEDI). Background write-up: `myo_sim-leg-integration.md`.
 
 ## More detail
 
