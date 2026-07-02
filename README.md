@@ -46,20 +46,19 @@ python examples/quickstart.py myolegs26 DephyExoBoot_L1
 
 ## Available Combinations
 
-MSK keys mirror the myo_sim model names. `myolegs26` (legs-only, 26-muscle) is
-wired and tested on the pinned MuJoCo 3.3.3. `myolegs` (80-muscle, needs mujoco
-3.3.4+) and `myolegs22` (a planned 26→22 reduction) resolve to a clear error
-until Phase 2.
+MSK keys mirror the myo_sim model names. `myolegs26` (legs-only, 26-muscle) and
+`myolegs` (80-muscle, passive torso) are both wired and tested. `myolegs22` (a
+planned 26→22 reduction) has no source yet and resolves to a clear error.
 
 | Device key            | myolegs26 | myolegs | myolegs22 |
 |-----------------------|:-:|:-:|:-:|
-| `DephyExoBoot_L1`     | ✓ | — | — |
-| `OpenSourceLeg_A_L1`  | ✓ | — | — |
-| `OpenSourceLeg_KA_L1` | ✓ | — | — |
-| `Humotech_L1`         | ✓ | — | — |
-| `OpenExo_L1`          | ✓ | — | — |
-| `Tutorial_L1`         | ✓ | — | — |
-| `HMEDI_L1`            | n/a (needs torso) | — | — |
+| `DephyExoBoot_L1`     | ✓ | ✓ | — |
+| `OpenSourceLeg_A_L1`  | ✓ | ✓ | — |
+| `OpenSourceLeg_KA_L1` | ✓ | ✓ | — |
+| `Humotech_L1`         | ✓ | ✓ | — |
+| `OpenExo_L1`          | ✓ | ✓ | — |
+| `Tutorial_L1`         | ✓ | ✓ | — |
+| `HMEDI_L1`            | n/a (needs torso) | ✓ | — |
 
 See [docs/available-models.md](docs/available-models.md) for descriptions of
 each device + tested combinations.
@@ -76,7 +75,7 @@ pip install -e .
 pip install git+https://github.com/MyoHub/myo_sim.git   # interim, until on PyPI
 ```
 
-Requirements: Python ≥ 3.10, MuJoCo 3.3.3.
+Requirements: Python ≥ 3.10, MuJoCo ≥ 3.3.4 (for in-memory `MjSpec.delete`).
 
 For development:
 
@@ -90,7 +89,7 @@ pytest
 | Doc | What |
 |---|---|
 | [docs/getting-started.md](docs/getting-started.md) | Install, run the quickstart, first compiled model |
-| [docs/concepts.md](docs/concepts.md) | Architecture: two-phase pipeline, naming, repo split |
+| [docs/concepts.md](docs/concepts.md) | Architecture: in-memory pipeline, naming, repo split |
 | [docs/usage.md](docs/usage.md) | Full API: `load_combined_model`, caching, CLI, registry |
 | [docs/device-config-reference.md](docs/device-config-reference.md) | Every YAML field with examples |
 | [docs/available-models.md](docs/available-models.md) | Devices + MSKs + which combinations are tested |

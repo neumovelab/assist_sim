@@ -1,6 +1,6 @@
 # Concepts
 
-This doc covers the architecture: why `assist_sim` exists, the two-phase
+This doc covers the architecture: why `assist_sim` exists, the in-memory
 pipeline, and how it fits with `myo_sim` and downstream training frameworks.
 
 ## The three-repo split
@@ -13,8 +13,8 @@ frameworks. Four packages collaborate:
   XML), so `assist_sim` obtains an editable `MjSpec` via
   `myo_sim.build_spec(<model>)`, serializes it, strips the bundled myosuite
   scene, and caches the model-only XML. assist_sim's MSK keys mirror the
-  myo_sim model names. Phase 1 wires `myolegs26` (legs-only, 26-muscle);
-  `myolegs` (80-muscle) and `myolegs22` follow in Phase 2 / when the 26→22
+  myo_sim model names. `myolegs26` (legs-only, 26-muscle) and `myolegs`
+  (80-muscle, passive torso) are wired; `myolegs22` follows when the 26→22
   reduction lands.
 - **`assist_sim`** (this repo) holds the *combination pipeline* and *device
   configurations*. It produces compiled `MjModel` objects (and optional
@@ -33,73 +33,49 @@ frameworks. Four packages collaborate:
 > will replace this in a later docs pass.* 
 <!-- # TODO: #1 -->
 
-## The two-phase pipeline
+## The in-memory pipeline
 
-When `load_combined_model(...)` is called, the model goes through two
-phases. The inputs are a baseline MSK XML and a device YAML;
-the outputs are an `(MjModel, MjData)` pair ready to step and (optionally)
-an exported combined XML.
+The inputs are an MSK (a registry key that `myo_sim` composes on demand, or an
+explicit baseline XML path) and a device YAML; the outputs are an
+`(MjModel, MjData)` pair ready to step and (optionally) an exported combined
+XML.  Everything runs on a single live `MjSpec` -- the human model is never
+serialized to XML and reloaded (see [Why in-memory](#why-in-memory)).
 
-**Phase 1 -- Preprocess (XML pass).**  An ElementTree pass over the MSK
-XML applies every operation that *removes* content from the model.  In
-order:
+**Resolve.**  `registry._resolve_msk` calls `myo_sim.build_spec(<model>)` and
+strips the bundled myosuite scene (worldbody-direct floor / backdrop / pedestal
+/ logo geoms, scene lights and cameras, plus the meshes only they referenced),
+returning a model-only human `MjSpec`.  (The explicit-path entry point instead
+loads the spec from the given XML.)
 
-- Inline `<include>` directives so all referenced subtrees are present in
-  the working tree.
-- Merge duplicate top-level sections (`worldbody`, `asset`, `default`,
-  `contact`, `sensor`, `tendon`, `actuator`, `equality`, `keyframe`) that
-  the inlining may have produced, mirroring MuJoCo's compile-time merge.
-- Apply body / geom / actuator / tendon removals -- the prosthetic surgery
-  side of the pipeline.
-- Apply tendon wrap edits (auto-prune wraps whose sites lived on removed
-  bodies; honor any `tendon_modifications` overrides).
-- Prune the qpos / qvel slots of every keyframe to drop indices owned by
-  removed joints, preserving authored values for surviving joints.
-- Cascade cleanup: remove contact pairs, sensors, and equality constraints
-  that reference any removed element.
-- Strip the scene / terrain content -- assist_sim outputs are model-only.
-  For a composed myo_sim MSK this happens at resolution time (the bundled
-  myosuite scene -- floor, backdrop, pedestal, logo, scene lights/cameras --
-  is removed before the XML enters the pipeline); for MSKs carrying a
-  `terrain_config` include, the terrain strip runs here in Phase 1.
+**Combine** (`combine.py`).  Operates on that spec, requiring `mujoco>=3.3.4`
+for `MjSpec.delete`:
 
-A temp XML is written to disk at the end of Phase 1, in the same directory
-as the source MSK (so relative paths still resolve).
+- Decompose each source keyframe's qpos/qvel into per-joint slices by *name*
+  (a pre-surgery compile), then blank the keyframe arrays so surgery can change
+  the layout.
+- Surgery -- apply body / geom / actuator / tendon removals via `spec.delete`.
+  Deleting a body cascades its subtree plus the sensors, equality constraints,
+  and actuators/tendons whose sites lived on it; contact `<pair>`s referencing a
+  removed geom are scrubbed manually (delete does not cascade those).
+- Attach each device body under its parent body, applying the device-name
+  prefix to all imported elements; honor per-MSK attachment overrides.
+- Apply joint range / damping overrides; add YAML-declared joint actuators;
+  import device-side spatial tendons + tendon-transmission actuators.
+- Compile, rebuild keyframes by joint name (restore surviving joints' authored
+  values, apply `keyframe_overrides`), and recompile to lock in the keyframes.
 
-**Phase 2 -- MjSpec (attach pass).**  `MjSpec.from_file` loads the
-preprocessed temp XML and the device XML.  Every operation here is either
-additive or an in-place attribute edit (no `MjSpec.delete` calls -- those
-don't exist on MuJoCo 3.3.3):
+The compiled `MjModel` and a fresh `MjData` are returned.
 
-- Attach each device body under its parent body in the MSK, applying the
-  device-name prefix to all imported elements (bodies, sites, meshes,
-  joints, actuators, tendons).
-- Honor per-MSK attachment overrides (different `parent_body`, `pos`, or
-  `quat` per MSK).
-- Apply joint range / damping overrides on existing MSK joints.
-- Import device-side spatial tendons and tendon-transmission actuators
-  from the device XML, with the device prefix.
-- Add YAML-declared joint-transmission actuators.
-- Compile the spec into an `MjModel`.
-- Rebuild keyframes by joint *name* (model-agnostic) -- restores authored
-  values to surviving joints, applies `keyframe_overrides`, then
-  recompiles to lock the keyframe table into the final model.
+### Why in-memory
 
-The compiled `MjModel` and a fresh `MjData` are returned.  If `export_xml`
-was provided, the spec is also serialized to a clean XML at that path.
-
-### Why two phases
-
-MuJoCo 3.3.3 (the version pinned by downstream `myoassist`) does not expose
-`MjSpec.delete`. Anything that *removes* content from the model has to happen
-before the spec is constructed -- i.e. at the XML level. Hence Phase 1
-operates on `ElementTree`. Anything that *adds* or *edits in place*
-(attachments, joint property changes, actuators, keyframe writes) works fine
-on the spec -- Phase 2.
-
-This split also produces cleaner semantics: removals are model surgery (done
-once, on the baseline), and the spec-level operations are device-side
-authoring (additive, namespaced via the device prefix).
+MuJoCo's `MjSpec.delete` (3.3.4+) lets removals happen on the live spec, so
+there is no separate ElementTree removal phase.  This is also *required* for
+`myo_sim`'s torso-composed models: their serialized `to_xml` output does not
+round-trip (the merged fragment default trees produce a nested unnamed
+`<default>`, which MuJoCo rejects on reload as an "empty class name").  Working
+the spec in memory sidesteps serialization entirely.  Device models are still
+static XML files that round-trip fine, so `preprocess.prepare_device_xml` does
+a little text-level massaging of the device side before attach.
 
 ## Naming conventions
 

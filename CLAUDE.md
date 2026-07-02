@@ -12,7 +12,7 @@ Read `CONTRIBUTING.md` and `docs/concepts.md` before any substantial change.
 ```bash
 pip install -e .
 pip install -r requirements-dev.txt
-pytest                              # 63 pass, 1 skip with myo_sim (HMEDI needs myolegs / Phase 2)
+pytest                              # 51 pass with myo_sim installed
 ruff check . && ruff format --check .
 
 python -m assist_sim list           # discoverable combinations (also: validate, combine)
@@ -24,22 +24,29 @@ python examples/quickstart.py myolegs26 DephyExoBoot_L1   # visual inspection
 
 ## Architecture
 
-Two-phase pipeline (the design exists because `mujoco==3.3.3` has no `MjSpec.delete`):
+Single-phase, fully in-memory pipeline (requires `mujoco>=3.3.4` for `MjSpec.delete`):
 
-1. **Phase 1 — `preprocess.py`** (ElementTree): all removals + cascade cleanup on the human XML.
-2. **Phase 2 — `combine.py`** (MjSpec): attach device bodies, edit attributes, add actuators,
-   rebuild keyframes. Additive only.
+1. **Resolve** — `registry._resolve_msk` calls `myo_sim.build_spec(<model>)` and strips the
+   bundled myosuite scene (`utils.strip_myosuite_scene_spec`), returning a live human `MjSpec`.
+   The composed model is never serialized (torso-composed models don't round-trip through
+   `to_xml`), so everything downstream edits the spec directly.
+2. **Combine** (`combine.py`, MjSpec): surgery via `spec.delete` (body/geom/actuator/tendon
+   removals — cascades subtrees + referencing elements; manual scrub of contact `<pair>`s), then
+   attach device bodies, edit attributes, add actuators, and rebuild keyframes (decomposed by
+   joint name before surgery, restored after the final compile).
 
-`registry.py` resolves MSK keys (from `myo_sim`) and auto-discovers device configs by scanning
-`assist_sim/models/*/L1config.yaml`. `config.py` holds the `DeviceConfig` dataclass + per-MSK
-resolvers.
+`registry.py` resolves MSK keys (composed by `myo_sim`) and auto-discovers device configs by
+scanning `assist_sim/models/*/L1config.yaml`. `config.py` holds the `DeviceConfig` dataclass +
+per-MSK resolvers. `preprocess.py` is now just device-XML prep (`prepare_device_xml`) + the
+`KeyframeData` container; static device XMLs still round-trip fine.
 
 ## Conventions (load-bearing)
 
 - **Errors over warnings.** Unresolved YAML references raise `ValueError` with a "did you mean"
   suggestion. No `warnings.warn`.
-- **No `MjSpec.delete`.** Targets `mujoco==3.3.3` (pinned, deliberate). All removals happen in
-  Phase 1 at the ElementTree level.
+- **In-memory surgery.** Requires `mujoco>=3.3.4` (`MjSpec.delete`). Removals run on the live
+  human `MjSpec`; `spec.delete` cascades subtrees + sensors/actuators/tendons but NOT contact
+  `<pair>`s (scrubbed manually). Device XMLs are still massaged at the text level.
 - **Minimal public surface.** Only names exported from `assist_sim/__init__.py` are committed API;
   internals stay underscore-prefixed.
 - **Devices autodiscover.** Drop a folder under `assist_sim/models/`; no code change needed.
@@ -51,17 +58,16 @@ resolvers.
 
 Baseline MSKs live in `myo_sim`, not here; assist_sim resolves them via `_COMPATIBLE_MSK_KEYS` in
 `registry.py`. On myo_sim's `mm_refactor` branch, leg models are **composed at runtime** (no static
-XML). **Phase 1 (done):** `_resolve_msk` calls `myo_sim.build_spec(<model>)`, serializes the
-returned `MjSpec` to XML, strips the bundled myosuite scene (`utils._strip_myosuite_scene`), and
-caches a model-only XML that feeds the existing preprocess+combine pipeline. assist_sim MSK keys
-mirror the myo_sim model names. Only `myolegs26` (legs-only, 26-muscle) is buildable on the pinned
-`mujoco==3.3.3`; `myolegs` (80-muscle, passive-torso, needs `MjSpec.delete`) is gated on
-`mujoco>=3.3.4` and `myolegs22` awaits a 26→22 mjspec reduction — both raise a clear error when
-resolved.
+XML), and assist_sim's keys mirror the myo_sim model names. `_resolve_msk` calls
+`myo_sim.build_spec(<model>)`, strips the bundled myosuite scene, and returns a live `MjSpec` that
+`combine.py` mutates in place. Buildable now (on `mujoco>=3.3.4`): **`myolegs26`** (legs-only,
+26-muscle) and **`myolegs`** (80-muscle, passive torso). **`myolegs22`** has no source yet (a
+planned 26→22 mjspec reduction) and raises a clear `ValueError` when resolved.
 
-**Phase 2 (next):** bump the pin to `mujoco>=3.3.4`, switch Phase-1 removals to in-memory
-`spec.delete()` (dropping the XML round-trip), which also unlocks `myolegs` and torso'd devices
-(e.g. HMEDI). Background write-up: `myo_sim-leg-integration.md`.
+Torso-composed models (`myolegs`, and any device that needs a torso like HMEDI) are why the
+pipeline is in-memory: their serialized `to_xml` doesn't round-trip (nested unnamed `<default>` →
+"empty class name" on reload), so assist_sim never serializes the human model. Background
+write-up: `myo_sim-leg-integration.md`.
 
 ## More detail
 

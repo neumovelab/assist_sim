@@ -5,25 +5,24 @@ Inventory of what's compatible with what.
 ## MSK models (composed by `myo_sim`)
 
 `myo_sim` composes its leg models at runtime, so each MSK key is resolved by
-calling `myo_sim.build_spec(<model>)`, serializing to XML, and stripping the
-bundled myosuite scene (see [concepts.md](concepts.md)). The assist_sim key
-matches the `myo_sim` model name. Three are registered; which are buildable
-depends on the installed MuJoCo:
+calling `myo_sim.build_spec(<model>)` and stripping the bundled myosuite scene
+(see [concepts.md](concepts.md)) -- returning a live `MjSpec`, never a file. The
+assist_sim key matches the `myo_sim` model name:
 
 | Key (= `myo_sim` model) | Base DOFs | Status |
 |---|---|---|
-| `myolegs26` | 47 | **Available** (Phase 1) — 26-muscle, legs-only |
-| `myolegs`   | —  | Phase 2 — 80-muscle; needs `mujoco>=3.3.4` (passive-torso conversion uses `MjSpec.delete`) |
+| `myolegs26` | 47 | **Available** — 26-muscle, legs-only |
+| `myolegs`   | 35 | **Available** — 80-muscle, passive torso |
 | `myolegs22` | —  | Planned — a 26→22 mjspec reduction of `myolegs26`, not built yet |
 
-`myolegs26` is the only MSK buildable on the pinned `mujoco==3.3.3`. Resolving
+Both buildable models require `mujoco>=3.3.4` (in-memory `MjSpec.delete`). Resolving
 a gated/planned key raises a clear error (never a silent fallback).
 
 ### Important MSK notes (myolegs26)
 
 - **Legs-only.** `myolegs26` is intentionally trunk-less — no HAT, torso, arms,
   or head. Devices whose attachments target a `torso` body (e.g. HMEDI's torso
-  band) need a torso'd MSK (`myolegs`, Phase 2).
+  band) need a torso'd MSK (`myolegs`).
 - **Free-root base.** The root is a `freejoint` (myosuite convention), not
   `pelvis_tx`/`pelvis_ty` slide joints. Device keyframe overrides that target
   `pelvis_ty` are silently skipped (the joint doesn't exist); the standing
@@ -51,21 +50,20 @@ device YAML's `device.name`).
 
 ## Compatibility matrix
 
-✓ = tested (frozen smoke signatures); — = not yet buildable (Phase 2 / planned);
+✓ = tested (frozen smoke signatures); — = not yet buildable (planned MSK);
 n/a = device needs a torso'd MSK.
 
 | Device | myolegs26 | myolegs | myolegs22 |
 |---|:-:|:-:|:-:|
-| `DephyExoBoot_L1`     | ✓ | — | — |
-| `OpenSourceLeg_A_L1`  | ✓ | — | — |
-| `OpenSourceLeg_KA_L1` | ✓ | — | — |
-| `Humotech_L1`         | ✓ | — | — |
-| `OpenExo_L1`          | ✓ | — | — |
-| `Tutorial_L1`         | ✓ | — | — |
-| `HMEDI_L1`            | n/a (needs torso) | — | — |
+| `DephyExoBoot_L1`     | ✓ | ✓ | — |
+| `OpenSourceLeg_A_L1`  | ✓ | ✓ | — |
+| `OpenSourceLeg_KA_L1` | ✓ | ✓ | — |
+| `Humotech_L1`         | ✓ | ✓ | — |
+| `OpenExo_L1`          | ✓ | ✓ | — |
+| `Tutorial_L1`         | ✓ | ✓ | — |
+| `HMEDI_L1`            | n/a (needs torso) | ✓ | — |
 
-Phase 1 wires `myolegs26`. The `myolegs` and `myolegs22` columns activate
-in Phase 2 (mujoco 3.3.4 bump) and when the 26→22 reduction lands, respectively.
+The `myolegs22` column activates when the 26→22 mjspec reduction lands.
 
 ## Verifying combinations locally
 

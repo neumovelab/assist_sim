@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import mujoco as mj
 import pytest
 
 from assist_sim.config import DeviceConfig
@@ -35,4 +36,4 @@ def test_runtime_combine_raises_with_suggestion(minimal_human, minimal_device_co
     config = DeviceConfig.from_yaml(minimal_device_config)
     config.body_removals = ["thiigh"]
     with pytest.raises(ValueError, match="Did you mean.*'thigh'"):
-        ModelCombiner().combine(minimal_human, config)
+        ModelCombiner().combine(mj.MjSpec.from_file(minimal_human), config)

@@ -12,7 +12,7 @@ mesh_replacements:
     - geom: "femur_r_geom_1"
       mesh: "osl_femur_trans_r"
   myolegs:
-    - geom: "r_femur"
+    - geom: "femur_r"
       mesh: "osl_femur_trans_r"
 
 # --- Attach prosthetic chain to the residual femur ---

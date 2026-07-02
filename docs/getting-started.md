@@ -6,7 +6,8 @@ inspection. About 5 minutes end-to-end if the prerequisites are in place.
 ## Prerequisites
 
 - Python ≥ 3.10
-- A working MuJoCo 3.3.3 install (`pip install mujoco==3.3.3`)
+- A working MuJoCo ≥ 3.3.4 install (`pip install "mujoco>=3.3.4"`) -- the
+  pipeline uses `MjSpec.delete`, which lands in 3.3.4
 - `myo_sim` for the baseline MSK models (see install step below)
 
 ## Install
@@ -17,7 +18,7 @@ cd assist_sim
 pip install -e .
 ```
 
-The editable install picks up `mujoco==3.3.3`, `PyYAML`, `numpy` from
+The editable install picks up `mujoco>=3.3.4`, `PyYAML`, `numpy` from
 `pyproject.toml`. It does **not** auto-install `myo_sim` (which is published
 separately).
 
@@ -98,7 +99,7 @@ version bump. See [usage.md](usage.md) for details.
 
 ## What next?
 
-- [concepts.md](concepts.md) -- how the two-phase pipeline works
+- [concepts.md](concepts.md) -- how the in-memory pipeline works
 - [usage.md](usage.md) -- the full API surface
 - [how-to/add-a-device.md](how-to/add-a-device.md) -- authoring a new device
 - [device-config-reference.md](device-config-reference.md) -- YAML schema reference

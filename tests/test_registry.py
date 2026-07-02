@@ -47,13 +47,17 @@ def test_planned_msk_raises_value_error():
 
 
 def test_resolve_msk_composes_or_raises():
-    """With myo_sim present, resolving the Phase-1 MSK composes a model-only XML
-    on disk; without it, _resolve_msk raises an ImportError pointing at install."""
+    """With myo_sim present, resolving the Phase-1 MSK composes a model-only
+    ``MjSpec``; without it, _resolve_msk raises an ImportError pointing at install."""
+    import mujoco as mj
+
     try:
         result = registry._resolve_msk("myolegs26")
     except ImportError:
         return  # expected when myo_sim not installed
-    assert isinstance(result, Path) and result.exists()
+    assert isinstance(result, mj.MjSpec)
+    # scene-stripped: the composed model-only spec has no worldbody-direct geoms
+    assert len(result.worldbody.geoms) == 0
 
 
 # ----------------------------------------------------------------------

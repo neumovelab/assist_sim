@@ -145,36 +145,31 @@ def _strip_terrain(
             root.remove(inc)
 
 
-def _strip_myosuite_scene(root: ET.Element) -> None:
-    """Remove the myosuite scene bundled by a myo_sim composed model.
+def strip_myosuite_scene_spec(spec) -> None:
+    """Remove the bundled myosuite scene from a composed ``MjSpec`` in place.
 
     ``myo_sim.build_spec`` output carries the shared myosuite scene (floor
     plane, decorative backdrop mesh, pedestal cylinder, logo, scene lights and
-    cameras).  assist_sim emits model-only XMLs -- downstream consumers (e.g.
+    cameras).  assist_sim emits model-only models -- downstream consumers (e.g.
     ``myoassist.terrains``) layer the scene on top -- so this drops the scene
     while leaving the musculoskeletal model untouched.
 
-    The model lives entirely inside worldbody ``<body>`` subtrees; the scene
-    contributes worldbody-*direct* ``<geom>`` / ``<light>`` / ``<camera>``
-    children (ground + backdrop) which are removed structurally, so unnamed
-    scene primitives (e.g. the pedestal cylinder) are caught too.  Meshes no
-    longer referenced by any surviving geom (the backdrop + logo meshes) are
-    then dropped from ``<asset>``.  Textures/materials are left in place -- like
-    the terrain strip they are harmless unreferenced and keep the skybox
-    renderable.
+    The model lives under worldbody child ``<body>`` subtrees; the scene
+    contributes worldbody-*direct* geoms / lights / cameras (ground + backdrop),
+    which are deleted structurally so unnamed scene primitives (e.g. the
+    pedestal cylinder) are caught too.  Meshes no longer referenced by any
+    surviving geom (the backdrop + logo meshes) are then deleted.  Requires
+    ``mujoco>=3.3.4`` for ``MjSpec.delete``.
     """
-    worldbody = root.find("worldbody")
-    if worldbody is not None:
-        for child in list(worldbody):
-            if child.tag in ("geom", "light", "camera"):
-                worldbody.remove(child)
+    worldbody = spec.worldbody
+    for collection in (worldbody.geoms, worldbody.lights, worldbody.cameras):
+        for elem in list(collection):
+            spec.delete(elem)
 
-    asset = root.find("asset")
-    if asset is not None:
-        referenced = {g.get("mesh") for g in root.iter("geom") if g.get("mesh")}
-        for mesh in list(asset.findall("mesh")):
-            if mesh.get("name") not in referenced:
-                asset.remove(mesh)
+    referenced = {g.meshname for g in spec.geoms if g.meshname}
+    for mesh in list(spec.meshes):
+        if mesh.name not in referenced:
+            spec.delete(mesh)
 
 
 def _ensure_minimal_visual(root: ET.Element) -> None:

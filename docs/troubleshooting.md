@@ -22,11 +22,12 @@ pip install myo_sim   # once on PyPI
 pip install git+https://github.com/MyoHub/myo_sim.git@mm_refactor
 ```
 
-### `ImportError: MSK model 'myolegs' requires ... mujoco>=3.3.4`
+### `ImportError: MSK model '...' requires ... mujoco>=3.3.4`
 
-`myolegs` (the 80-muscle passive-torso model) can only be built on
-MuJoCo 3.3.4+, which the pinned `mujoco==3.3.3` predates (Phase 2 of the
-integration). Use `myolegs26` on 3.3.3, or wait for the Phase-2 bump.
+The pipeline does model surgery in-memory via `MjSpec.delete`, which lands in
+MuJoCo 3.3.4.  Your environment has an older MuJoCo (assist_sim pins
+`mujoco>=3.3.4`, but a shared env may have pinned something older). Upgrade:
+`pip install "mujoco>=3.3.4"`.
 
 ### `ValueError: MSK model 'myolegs22' is not available yet`
 

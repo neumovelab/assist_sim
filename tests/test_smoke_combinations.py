@@ -1,16 +1,15 @@
 """Frozen regression net: every supported MSK x device combination.
 
 Asserts the compiled ``(nq, nu, nbody, nmesh)`` for each combination matches a
-frozen expected tuple.  The MSK side of each pair is composed at runtime via the
-``myo_sim`` package (see ``assist_sim.registry``); tests requiring myo_sim are
-skipped automatically when it isn't installed.
+frozen expected tuple.  The MSK is composed at runtime by ``myo_sim`` and the
+whole pipeline runs in-memory (``spec.delete`` surgery, no XML round-trip), so
+these require ``mujoco>=3.3.4``; the ``needs_myo_sim`` gate skips them when
+myo_sim isn't installed.
 
-Phase 1 of the myo_sim integration wires the legs-only ``myolegs26`` model,
-which is the only MSK buildable on the pinned ``mujoco==3.3.3``.  ``myolegs``
-(passive torso) needs ``MjSpec.delete`` from mujoco 3.3.4+ (Phase 2) and
-``myolegs22`` has no source yet (a planned 26->22 mjspec reduction); both are
-covered by :func:`test_gated_msk_raises`.  The numbers below were captured on
-``mujoco==3.3.3`` and must hold there.
+``myolegs26`` (legs-only) and ``myolegs`` (80-muscle, passive torso) are both
+buildable.  ``myolegs22`` has no source yet (a planned 26->22 reduction) and is
+covered by :func:`test_gated_msk_raises`.  Signatures were captured on
+``mujoco==3.3.4`` (the pinned floor).
 """
 
 from __future__ import annotations
@@ -18,25 +17,27 @@ from __future__ import annotations
 import mujoco as mj
 import pytest
 
-from assist_sim import load_combined_model
-from assist_sim.registry import _msk_available, resolve
+from assist_sim import load_combined
+from assist_sim.registry import _msk_available
 
 from .conftest import needs_myo_sim
 
-# (msk_key, device_key) -> (nq, nu, nbody, nmesh), captured on mujoco 3.3.3.
-# assist_sim emits model-only XMLs: the bundled myosuite scene (floor, backdrop,
-# pedestal, logo) is stripped, so no ground body / scene mesh is counted here.
+# (msk_key, device_key) -> (nq, nu, nbody, nmesh).  assist_sim emits model-only
+# models: the bundled myosuite scene (floor, backdrop, pedestal, logo) is
+# stripped, and prosthetic surgery runs via spec.delete (which cascades the
+# subtree + the muscles/tendons/sensors that referenced removed bodies).
 EXPECTED = {
     ("myolegs26", "DephyExoBoot_L1"): (47, 28, 37, 28),
-    ("myolegs26", "OpenSourceLeg_A_L1"): (46, 23, 24, 19),
-    ("myolegs26", "OpenSourceLeg_KA_L1"): (38, 21, 23, 21),
+    ("myolegs26", "OpenSourceLeg_A_L1"): (46, 22, 24, 19),
+    ("myolegs26", "OpenSourceLeg_KA_L1"): (38, 19, 23, 21),
+    ("myolegs", "DephyExoBoot_L1"): (35, 82, 44, 51),
+    ("myolegs", "OpenSourceLeg_A_L1"): (33, 69, 31, 42),
+    ("myolegs", "OpenSourceLeg_KA_L1"): (29, 56, 33, 44),
 }
 
-# MSKs that are registered but not buildable in Phase 1, and the error each
-# raises when resolved.  ValueError: no source yet; ImportError: needs 3.3.4.
+# MSKs that are registered but not yet buildable, and the error resolve raises.
 GATED = {
-    "myolegs22": ValueError,
-    "myolegs": ImportError,
+    "myolegs22": ValueError,  # no source yet (planned 26->22 mjspec reduction)
 }
 
 
@@ -44,12 +45,7 @@ GATED = {
 @pytest.mark.parametrize("keys,expected", list(EXPECTED.items()), ids=lambda x: str(x))
 def test_combination_signature(keys, expected):
     msk_key, device_key = keys
-    msk_path, device_path = resolve(msk_key, device_key)
-    model, _ = load_combined_model(
-        human_xml=str(msk_path),
-        device_config=str(device_path),
-        msk_key=msk_key,
-    )
+    model, _ = load_combined(msk_key, device_key)
     actual = (model.nq, model.nu, model.nbody, model.nmesh)
     assert actual == expected
 
@@ -59,12 +55,7 @@ def test_combination_signature(keys, expected):
 def test_combination_is_simulatable(keys):
     """A compiled combination steps without error (no rollout, just stability)."""
     msk_key, device_key = keys
-    msk_path, device_path = resolve(msk_key, device_key)
-    model, data = load_combined_model(
-        human_xml=str(msk_path),
-        device_config=str(device_path),
-        msk_key=msk_key,
-    )
+    model, data = load_combined(msk_key, device_key)
     mj.mj_forward(model, data)
     for _ in range(5):
         mj.mj_step(model, data)
@@ -73,21 +64,18 @@ def test_combination_is_simulatable(keys):
 @needs_myo_sim
 @pytest.mark.parametrize("msk_key,exc", list(GATED.items()))
 def test_gated_msk_raises(msk_key, exc):
-    """MSKs without a Phase-1 source raise a clear error (no silent fallback)."""
+    """MSKs without a source raise a clear error (no silent fallback)."""
     with pytest.raises(exc):
-        resolve(msk_key, "DephyExoBoot_L1")
+        load_combined(msk_key, "DephyExoBoot_L1")
 
 
 @needs_myo_sim
-@pytest.mark.skipif(
-    not _msk_available("myolegs"),
-    reason="HMEDI's torso band targets a torso'd MSK (myolegs), buildable only on mujoco>=3.3.4 (Phase 2)",
-)
+@pytest.mark.skipif(not _msk_available("myolegs"), reason="requires the torso'd myolegs (mujoco>=3.3.4)")
 def test_hmedi_cable_tendons_and_actuators_imported():
     """HMEDI's device-XML <tendon>/<actuator> sections (cable_r/l + Exo_R/L)
-    must reach the combined model with the device prefix."""
-    msk_path, device_path = resolve("myolegs", "HMEDI_L1")
-    model, _ = load_combined_model(human_xml=str(msk_path), device_config=str(device_path), msk_key="myolegs")
+    must reach the combined model with the device prefix.  HMEDI needs a torso,
+    so it runs against myolegs."""
+    model, _ = load_combined("myolegs", "HMEDI_L1")
     actuators = {mj.mj_id2name(model, mj.mjtObj.mjOBJ_ACTUATOR, i) for i in range(model.nu)}
     tendons = {mj.mj_id2name(model, mj.mjtObj.mjOBJ_TENDON, i) for i in range(model.ntendon)}
     assert "HMEDI_L1_Exo_R" in actuators

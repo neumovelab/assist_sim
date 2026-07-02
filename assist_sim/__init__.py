@@ -37,7 +37,7 @@ from .loading import (  # noqa: F401
 
 # Bump whenever a pipeline change affects compiled-model output; the cache
 # key includes this so stale cached XMLs are invalidated automatically.
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 # Keep the public surface small: load_combined_model is the documented path.
 # ModelCombiner stays importable from assist_sim.combine for advanced callers
@@ -62,16 +62,17 @@ def load_combined_model(
 ) -> Tuple[mj.MjModel, mj.MjData]:
     """Combine a musculoskeletal model with a device and return the compiled result.
 
-    This is a drop-in replacement for loading a pre-combined XML file.
-    The baseline human model is never modified on disk.
+    Loads the baseline model from an explicit XML path into an ``MjSpec`` and
+    runs the in-memory combination pipeline.  The baseline file is never
+    modified.  (For a registry key that myo_sim composes at runtime, use
+    :func:`load_combined`, which hands the pipeline a spec directly.)
 
     Args:
-        human_xml: Path to the baseline musculoskeletal model XML (typically
-            resolved from the ``myo_sim`` package).
+        human_xml: Path to the baseline musculoskeletal model XML.
         device_config: Path to the device's config.yaml file (under ``models/``).
         export_xml: Optional path to save the combined model as XML.
         msk_key: Optional MSK key for per-MSK config overrides.
-        keep_temp: If True, leave the preprocess temp files on disk.
+        keep_temp: If True, leave the device temp files on disk.
         cache_dir: Optional directory enabling local caching. When set, a
             combined model whose inputs are unchanged is loaded from disk
             instead of recompiled. Off by default.
@@ -80,6 +81,7 @@ def load_combined_model(
         Tuple of (MjModel, MjData) ready for simulation.
     """
     config = DeviceConfig.from_yaml(device_config)
+    human_path = str(Path(human_xml).resolve())
 
     if cache_dir is not None:
         from . import cache as _cache
@@ -97,7 +99,7 @@ def load_combined_model(
         cache_dir.mkdir(parents=True, exist_ok=True)
         cached_xml = str(_cache.cached_xml_path(cache_dir, key))
         model, data = ModelCombiner().combine(
-            human_xml,
+            mj.MjSpec.from_file(human_path),
             config,
             export_xml=cached_xml,
             msk_key=msk_key,
@@ -108,7 +110,7 @@ def load_combined_model(
             key,
             {
                 "assist_sim_version": __version__,
-                "human_xml": str(Path(human_xml).resolve()),
+                "human_xml": human_path,
                 "device_config": str(Path(device_config).resolve()),
                 "msk_key": msk_key,
                 "inputs": [str(p) for p in paths],
@@ -119,7 +121,7 @@ def load_combined_model(
         return model, data
 
     return ModelCombiner().combine(
-        human_xml,
+        mj.MjSpec.from_file(human_path),
         config,
         export_xml=export_xml,
         msk_key=msk_key,

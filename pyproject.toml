@@ -34,7 +34,10 @@ classifiers = [
     "Topic :: Scientific/Engineering",
 ]
 dependencies = [
-    "mujoco==3.3.3",
+    # >=3.3.4 for MjSpec.delete: the pipeline does model surgery in-memory on
+    # the MjSpec (no XML round-trip), which also lets it consume myo_sim's
+    # torso-composed models (their serialized XML doesn't round-trip cleanly).
+    "mujoco>=3.3.4",
     "PyYAML>=6.0.2",
     "numpy>=1.24",
 ]

@@ -30,8 +30,8 @@ pytest                # all 74 should pass
 assist_sim/                       ← the importable package
 ├── __init__.py                   ← public API (load_combined_model, etc.)
 ├── __main__.py                   ← CLI (`python -m assist_sim`)
-├── combine.py                    ← Phase 2 of pipeline (MjSpec attach pass)
-├── preprocess.py                 ← Phase 1 of pipeline (ElementTree XML pass)
+├── combine.py                    ← the pipeline (in-memory MjSpec surgery + attach)
+├── preprocess.py                 ← device-XML prep + KeyframeData container
 ├── registry.py                   ← MSK + device key resolution
 ├── config.py                     ← DeviceConfig dataclass + per-MSK resolvers
 ├── utils.py                      ← XML export, terrain strip, mesh dedup
@@ -98,8 +98,10 @@ the suite once with `pytest -v` and pasting the actual values.
   a YAML section only when a real config needs it. Otherwise stay flat.
 - **Public surface is minimal.** Things exported from `assist_sim/__init__.py`
   are committed-to. Internal helpers stay underscore-prefixed.
-- **No `MjSpec.delete`.** The pipeline targets `mujoco==3.3.3` which
-  doesn't expose it. Removals happen at the ElementTree level in Phase 1.
+- **In-memory surgery (`mujoco>=3.3.4`).** Removals run on the live human
+  `MjSpec` via `spec.delete` (which cascades subtrees + referencing elements;
+  contact `<pair>`s are scrubbed manually). The human model is never serialized
+  to XML -- torso-composed models don't round-trip through `to_xml`.
 
 ## Tests
 

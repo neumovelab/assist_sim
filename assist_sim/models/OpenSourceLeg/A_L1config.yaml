@@ -17,7 +17,7 @@ mesh_replacements:
     - geom: "tibia_r_geom_1"
       mesh: "osl_tibia_fibula_trans_r"
   myolegs:
-    - geom: "r_tibia"
+    - geom: "tibia_r"
       mesh: "osl_tibia_fibula_trans_r"
 
 # --- Prosthetic: drop the surviving fibula geom (covered by stump mesh) ---
@@ -25,7 +25,7 @@ geom_removals:
   default:
     - "tibia_r_geom_2"
   myolegs:
-    - "r_fibula"
+    - "fibula_r"
 
 # --- Attach prosthetic chain to the residual tibia ---
 attachments:

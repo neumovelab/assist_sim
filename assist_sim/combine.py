@@ -1,25 +1,47 @@
 """Core model combination logic using the MuJoCo mjSpec API.
 
-Two-phase flow (runs on ``mujoco==3.3.3``, which has no ``MjSpec.delete``):
+Single-phase, fully in-memory flow (requires ``mujoco>=3.3.4`` for
+``MjSpec.delete``):
 
-1. **Preprocess** (:mod:`assist_sim.preprocess`): an ElementTree pass applies
-   every removal/cascade op to the human XML and writes a temp file.
-2. **MjSpec phase** (here): load the preprocessed human + device specs,
-   attach device bodies, edit attributes in place, add actuators, and rebuild
-   keyframes after compile.  No element is ever deleted from a spec.
+1. **Surgery** -- apply every removal (body / geom / actuator / tendon
+   removals) directly on the human ``MjSpec`` via ``spec.delete``, which
+   cascades subtrees and their referencing elements (child bodies, sensors,
+   equality, contact pairs, and the actuators/tendons whose sites lived on
+   removed bodies).
+2. **Attach** -- load the device spec, attach device bodies, edit attributes,
+   add actuators, and rebuild keyframes after compile.
+
+The human model is an ``MjSpec`` (composed on demand by ``myo_sim`` for a
+registry key, or loaded from an explicit XML path).  It is never serialized to
+XML and reloaded -- torso-composed models do not round-trip cleanly through
+``to_xml`` -- so all edits happen on the live spec.
 """
 
 from __future__ import annotations
 
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import mujoco as mj
 
 from .config import ActuatorDef, DeviceConfig
 from .errors import unknown_reference
-from .preprocess import preprocess_human_xml, prepare_device_xml
+from .preprocess import KeyframeData, prepare_device_xml
+
+# qpos / qvel widths per joint type (mjtJoint), for decomposing keyframes.
+_QPOS_WIDTH = {
+    mj.mjtJoint.mjJNT_FREE: 7,
+    mj.mjtJoint.mjJNT_BALL: 4,
+    mj.mjtJoint.mjJNT_SLIDE: 1,
+    mj.mjtJoint.mjJNT_HINGE: 1,
+}
+_QVEL_WIDTH = {
+    mj.mjtJoint.mjJNT_FREE: 6,
+    mj.mjtJoint.mjJNT_BALL: 3,
+    mj.mjtJoint.mjJNT_SLIDE: 1,
+    mj.mjtJoint.mjJNT_HINGE: 1,
+}
 
 # Maps from string names used in YAML to mujoco enum values
 _GAINTYPE_MAP = {
@@ -47,44 +69,55 @@ _DYNTYPE_MAP = {
 
 
 class ModelCombiner:
-    """Combines a musculoskeletal model with a device model using mjSpec.
+    """Combines a musculoskeletal ``MjSpec`` with a device model using mjSpec.
 
-    Removals are handled by the preprocess layer; this class only performs
-    additive/in-place operations so it runs on MuJoCo 3.3.3.
+    Removals run in-memory via ``spec.delete`` (requires ``mujoco>=3.3.4``);
+    everything else is additive / in-place.
     """
 
     def combine(
         self,
-        human_xml: str,
+        human_spec: mj.MjSpec,
         device_config: DeviceConfig,
         export_xml: Optional[str] = None,
         msk_key: Optional[str] = None,
         keep_temp: bool = False,
     ) -> Tuple[mj.MjModel, mj.MjData]:
-        """Combine a human musculoskeletal model with a device.
+        """Combine a human musculoskeletal ``MjSpec`` with a device.
 
         Args:
-            human_xml: Path to the baseline musculoskeletal model XML.
+            human_spec: The baseline musculoskeletal model as an editable
+                ``MjSpec`` (composed by myo_sim, or loaded from an XML path).
+                It is mutated in place -- pass a fresh spec per call.
             device_config: Loaded DeviceConfig describing the device.
             export_xml: If provided, save the combined model XML to this path.
             msk_key: Optional MSK key for per-MSK config overrides.
-            keep_temp: If True, leave the preprocess temp files on disk
-                (debugging aid).
+            keep_temp: If True, leave the device temp files on disk (debug aid).
 
         Returns:
             Tuple of (MjModel, MjData) ready for simulation.
         """
-        human_xml = str(Path(human_xml).resolve())
         device_xml = str(device_config.model_xml_path)
         prefix = device_config.name + "_"
 
-        pp = preprocess_human_xml(human_xml, device_config, msk_key=msk_key)
+        # Decompose source keyframes by joint name *before* surgery (which
+        # changes nq/nv), then blank their qpos/qvel so the stale-length arrays
+        # can't block a recompile (empty -> compiles at qpos0).  They are
+        # rebuilt by name, in place, after the final compile.  (MjSpec.delete
+        # does not accept keyframes, so we clear rather than remove.)
+        parsed_keyframes = self._decompose_keyframes(human_spec)
+        for key in human_spec.keys:
+            key.qpos = []
+            key.qvel = []
+
+        # Surgery: all removals happen here, in-memory.
+        self._apply_removals(human_spec, device_config, msk_key)
+
         device_full = prepare_device_xml(device_xml, strip_meshes=False)
         device_stripped = prepare_device_xml(device_xml, strip_meshes=True)
-        temps = [pp.path, device_full, device_stripped]
+        temps = [device_full, device_stripped]
 
         try:
-            human_spec = mj.MjSpec.from_file(pp.path)
             device_full_spec = mj.MjSpec.from_file(device_full)
             device_stripped_spec = mj.MjSpec.from_file(device_stripped)
 
@@ -102,9 +135,9 @@ class ModelCombiner:
             self._import_device_tendons_actuators(human_spec, device_xml, prefix)
 
             # First compile gives the final qpos/dof layout used to rebuild
-            # keyframes by joint name (no MjSpec.delete needed).
+            # keyframes by joint name.
             model = human_spec.compile()
-            self._rebuild_keyframes(human_spec, model, pp.keyframes, device_config, prefix, msk_key)
+            self._rebuild_keyframes(human_spec, model, parsed_keyframes, device_config, prefix, msk_key)
             model = human_spec.compile()
             data = mj.MjData(model)
 
@@ -112,27 +145,114 @@ class ModelCombiner:
                 from .utils import export_combined_xml
 
                 mesh_dirs = [
-                    (
-                        Path(human_spec.modelfiledir),
-                        getattr(human_spec, "meshdir", "") or "",
-                    ),
-                    (
-                        Path(device_full_spec.modelfiledir),
-                        getattr(device_full_spec, "meshdir", "") or "",
-                    ),
+                    (Path(human_spec.modelfiledir), getattr(human_spec, "meshdir", "") or ""),
+                    (Path(device_full_spec.modelfiledir), getattr(device_full_spec, "meshdir", "") or ""),
                 ]
-                export_combined_xml(
-                    human_spec,
-                    export_xml,
-                    mesh_dirs=mesh_dirs,
-                    terrain_paths=pp.terrain_paths,
-                )
+                export_combined_xml(human_spec, export_xml, mesh_dirs=mesh_dirs)
 
             return model, data
         finally:
             if not keep_temp:
                 for t in temps:
                     Path(t).unlink(missing_ok=True)
+
+    # ------------------------------------------------------------------
+    # Surgery (in-memory removals via spec.delete)
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _apply_removals(
+        human_spec: mj.MjSpec,
+        config: DeviceConfig,
+        msk_key: Optional[str] = None,
+    ) -> None:
+        """Apply every YAML-declared removal to the spec via ``spec.delete``.
+
+        ``spec.delete(body)`` cascades: the whole subtree plus every element
+        that references it (sensors, equality, contact pairs, and the
+        actuators/tendons whose sites lived on removed bodies).  Body and geom
+        removals therefore target the *primary* surgery objects and raise on an
+        unknown name; actuator/tendon removals are best-effort ("delete if
+        present") because the body cascade may already have removed them.
+        """
+        for name in config.resolve_body_removals(msk_key):
+            body = human_spec.body(name)
+            if body is None:
+                raise unknown_reference(name, [b.name for b in human_spec.bodies], section="body_removals", kind="body")
+            human_spec.delete(body)
+
+        for name in config.resolve_geom_removals(msk_key):
+            geom = human_spec.geom(name)
+            if geom is None:
+                available = [g.name for g in human_spec.geoms if g.name]
+                raise unknown_reference(name, available, section="geom_removals", kind="geom")
+            human_spec.delete(geom)
+
+        # spec.delete cascades subtrees + sensors/actuators/tendons, but NOT the
+        # contact <pair>s that reference a removed geom by name -- scrub those so
+        # they don't dangle at compile.
+        surviving_geoms = {g.name for g in human_spec.geoms if g.name}
+        for pair in list(human_spec.pairs):
+            if pair.geomname1 not in surviving_geoms or pair.geomname2 not in surviving_geoms:
+                human_spec.delete(pair)
+
+        # Best-effort: the body cascade above may already have removed these.
+        for name in config.resolve_actuator_removals(msk_key):
+            act = human_spec.actuator(name)
+            if act is not None:
+                human_spec.delete(act)
+
+        for name in config.resolve_tendon_removals(msk_key):
+            tendon = human_spec.tendon(name)
+            if tendon is not None:
+                human_spec.delete(tendon)
+
+        # tendon_modifications re-anchor wrap sites on surviving tendons.  With
+        # spec.delete, a tendon that spanned a removed body is cascaded away
+        # entirely -- so a modification targeting an already-removed tendon is a
+        # no-op (skip it).  Editing the wraps of a *surviving* tendon is not yet
+        # supported on the spec API, so that raises.
+        survivors = [mod for mod in config.resolve_tendon_modifications(msk_key) if human_spec.tendon(mod.name) is not None]
+        if survivors:
+            raise NotImplementedError(
+                "tendon_modifications on a surviving tendon "
+                f"({', '.join(m.name for m in survivors)}) are not yet supported on the in-memory "
+                "pipeline (the MjSpec wrap API exposes no editable wrap list). File a follow-up."
+            )
+
+    # ------------------------------------------------------------------
+    # Keyframes
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _decompose_keyframes(human_spec: mj.MjSpec) -> Dict[str, KeyframeData]:
+        """Split each keyframe's qpos/qvel into per-joint slices, keyed by joint
+        name, so authored values survive surgery that changes the qpos layout.
+
+        Compiles the spec once (pre-surgery) to read the keyframe arrays and the
+        joint layout; returns ``{keyframe_name: KeyframeData}``.
+        """
+        if not human_spec.keys:
+            return {}
+        model = human_spec.compile()
+        result: Dict[str, KeyframeData] = {}
+        for key in human_spec.keys:
+            kid = mj.mj_name2id(model, mj.mjtObj.mjOBJ_KEY, key.name)
+            if kid < 0:
+                continue
+            qpos = list(model.key_qpos[kid])
+            qvel = list(model.key_qvel[kid])
+            data = KeyframeData(time=float(model.key_time[kid]))
+            for j in range(model.njnt):
+                jname = model.joint(j).name
+                if not jname:
+                    continue
+                jtype = mj.mjtJoint(int(model.jnt_type[j]))
+                qadr, dadr = int(model.jnt_qposadr[j]), int(model.jnt_dofadr[j])
+                data.qpos_by_joint[jname] = qpos[qadr : qadr + _QPOS_WIDTH[jtype]]
+                data.qvel_by_joint[jname] = qvel[dadr : dadr + _QVEL_WIDTH[jtype]]
+            result[key.name] = data
+        return result
 
     # ------------------------------------------------------------------
     # Attachment
@@ -229,7 +349,15 @@ class ModelCombiner:
             if override.range is not None:
                 joint.range = override.range
             if override.damping is not None:
-                joint.damping = override.damping
+                # MjsJoint.damping is a scalar on mujoco 3.3.4 but a fixed-width
+                # vector on some newer builds -- handle both (index 0 is the
+                # scalar joint damping in the vector form).
+                try:
+                    joint.damping = override.damping
+                except (TypeError, ValueError):
+                    damping = list(joint.damping)
+                    damping[0] = override.damping
+                    joint.damping = damping
 
     @staticmethod
     def _add_actuators(
@@ -288,7 +416,7 @@ class ModelCombiner:
                 human_spec.add_actuator(**kwargs)
 
     # ------------------------------------------------------------------
-    # Keyframes (rebuilt after compile, no MjSpec.delete)
+    # Keyframes (rebuilt after compile, by joint name)
     # ------------------------------------------------------------------
 
     @staticmethod
@@ -307,10 +435,10 @@ class ModelCombiner:
         ``keyframe_overrides`` are applied on top.  This preserves pose
         fidelity across body removals without depending on array length.
 
-        Compiling an attached spec leaves a stray empty-named keyframe in the
-        spec (the 3.5 path used ``spec.delete`` to drop it).  Since 3.3.3 has
-        no delete, those pre-existing keys are *repurposed* to host the first
-        rebuilt keyframes, which avoids emitting an extra empty key.
+        The spec's source keyframes were blanked (``key.qpos = []``) before
+        surgery rather than deleted (``MjSpec.delete`` does not accept keys), so
+        those pre-existing keys are *repurposed* here to host the first rebuilt
+        keyframes -- which also avoids emitting a stray empty key.
         """
         # A small emitter that reuses pre-existing (empty) keys before adding.
         existing_keys = list(human_spec.keys)
@@ -419,7 +547,7 @@ def _apply_tendon_attrs(tendon, spatial_elem: ET.Element) -> None:
 
     limited = _bool(spatial_elem.get("limited"))
     if limited is not None:
-        # MjSpec stores limited as int (0/1) on 3.3.3; assign defensively.
+        # MjSpec stores limited as int (0/1) on some mujoco versions; assign defensively.
         try:
             tendon.limited = mj.mjtLimited.mjLIMITED_TRUE if limited else mj.mjtLimited.mjLIMITED_FALSE
         except AttributeError:

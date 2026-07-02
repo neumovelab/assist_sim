@@ -35,18 +35,23 @@ def load_combined(
 ) -> Tuple[mj.MjModel, mj.MjData]:
     """Resolve ``(msk_key, device_key)`` and return the combined model.
 
-    The ``msk_key`` is also forwarded so per-MSK config overrides apply.
+    The MSK is composed on demand by ``myo_sim`` (see
+    :func:`assist_sim.registry.resolve`) and handed to the pipeline as a live
+    ``MjSpec``; ``msk_key`` is forwarded so per-MSK config overrides apply.
     """
-    human_xml, device_config = registry.resolve(msk_key, device_key)
-    from . import load_combined_model  # lazy import avoids a circular import
+    if cache_dir is not None:
+        raise NotImplementedError(
+            "cache_dir is not supported for composed (registry-key) MSKs yet -- the combined "
+            "torso'd models don't round-trip through XML. Use load_combined_model with an explicit "
+            "human_xml path if you need caching."
+        )
 
-    return load_combined_model(
-        str(human_xml),
-        str(device_config),
-        export_xml=export_xml,
-        msk_key=msk_key,
-        cache_dir=cache_dir,
-    )
+    from .combine import ModelCombiner  # lazy import avoids a circular import
+    from .config import DeviceConfig
+
+    human_spec, device_config_path = registry.resolve(msk_key, device_key)
+    config = DeviceConfig.from_yaml(str(device_config_path))
+    return ModelCombiner().combine(human_spec, config, export_xml=export_xml, msk_key=msk_key)
 
 
 def get_available_combinations() -> Dict[str, List[str]]:

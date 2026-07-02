@@ -13,7 +13,7 @@ from assist_sim.combine import ModelCombiner
 def test_multibody_attach_dedups_shared_mesh(minimal_human, minimal_device_config, tmp_path):
     config = DeviceConfig.from_yaml(minimal_device_config)
     out = tmp_path / "combined.xml"
-    model, data = ModelCombiner().combine(minimal_human, config, export_xml=str(out))
+    model, data = ModelCombiner().combine(mj.MjSpec.from_file(minimal_human), config, export_xml=str(out))
 
     # dev_a and dev_b both reference the one device mesh -> exactly one mesh entry
     assert model.nmesh == 1
@@ -34,7 +34,7 @@ def test_multibody_attach_dedups_shared_mesh(minimal_human, minimal_device_confi
 
 def test_device_actuator_joint_is_prefixed(minimal_human, minimal_device_config):
     config = DeviceConfig.from_yaml(minimal_device_config)
-    model, _ = ModelCombiner().combine(minimal_human, config)
+    model, _ = ModelCombiner().combine(mj.MjSpec.from_file(minimal_human), config)
     act_id = mj.mj_name2id(model, mj.mjtObj.mjOBJ_ACTUATOR, "dev_act")
     assert act_id >= 0
     # the actuator targets the prefixed device joint
@@ -44,14 +44,14 @@ def test_device_actuator_joint_is_prefixed(minimal_human, minimal_device_config)
 
 def test_no_stray_empty_keyframe(minimal_human, minimal_device_config):
     config = DeviceConfig.from_yaml(minimal_device_config)
-    model, _ = ModelCombiner().combine(minimal_human, config)
+    model, _ = ModelCombiner().combine(mj.MjSpec.from_file(minimal_human), config)
     key_names = [mj.mj_id2name(model, mj.mjtObj.mjOBJ_KEY, i) for i in range(model.nkey)]
     assert key_names == ["home"]  # exactly one named key, no empty placeholder
 
 
 def test_keyframe_override_applied(minimal_human, minimal_device_config):
     config = DeviceConfig.from_yaml(minimal_device_config)
-    model, _ = ModelCombiner().combine(minimal_human, config)
+    model, _ = ModelCombiner().combine(mj.MjSpec.from_file(minimal_human), config)
     kid = mj.mj_name2id(model, mj.mjtObj.mjOBJ_KEY, "home")
     jid = mj.mj_name2id(model, mj.mjtObj.mjOBJ_JOINT, "pelvis_ty")
     adr = int(model.jnt_qposadr[jid])

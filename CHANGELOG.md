@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] — in-memory pipeline (myo_sim integration, Phase 2)
+
+Moves model surgery in-memory and unlocks the torso-composed models.
+
+### Changed
+
+- **Single-phase, in-memory pipeline.** `registry._resolve_msk` returns a live
+  human `MjSpec` (composed by `myo_sim`, scene stripped) and `ModelCombiner`
+  does all removals on it via `spec.delete` (`utils.strip_myosuite_scene_spec`,
+  keyframe decompose/rebuild by joint name). The human model is never serialized
+  to XML — required for torso-composed models, whose `to_xml` doesn't round-trip
+  (merged fragment defaults yield a nested unnamed `<default>`). `resolve()` now
+  returns `(MjSpec, Path)`.
+- **`mujoco>=3.3.4`** (from `==3.3.3`) for `MjSpec.delete`. The dev env uses the
+  lowest compatible version to stay close to myoassist's `3.3.3`.
+- **`myolegs` (80-muscle, passive torso) is now buildable**, along with every
+  device — including HMEDI (torso band) on `myolegs`.
+- **OSL configs re-tuned** for the composed `myolegs` geom names
+  (`r_fibula`→`fibula_r`, `r_tibia`→`tibia_r`, `r_femur`→`femur_r`).
+
+### Removed
+
+- **The ElementTree "Phase 1" preprocess** (removal/inline/cascade/terrain
+  passes) — superseded by in-memory `spec.delete`. `preprocess.py` now holds
+  only device-XML prep + the `KeyframeData` container.
+
+### Notes
+
+- `spec.delete` cascades subtrees + sensors/actuators/tendons but not contact
+  `<pair>`s (scrubbed manually). It also removes spanning muscles the old
+  re-anchor path preserved (e.g. OSL_KA quadriceps), which is valid for
+  above-knee amputation. `tendon_modifications` on a *surviving* tendon are not
+  yet supported in-memory (no bundled config needs it).
+- Caching / XML export is unreliable for composed models (combined `to_xml`
+  hits the same nested-default issue); `load_combined` raises on `cache_dir`.
+
 ## [0.2.0] — myo_sim composed-model integration (Phase 1)
 
 Wires `assist_sim` onto `myo_sim`'s `mm_refactor` branch, where leg models are
