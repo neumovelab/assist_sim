@@ -9,7 +9,7 @@ of the YAML the bad reference came from -- read those first.
 ### `ImportError: ... myo_sim ... is not installed`
 
 ```
-ImportError: The MSK model 'myoLeg26_3D' is composed by the myo_sim package,
+ImportError: The MSK model 'myolegs26' is composed by the myo_sim package,
 which is not installed. Install it with `pip install myo_sim` ...
 ```
 
@@ -22,16 +22,16 @@ pip install myo_sim   # once on PyPI
 pip install git+https://github.com/MyoHub/myo_sim.git@mm_refactor
 ```
 
-### `ImportError: MSK model 'myoLeg80' requires ... mujoco>=3.3.4`
+### `ImportError: MSK model 'myolegs' requires ... mujoco>=3.3.4`
 
-`myoLeg80` (the 80-muscle passive-torso model) can only be built on
+`myolegs` (the 80-muscle passive-torso model) can only be built on
 MuJoCo 3.3.4+, which the pinned `mujoco==3.3.3` predates (Phase 2 of the
-integration). Use `myoLeg26_3D` on 3.3.3, or wait for the Phase-2 bump.
+integration). Use `myolegs26` on 3.3.3, or wait for the Phase-2 bump.
 
-### `ValueError: MSK model 'myoLeg22_2D' is not available yet`
+### `ValueError: MSK model 'myolegs22' is not available yet`
 
-`myoLeg22_2D` has no source model yet -- it is a planned 26→22 mjspec
-reduction of `myolegs26`. Use `myoLeg26_3D` for now.
+`myolegs22` has no source model yet -- it is a planned 26→22 mjspec
+reduction of `myolegs26`. Use `myolegs26` for now.
 
 ### `ModuleNotFoundError: No module named 'assist_sim'`
 
@@ -44,7 +44,7 @@ reduction of `myolegs26`. Use `myoLeg26_3D` for now.
 
 ### `ValueError: Unknown MSK model 'myoleg22'`
 
-Typo in the MSK key. The error includes a `Did you mean 'myoLeg22_2D'?`
+Typo in the MSK key. The error includes a `Did you mean 'myolegs22'?`
 suggestion -- use it. Keys are case-sensitive and follow the exact form in
 `_COMPATIBLE_MSK_KEYS`.
 
@@ -66,13 +66,13 @@ Either:
 The YAML refers to a tendon that doesn't exist in the MSK you're combining
 with. Common cause: a `default:` block authored for 22/26 was applied to
 80 (which uses different tendon names like `gasmed_r_tendon` /
-`gaslat_r_tendon`). Fix: add an empty `myoLeg80: []` per-MSK override to
+`gaslat_r_tendon`). Fix: add an empty `myolegs: []` per-MSK override to
 opt out:
 
 ```yaml
 tendon_modifications:
   default: [...]
-  myoLeg80: []
+  myolegs: []
 ```
 
 Or author 80-specific entries that use the 80 names.

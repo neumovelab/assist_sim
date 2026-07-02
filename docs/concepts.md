@@ -12,9 +12,10 @@ frameworks. Four packages collaborate:
   `mm_refactor` branch these leg models are *composed at runtime* (no static
   XML), so `assist_sim` obtains an editable `MjSpec` via
   `myo_sim.build_spec(<model>)`, serializes it, strips the bundled myosuite
-  scene, and caches the model-only XML. Phase 1 wires `myoLeg26_3D` (the
-  legs-only `myolegs26`); `myoLeg80` and `myoLeg22_2D` follow in Phase 2 /
-  when the 26→22 reduction lands.
+  scene, and caches the model-only XML. assist_sim's MSK keys mirror the
+  myo_sim model names. Phase 1 wires `myolegs26` (legs-only, 26-muscle);
+  `myolegs` (80-muscle) and `myolegs22` follow in Phase 2 / when the 26→22
+  reduction lands.
 - **`assist_sim`** (this repo) holds the *combination pipeline* and *device
   configurations*. It produces compiled `MjModel` objects (and optional
   exported XMLs) where an MSK and a device are combined into one runnable
@@ -104,11 +105,11 @@ authoring (additive, namespaced via the device prefix).
 
 ### Registry keys
 
-- **MSK keys**: `myoLeg22_2D`, `myoLeg26_3D`, `myoLeg80`. Curated list in
+- **MSK keys**: `myolegs22`, `myolegs26`, `myolegs`. Curated list in
   `assist_sim/registry.py:_COMPATIBLE_MSK_KEYS`. Each binds to a
   `myo_sim.build_spec` model name and a minimum MuJoCo version; the model is
   composed on demand and cached as a model-only XML. Keys with no source yet
-  (`myoLeg22_2D`) or that need a newer MuJoCo (`myoLeg80`) raise a clear error
+  (`myolegs22`) or that need a newer MuJoCo (`myolegs`) raise a clear error
   when resolved.
 - **Device keys**: derived from `models/<DeviceDir>/<variant>config.yaml`.
   Example: `models/DephyExoBoot/L1config.yaml` → `DephyExoBoot_L1`,
@@ -135,7 +136,7 @@ tendon_modifications:
   default:
     - name: gastroc_r_tendon
       wraps: ...
-  myoLeg80:
+  myolegs:
     - name: gasmed_r_tendon       # 80-muscle equivalent
       wraps: ...
 ```

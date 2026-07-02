@@ -643,7 +643,7 @@ def prepare_device_xml(device_xml: str, strip_meshes: bool = False) -> str:
         compiler = ET.SubElement(root, "compiler")
     if compiler.get("angle") is None:
         compiler.set("angle", "radian")
-    # Keep device meshes local when the human MSK sets a global meshdir (myoLeg80).
+    # Keep device meshes local when the human MSK sets a global meshdir (myolegs).
     if (src.parent / "mesh").is_dir():
         compiler.set("meshdir", str(src.parent))
 

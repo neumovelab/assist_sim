@@ -12,11 +12,11 @@ Read `CONTRIBUTING.md` and `docs/concepts.md` before any substantial change.
 ```bash
 pip install -e .
 pip install -r requirements-dev.txt
-pytest                              # 63 pass, 1 skip with myo_sim (HMEDI needs myoLeg80 / Phase 2)
+pytest                              # 63 pass, 1 skip with myo_sim (HMEDI needs myolegs / Phase 2)
 ruff check . && ruff format --check .
 
 python -m assist_sim list           # discoverable combinations (also: validate, combine)
-python examples/quickstart.py myoLeg26_3D DephyExoBoot_L1   # visual inspection
+python examples/quickstart.py myolegs26 DephyExoBoot_L1   # visual inspection
 ```
 
 > Note: uv migration is planned for tooling parity with `myo_sim` (which uses `uv sync` /
@@ -53,13 +53,14 @@ Baseline MSKs live in `myo_sim`, not here; assist_sim resolves them via `_COMPAT
 `registry.py`. On myo_sim's `mm_refactor` branch, leg models are **composed at runtime** (no static
 XML). **Phase 1 (done):** `_resolve_msk` calls `myo_sim.build_spec(<model>)`, serializes the
 returned `MjSpec` to XML, strips the bundled myosuite scene (`utils._strip_myosuite_scene`), and
-caches a model-only XML that feeds the existing preprocess+combine pipeline. Only `myoLeg26_3D`
-(→ legs-only `myolegs26`) is buildable on the pinned `mujoco==3.3.3`; `myoLeg80` (→ `myolegs`,
-passive-torso, needs `MjSpec.delete`) is gated on `mujoco>=3.3.4` and `myoLeg22_2D` awaits a 26→22
-mjspec reduction — both raise a clear error when resolved.
+caches a model-only XML that feeds the existing preprocess+combine pipeline. assist_sim MSK keys
+mirror the myo_sim model names. Only `myolegs26` (legs-only, 26-muscle) is buildable on the pinned
+`mujoco==3.3.3`; `myolegs` (80-muscle, passive-torso, needs `MjSpec.delete`) is gated on
+`mujoco>=3.3.4` and `myolegs22` awaits a 26→22 mjspec reduction — both raise a clear error when
+resolved.
 
 **Phase 2 (next):** bump the pin to `mujoco>=3.3.4`, switch Phase-1 removals to in-memory
-`spec.delete()` (dropping the XML round-trip), which also unlocks `myoLeg80` and torso'd devices
+`spec.delete()` (dropping the XML round-trip), which also unlocks `myolegs` and torso'd devices
 (e.g. HMEDI). Background write-up: `myo_sim-leg-integration.md`.
 
 ## More detail

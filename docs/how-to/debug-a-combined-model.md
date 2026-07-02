@@ -25,7 +25,7 @@ If `load_combined_model` succeeded but the result is wrong, continue.
 from assist_sim import load_combined
 import mujoco as mj
 
-model, data = load_combined("myoLeg26_3D", "MyDevice_L1")
+model, data = load_combined("myolegs26", "MyDevice_L1")
 
 # How big is the model?
 print(f"nq={model.nq} nu={model.nu} nbody={model.nbody}")
@@ -93,7 +93,7 @@ device attachment. Useful when:
 ## Step 4: visually inspect in the viewer
 
 ```bash
-python examples/quickstart.py myoLeg26_3D MyDevice_L1
+python examples/quickstart.py myolegs26 MyDevice_L1
 ```
 
 The paused viewer lets you spin the model. Drag to rotate, scroll to

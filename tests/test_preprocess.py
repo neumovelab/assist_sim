@@ -108,9 +108,9 @@ def test_body_removal_resolves_on_composed_msk():
     so this also asserts the inlining pass leaves a flat model untouched."""
     from assist_sim.registry import resolve
 
-    human = str(resolve("myoLeg26_3D", "DephyExoBoot_L1")[0])
+    human = str(resolve("myolegs26", "DephyExoBoot_L1")[0])
     cfg = _config(body_removals=["talus_r"])
-    result = preprocess_human_xml(human, cfg, msk_key="myoLeg26_3D")
+    result = preprocess_human_xml(human, cfg, msk_key="myolegs26")
     root = ET.parse(result.path).getroot()
     Path(result.path).unlink(missing_ok=True)
     assert _find_body(root, "talus_r") is None

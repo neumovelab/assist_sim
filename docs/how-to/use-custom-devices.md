@@ -57,7 +57,7 @@ key the same way bundled ones do:
 
 ```python
 from assist_sim import load_combined
-model, data = load_combined("myoLeg26_3D", "MyExo_L1")   # works, found via env var
+model, data = load_combined("myolegs26", "MyExo_L1")   # works, found via env var
 ```
 
 CLI listing would include them too. The semicolon/colon path separator
@@ -78,7 +78,7 @@ refresh()
 
 # Now `MyExo_L1` (or whatever's in that dir) is discoverable.
 from assist_sim import load_combined
-model, data = load_combined("myoLeg26_3D", "MyExo_L1")
+model, data = load_combined("myolegs26", "MyExo_L1")
 ```
 
 Same outcome as Pattern B but driven from Python instead of the
@@ -105,8 +105,8 @@ Like B, this is deferred until a user asks. -->
 ## Custom MSK models
 
 `assist_sim` doesn't currently support user-authored MSK models.
-The three pipeline-compatible MSK keys (`myoLeg22_2D`, `myoLeg26_3D`,
-`myoLeg80`) are curated and resolved through the `myo_sim` package.
+The three pipeline-compatible MSK keys (`myolegs22`, `myolegs26`,
+`myolegs`) are curated and resolved through the `myo_sim` package.
 
 If you have a new MSK you want supported:
 

@@ -38,7 +38,7 @@ to empty.
 device:
   name: "DephyExoBoot_L1"
   model_xml: "L1model.xml"
-  compatible_msk: ["myoLeg22_2D", "myoLeg26_3D"]   # optional
+  compatible_msk: ["myolegs22", "myolegs26"]   # optional
 ```
 
 | Field | Type | Required | Meaning |
@@ -80,7 +80,7 @@ attachments:
   default:
     - device_body: "hmedi_torso"
       parent_body: "torso"
-  myoLeg80:
+  myolegs:
     - device_body: "hmedi_torso"
       parent_body: "pelvis"
       pos: [-0.105, 0.08, 0]
@@ -172,7 +172,7 @@ keyframe_overrides:
   default:
     stand:
       pelvis_ty: 0.91
-  myoLeg80:
+  myolegs:
     squat:
       osl_ankle_angle_r: 0.393
 ```
@@ -218,7 +218,7 @@ actuator_removals:
   default:
     - "soleus_r"
     - "tibant_r"
-  myoLeg80:
+  myolegs:
     - "soleus_r"
     - "tibant_r"
     - "gaslat_r"        # 80-only equivalent
@@ -252,7 +252,7 @@ tendon_modifications:
 
         # Drop a wrap entirely
         - drop_site: "some_obsolete_wrap_site"
-  myoLeg80: []                      # explicitly no mods on 80
+  myolegs: []                      # explicitly no mods on 80
 ```
 
 | Op | Required fields | Meaning |
@@ -269,7 +269,7 @@ whose sites are referenced by a tendon wrap, those wraps are *auto-pruned*
 in the preprocess pass. `tendon_modifications` is only needed when you want
 to re-anchor / reposition rather than drop.
 
-Per-MSK supported. Use `myoLeg80: []` to disable mods on 80 when the
+Per-MSK supported. Use `myolegs: []` to disable mods on 80 when the
 default block references 22/26-specific tendon names.
 
 ## `mesh_replacements`
@@ -282,7 +282,7 @@ mesh_replacements:
   default:
     - geom: "tibia_r_geom_1"
       mesh: "osl_tibia_fibula_trans_r"        # device-XML mesh name; prefix added automatically
-  myoLeg80:
+  myolegs:
     - geom: "r_tibia"                          # different geom name in 80
       mesh: "osl_tibia_fibula_trans_r"
 ```
@@ -304,7 +304,7 @@ on a body but a sibling geom needs to disappear too.
 geom_removals:
   default:
     - "tibia_r_geom_2"     # fibula geom (the residual stump mesh covers both bones)
-  myoLeg80:
+  myolegs:
     - "r_fibula"
 ```
 

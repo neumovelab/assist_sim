@@ -24,7 +24,7 @@ unchanged from the no-export case.
 ## Export from the CLI
 
 ```bash
-python -m assist_sim compile myoLeg26_3D DephyExoBoot_L1 --export combined.xml
+python -m assist_sim compile myolegs26 DephyExoBoot_L1 --export combined.xml
 ```
 
 Identical behavior to the Python form. Prints the resulting `(nq, nu,
@@ -118,16 +118,16 @@ size cap. Caching is a single-user local optimization.
 
 ```bash
 # First run: full compile
-python examples/quickstart.py myoLeg26_3D MyDevice_L1
+python examples/quickstart.py myolegs26 MyDevice_L1
 # Edit models/MyDevice/L1config.yaml
 # Re-run: cache miss (YAML mtime changed); fresh compile
-python examples/quickstart.py myoLeg26_3D MyDevice_L1
+python examples/quickstart.py myolegs26 MyDevice_L1
 ```
 
 ### Generate a combined XML for use in another tool
 
 ```bash
-python -m assist_sim compile myoLeg26_3D DephyExoBoot_L1 \
+python -m assist_sim compile myolegs26 DephyExoBoot_L1 \
     --export /path/to/other_project/models/combined.xml
 ```
 

@@ -377,7 +377,7 @@ class ModelCombiner:
             if jid < 0 and prefix:
                 jid = mj.mj_name2id(model, mj.mjtObj.mjOBJ_JOINT, prefix + joint_name)
             if jid < 0:
-                # MSKs differ (e.g. myoLeg80 has freejoint root, not pelvis_ty).
+                # MSKs differ (e.g. myolegs has freejoint root, not pelvis_ty).
                 continue
             qpos[int(model.jnt_qposadr[jid])] = value
 

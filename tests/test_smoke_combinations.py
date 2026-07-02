@@ -6,9 +6,9 @@ frozen expected tuple.  The MSK side of each pair is composed at runtime via the
 skipped automatically when it isn't installed.
 
 Phase 1 of the myo_sim integration wires the legs-only ``myolegs26`` model,
-which is the only MSK buildable on the pinned ``mujoco==3.3.3``.  ``myoLeg80``
+which is the only MSK buildable on the pinned ``mujoco==3.3.3``.  ``myolegs``
 (passive torso) needs ``MjSpec.delete`` from mujoco 3.3.4+ (Phase 2) and
-``myoLeg22_2D`` has no source yet (a planned 26->22 mjspec reduction); both are
+``myolegs22`` has no source yet (a planned 26->22 mjspec reduction); both are
 covered by :func:`test_gated_msk_raises`.  The numbers below were captured on
 ``mujoco==3.3.3`` and must hold there.
 """
@@ -27,16 +27,16 @@ from .conftest import needs_myo_sim
 # assist_sim emits model-only XMLs: the bundled myosuite scene (floor, backdrop,
 # pedestal, logo) is stripped, so no ground body / scene mesh is counted here.
 EXPECTED = {
-    ("myoLeg26_3D", "DephyExoBoot_L1"): (47, 28, 37, 28),
-    ("myoLeg26_3D", "OpenSourceLeg_A_L1"): (46, 23, 24, 19),
-    ("myoLeg26_3D", "OpenSourceLeg_KA_L1"): (38, 21, 23, 21),
+    ("myolegs26", "DephyExoBoot_L1"): (47, 28, 37, 28),
+    ("myolegs26", "OpenSourceLeg_A_L1"): (46, 23, 24, 19),
+    ("myolegs26", "OpenSourceLeg_KA_L1"): (38, 21, 23, 21),
 }
 
 # MSKs that are registered but not buildable in Phase 1, and the error each
 # raises when resolved.  ValueError: no source yet; ImportError: needs 3.3.4.
 GATED = {
-    "myoLeg22_2D": ValueError,
-    "myoLeg80": ImportError,
+    "myolegs22": ValueError,
+    "myolegs": ImportError,
 }
 
 
@@ -80,14 +80,14 @@ def test_gated_msk_raises(msk_key, exc):
 
 @needs_myo_sim
 @pytest.mark.skipif(
-    not _msk_available("myoLeg80"),
-    reason="HMEDI's torso band targets a torso'd MSK (myoLeg80), buildable only on mujoco>=3.3.4 (Phase 2)",
+    not _msk_available("myolegs"),
+    reason="HMEDI's torso band targets a torso'd MSK (myolegs), buildable only on mujoco>=3.3.4 (Phase 2)",
 )
 def test_hmedi_cable_tendons_and_actuators_imported():
     """HMEDI's device-XML <tendon>/<actuator> sections (cable_r/l + Exo_R/L)
     must reach the combined model with the device prefix."""
-    msk_path, device_path = resolve("myoLeg80", "HMEDI_L1")
-    model, _ = load_combined_model(human_xml=str(msk_path), device_config=str(device_path), msk_key="myoLeg80")
+    msk_path, device_path = resolve("myolegs", "HMEDI_L1")
+    model, _ = load_combined_model(human_xml=str(msk_path), device_config=str(device_path), msk_key="myolegs")
     actuators = {mj.mj_id2name(model, mj.mjtObj.mjOBJ_ACTUATOR, i) for i in range(model.nu)}
     tendons = {mj.mj_id2name(model, mj.mjtObj.mjOBJ_TENDON, i) for i in range(model.ntendon)}
     assert "HMEDI_L1_Exo_R" in actuators
@@ -97,13 +97,13 @@ def test_hmedi_cable_tendons_and_actuators_imported():
 
 
 def test_hmedi_torso_per_msk_attachment_on_80(models_dir):
-    """myoLeg80 attaches hmedi_torso to pelvis (not torso) with a compensating
+    """myolegs attaches hmedi_torso to pelvis (not torso) with a compensating
     pos offset.  Pure config-resolution test -- doesn't require myo_sim to run."""
     from assist_sim.config import DeviceConfig
 
     config = DeviceConfig.from_yaml(str(models_dir / "HMEDI" / "L1config.yaml"))
     default_atts = {a.device_body: a for a in config.resolve_attachments()}
-    msk80_atts = {a.device_body: a for a in config.resolve_attachments("myoLeg80")}
+    msk80_atts = {a.device_body: a for a in config.resolve_attachments("myolegs")}
     assert default_atts["hmedi_torso"].parent_body == "torso"
     assert default_atts["hmedi_torso"].pos is None
     assert msk80_atts["hmedi_torso"].parent_body == "pelvis"

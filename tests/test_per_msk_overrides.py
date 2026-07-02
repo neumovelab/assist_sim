@@ -21,7 +21,7 @@ attachments:
 actuator_removals:
   default:
     - "soleus_r"
-  myoLeg80:
+  myolegs:
     - "soleus_r"
     - "soleus80_r"
 
@@ -30,7 +30,7 @@ tendon_modifications:
     - name: "calf_tendon"
       wraps:
         - drop_site: "foot_site"
-  myoLeg80:
+  myolegs:
     - name: "calf80_tendon"
       wraps:
         - drop_site: "foot80_site"
@@ -39,7 +39,7 @@ keyframe_overrides:
   default:
     stand:
       pelvis_ty: 0.91
-  myoLeg80:
+  myolegs:
     stand:
       pelvis_ty: 0.95
 """
@@ -72,20 +72,20 @@ def _write_config(tmp_path, text) -> str:
 def test_per_msk_actuator_removals(tmp_path):
     config = DeviceConfig.from_yaml(_write_config(tmp_path, PER_MSK_YAML))
     assert config.resolve_actuator_removals() == ["soleus_r"]
-    assert config.resolve_actuator_removals("myoLeg22_2D") == ["soleus_r"]  # falls back
-    assert config.resolve_actuator_removals("myoLeg80") == ["soleus_r", "soleus80_r"]
+    assert config.resolve_actuator_removals("myolegs22") == ["soleus_r"]  # falls back
+    assert config.resolve_actuator_removals("myolegs") == ["soleus_r", "soleus80_r"]
 
 
 def test_per_msk_tendon_modifications(tmp_path):
     config = DeviceConfig.from_yaml(_write_config(tmp_path, PER_MSK_YAML))
     assert config.resolve_tendon_modifications()[0].name == "calf_tendon"
-    assert config.resolve_tendon_modifications("myoLeg80")[0].name == "calf80_tendon"
+    assert config.resolve_tendon_modifications("myolegs")[0].name == "calf80_tendon"
 
 
 def test_per_msk_keyframe_overrides(tmp_path):
     config = DeviceConfig.from_yaml(_write_config(tmp_path, PER_MSK_YAML))
     assert config.resolve_keyframe_overrides()["stand"].joint_values == {"pelvis_ty": 0.91}
-    assert config.resolve_keyframe_overrides("myoLeg80")["stand"].joint_values == {"pelvis_ty": 0.95}
+    assert config.resolve_keyframe_overrides("myolegs")["stand"].joint_values == {"pelvis_ty": 0.95}
 
 
 def test_default_form_still_works(tmp_path):
@@ -104,7 +104,7 @@ attachments:
   default:
     - device_body: "dev_a"
       parent_body: "pelvis"
-  myoLeg80:
+  myolegs:
     - device_body: "dev_a"
       parent_body: "pelvis"
       quat: [0.5, 0.5, 0.5, 0.5]
@@ -117,8 +117,8 @@ def test_per_msk_attachments_resolve(tmp_path):
     default_atts = config.resolve_attachments()
     assert len(default_atts) == 1
     assert default_atts[0].quat is None
-    # myoLeg80 overrides with quat
-    msk80 = config.resolve_attachments("myoLeg80")
+    # myolegs overrides with quat
+    msk80 = config.resolve_attachments("myolegs")
     assert msk80[0].quat == [0.5, 0.5, 0.5, 0.5]
     # unknown msk falls back to default
     assert config.resolve_attachments("unknown")[0].quat is None

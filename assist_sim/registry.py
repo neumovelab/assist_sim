@@ -2,14 +2,14 @@
 
 Two distinct discovery models:
 
-- **MSK models** are an explicit, curated set (:data:`_COMPATIBLE_MSK_KEYS`).
-  ``myo_sim`` composes its leg models at runtime, so each key is resolved by
-  calling ``myo_sim.build_spec(<model>)``, serializing the returned ``MjSpec``
-  to XML, stripping the bundled myosuite scene, and caching the model-only XML
-  on disk.  Phase 1 wires ``myoLeg26_3D`` (the legs-only ``myolegs26``, the only
-  MSK buildable on the pinned ``mujoco==3.3.3``); ``myoLeg80`` needs mujoco
-  3.3.4+ (Phase 2) and ``myoLeg22_2D`` has no source yet (a planned 26->22
-  reduction).
+- **MSK models** are an explicit, curated set (:data:`_COMPATIBLE_MSK_KEYS`),
+  keyed to mirror the ``myo_sim`` model names.  ``myo_sim`` composes its leg
+  models at runtime, so each key is resolved by calling
+  ``myo_sim.build_spec(<model>)``, serializing the returned ``MjSpec`` to XML,
+  stripping the bundled myosuite scene, and caching the model-only XML on disk.
+  Phase 1 wires ``myolegs26`` (legs-only, the only MSK buildable on the pinned
+  ``mujoco==3.3.3``); ``myolegs`` (80-muscle) needs mujoco 3.3.4+ (Phase 2) and
+  ``myolegs22`` has no source yet (a planned 26->22 reduction).
 - **Device configs** are autodiscovered by scanning ``models/<dir>/*config.yaml``
   in this repository.  Adding a new device dir with a config file makes it
   available next import; no registry edit required.
@@ -68,13 +68,13 @@ class _MskSource(NamedTuple):
 # Curated, not autodiscovered.  Keys are assist_sim-facing aliases; values bind
 # them to the myo_sim composed models that back them.
 _COMPATIBLE_MSK_KEYS: Dict[str, _MskSource] = {
-    "myoLeg22_2D": _MskSource(
+    "myolegs22": _MskSource(
         None,
         (3, 3, 3),
-        "myoLeg22_2D will be derived from myolegs26 via a 26->22 mjspec reduction, which is not implemented yet",
+        "myolegs22 will be derived from myolegs26 via a 26->22 mjspec reduction, which is not implemented yet",
     ),
-    "myoLeg26_3D": _MskSource("myolegs26", (3, 3, 3), ""),
-    "myoLeg80": _MskSource(
+    "myolegs26": _MskSource("myolegs26", (3, 3, 3), ""),
+    "myolegs": _MskSource(
         "myolegs",
         (3, 3, 4),
         "the 80-muscle model's passive-torso conversion uses MjSpec.delete, "

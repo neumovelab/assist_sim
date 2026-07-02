@@ -2,9 +2,9 @@ device:
   name: "HMEDI_L1"
   model_xml: "L1model.xml"
   # HMEDI's torso band attaches to a `torso` body, so it needs a torso'd MSK.
-  # The legs-only myolegs26 (myoLeg26_3D) has no torso; myoLeg80 does. myoLeg80
+  # The legs-only myolegs26 (myolegs26) has no torso; myolegs does. myolegs
   # is buildable from Phase 2 (mujoco 3.3.4+), so HMEDI is gated until then.
-  compatible_msk: [myoLeg80]
+  compatible_msk: [myolegs]
 
 # HMEDI's hip-flexion assistance is driven by two spatial-tendon "cable"
 # actuators (Exo_R/Exo_L) that wrap over sites on the torso + thigh
@@ -32,7 +32,7 @@ attachments:
       parent_body: "femur_l"
     - device_body: "hmedi thigh_l"
       parent_body: "femur_l"
-  # myoLeg80's `torso` body sits inside a `<body name="root" euler="0 0 -1.57">`
+  # myolegs's `torso` body sits inside a `<body name="root" euler="0 0 -1.57">`
   # frame whose orientation differs from 22/26's torso. Rather than fight the
   # frame mismatch with a corrective quat, the legacy 80-muscle HMEDI model
   # bypasses `torso` entirely and attaches the device torso piece directly to
@@ -40,7 +40,7 @@ attachments:
   # pos here is the legacy 80 value, equivalent to (22-torso-relative pos)
   # + (22-torso-pos in 22-pelvis) = (-0.125, 0.25, -0.1) + (-0.1007, 0.0815, 0)
   # ≈ (-0.23, 0.33, -0.1). No quat override needed.
-  myoLeg80:
+  myolegs:
     - device_body: "hmedi waistband"
       parent_body: "pelvis"
     # `pos` here is the FRAME offset (composes with the device body's authored

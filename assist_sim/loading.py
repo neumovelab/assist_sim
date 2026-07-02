@@ -5,7 +5,7 @@ These wrap the autodiscovery registry so callers can work in terms of
 
     from assist_sim import load_combined
 
-    model, data = load_combined("myoLeg26_3D", "DephyExoBoot_L1")
+    model, data = load_combined("myolegs26", "DephyExoBoot_L1")
 """
 
 from __future__ import annotations

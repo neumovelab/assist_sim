@@ -74,11 +74,11 @@ matters, add a per-MSK override block. See
 
 Two common patterns:
 
-1. **MSK has different tendon names** → add `myoLeg80: []`-style
+1. **MSK has different tendon names** → add `myolegs: []`-style
    opt-outs (or per-MSK alternate names) to `tendon_modifications`,
    `tendon_removals`, `actuator_removals`.
 2. **MSK has a different parent body for an attachment** → add
-   per-MSK `attachments` block (see HMEDI's `myoLeg80` handling for
+   per-MSK `attachments` block (see HMEDI's `myolegs` handling for
    an example).
 
 ## Step 5 -- Add tests + docs
@@ -104,7 +104,7 @@ coords. If the new MSK has a unique orientation, add a branch:
 if args.msk == "MyNewMSK":
     viewer.cam.azimuth = ...        # tune from a sample <camera> pos
     viewer.cam.elevation = ...
-elif args.msk == "myoLeg80":
+elif args.msk == "myolegs":
     ...
 else:
     ...

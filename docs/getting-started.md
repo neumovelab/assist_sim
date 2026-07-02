@@ -57,7 +57,7 @@ instructions.
 ```python
 from assist_sim import load_combined
 
-model, data = load_combined("myoLeg26_3D", "DephyExoBoot_L1")
+model, data = load_combined("myolegs26", "DephyExoBoot_L1")
 print(f"nq={model.nq}  nu={model.nu}  nbody={model.nbody}")
 # nq=47  nu=28  nbody=37
 ```
@@ -71,8 +71,8 @@ The `examples/quickstart.py` script opens a paused MuJoCo viewer at the first
 keyframe of the combined model:
 
 ```bash
-python examples/quickstart.py                                    # defaults: myoLeg26_3D + DephyExoBoot_L1
-python examples/quickstart.py myoLeg26_3D OpenSourceLeg_KA_L1     # explicit pair
+python examples/quickstart.py                                    # defaults: myolegs26 + DephyExoBoot_L1
+python examples/quickstart.py myolegs26 OpenSourceLeg_KA_L1     # explicit pair
 python examples/quickstart.py --list                             # list compatible MSK + device keys
 ```
 

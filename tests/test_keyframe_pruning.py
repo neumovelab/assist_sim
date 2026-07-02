@@ -19,7 +19,7 @@ from assist_sim.registry import resolve
 from .conftest import needs_myo_sim
 
 # Phase 1 wires the legs-only myolegs26 (the only MSK buildable on mujoco 3.3.3).
-PHASE1_MSK_KEYS = ["myoLeg26_3D"]
+PHASE1_MSK_KEYS = ["myolegs26"]
 
 
 @needs_myo_sim
@@ -64,7 +64,7 @@ def test_include_inlining_leaves_single_worldbody():
     single ``<worldbody>`` so the joint table builds correctly.  The composed
     myolegs26 XML is already fully inlined (no includes), so this also guards
     against the merge pass corrupting an already-flat model."""
-    path = resolve("myoLeg26_3D", "DephyExoBoot_L1")[0]
+    path = resolve("myolegs26", "DephyExoBoot_L1")[0]
     root = ET.parse(str(path)).getroot()
     inline_mujoco_includes(root, path.parent)
     assert len(root.findall("worldbody")) == 1
@@ -95,11 +95,11 @@ def test_combined_keyframes_preserve_source_values():
     myolegs26 is a myosuite-convention model: a free ``root`` joint, not a
     ``pelvis_ty`` slide, so DephyExoBoot's ``pelvis_ty`` keyframe override is a
     no-op here (the free-root height comes from the base stand keyframe)."""
-    msk_path, device_path = resolve("myoLeg26_3D", "DephyExoBoot_L1")
+    msk_path, device_path = resolve("myolegs26", "DephyExoBoot_L1")
     model, _ = load_combined_model(
         human_xml=str(msk_path),
         device_config=str(device_path),
-        msk_key="myoLeg26_3D",
+        msk_key="myolegs26",
     )
     kf = mj.mj_name2id(model, mj.mjtObj.mjOBJ_KEY, "stand")
     assert kf >= 0

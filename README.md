@@ -14,7 +14,7 @@ on disk is never modified.
 
 ```python
 from assist_sim import load_combined
-model, data = load_combined("myoLeg26_3D", "DephyExoBoot_L1")
+model, data = load_combined("myolegs26", "DephyExoBoot_L1")
 # `model` and `data` are ready for mj.mj_step / mj.viewer
 ```
 
@@ -34,23 +34,24 @@ model, data = load_combined_model(
 Or from the CLI:
 
 ```bash
-python -m assist_sim compile myoLeg26_3D DephyExoBoot_L1 --export combined.xml
+python -m assist_sim compile myolegs26 DephyExoBoot_L1 --export combined.xml
 python -m assist_sim list
 ```
 
 Visual inspection of any combination:
 
 ```bash
-python examples/quickstart.py myoLeg26_3D DephyExoBoot_L1
+python examples/quickstart.py myolegs26 DephyExoBoot_L1
 ```
 
 ## Available Combinations
 
-`myoLeg26_3D` (myo_sim's legs-only `myolegs26`) is wired and tested on the
-pinned MuJoCo 3.3.3. `myoLeg80` (needs mujoco 3.3.4+) and `myoLeg22_2D` (a
-planned 26→22 reduction) resolve to a clear error until Phase 2.
+MSK keys mirror the myo_sim model names. `myolegs26` (legs-only, 26-muscle) is
+wired and tested on the pinned MuJoCo 3.3.3. `myolegs` (80-muscle, needs mujoco
+3.3.4+) and `myolegs22` (a planned 26→22 reduction) resolve to a clear error
+until Phase 2.
 
-| Device key            | myoLeg26_3D | myoLeg80 | myoLeg22_2D |
+| Device key            | myolegs26 | myolegs | myolegs22 |
 |-----------------------|:-:|:-:|:-:|
 | `DephyExoBoot_L1`     | ✓ | — | — |
 | `OpenSourceLeg_A_L1`  | ✓ | — | — |

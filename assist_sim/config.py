@@ -17,7 +17,7 @@ def _parse_per_msk_list(raw_value, parse_item):
 
         section:
           default: [...]
-          myoLeg80: [...]
+          myolegs: [...]
     """
     if isinstance(raw_value, dict):
         by_msk = {key: [parse_item(x) for x in (items or [])] for key, items in raw_value.items()}
@@ -265,7 +265,7 @@ class DeviceConfig:
 
         Lets a device declare a different attachment frame (``pos`` / ``quat``)
         per MSK, e.g. when the parent body's local frame differs across MSKs
-        (myoLeg80's ``torso`` sits under a yaw-rotated ``root``).
+        (myolegs's ``torso`` sits under a yaw-rotated ``root``).
         """
         return self._resolve(self._attachments_by_msk, msk_key, self.attachments)
 
@@ -313,7 +313,7 @@ class DeviceConfig:
         # --- attachments ---
         # Accept either a flat list (legacy form) or a per-MSK dict where
         # ``default:`` is the fallback and any other key is an MSK-specific
-        # override (used for e.g. myoLeg80 body-frame differences).
+        # override (used for e.g. myolegs body-frame differences).
         raw_attachments = raw.get("attachments", [])
         if not raw_attachments:
             raise ValueError("config.yaml must contain at least one attachment")

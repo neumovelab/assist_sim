@@ -21,8 +21,10 @@ composed at runtime rather than shipped as static XML.
   the old `importlib.resources` `(subpackage, filename)` lookup, which pointed at
   static files that no longer exist. `_COMPATIBLE_MSK_KEYS` entries are now
   `_MskSource(myo_sim_model, min_mujoco, note)`.
-- **`myoLeg26_3D` → `myolegs26`** (legs-only, 26-muscle) is wired and tested; it
-  is the only MSK buildable on the pinned `mujoco==3.3.3`.
+- **MSK keys now mirror the myo_sim model names** (`myolegs`, `myolegs26`,
+  `myolegs22`), replacing the former `myoLeg80` / `myoLeg26_3D` / `myoLeg22_2D`.
+- **`myolegs26`** (legs-only, 26-muscle) is wired and tested; it is the only MSK
+  buildable on the pinned `mujoco==3.3.3`.
 - **`get_available_combinations`** uses a cheap availability check (no compile at
   import time; models are composed lazily on first resolve).
 
@@ -34,10 +36,10 @@ composed at runtime rather than shipped as static XML.
 
 ### Gated / planned
 
-- **`myoLeg80` → `myolegs`** (passive torso) needs `mujoco>=3.3.4` for its
+- **`myolegs`** (80-muscle, passive torso) needs `mujoco>=3.3.4` for its
   `MjSpec.delete`-based conversion — resolving it on 3.3.3 raises a clear
   `ImportError` (Phase 2).
-- **`myoLeg22_2D`** has no source yet (a planned 26→22 mjspec reduction) and
+- **`myolegs22`** has no source yet (a planned 26→22 mjspec reduction) and
   raises a clear `ValueError` when resolved.
 
 ## [0.1.0] — Initial release
@@ -55,7 +57,7 @@ for PyPI distribution.
   by joint name. Runs on `mujoco==3.3.3`.
 - **Explicit MSK registry.** `_COMPATIBLE_MSK_KEYS` in
   `assist_sim.registry` enumerates the three pipeline-compatible MSK
-  variants (`myoLeg22_2D`, `myoLeg26_3D`, `myoLeg80`); files are resolved
+  variants (`myolegs22`, `myolegs26`, `myolegs`); files are resolved
   through `myo_sim` via `importlib.resources`.
 - **Device autodiscovery.** Any `models/<DeviceDir>/<variant>config.yaml`
   is picked up on import. Seven bundled devices: `DephyExoBoot_L1`,

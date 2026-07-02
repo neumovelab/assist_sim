@@ -8,10 +8,10 @@ can rotate, pan, and visually inspect the model.  Nothing is written to disk
 Usage:
 
     python examples/quickstart.py                                  # defaults
-    python examples/quickstart.py myoLeg26_3D DephyExoBoot_L1      # explicit pair
+    python examples/quickstart.py myolegs26 DephyExoBoot_L1      # explicit pair
     python examples/quickstart.py --list                           # show all keys
 
-Defaults to ``myoLeg26_3D`` + ``DephyExoBoot_L1``.
+Defaults to ``myolegs26`` + ``DephyExoBoot_L1``.
 
 Requires the ``myo_sim`` package to be installed (it composes the MSK models).
 If it's missing, this script prints an install hint and exits.
@@ -30,15 +30,15 @@ _REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-DEFAULT_MSK = "myoLeg26_3D"
+DEFAULT_MSK = "myolegs26"
 DEFAULT_DEVICE = "DephyExoBoot_L1"
 
 
 def _abort_no_myo_sim() -> None:
     print(
         "ERROR: the `myo_sim` package is not installed in this environment.\n"
-        "       assist_sim resolves MSK model files (myoLeg22_2D, myoLeg26_3D, "
-        "myoLeg80) through that package.\n"
+        "       assist_sim resolves MSK model files (myolegs22, myolegs26, "
+        "myolegs) through that package.\n"
         "\n"
         "Once it is published to PyPI:\n"
         "    pip install myo_sim\n"
@@ -153,7 +153,7 @@ def main() -> None:
         # world orientation (22/26 face +X, 80 faces -Y).
         viewer.cam.lookat[:] = [0.0, 0.0, 0.81]
         viewer.cam.distance = 2.5
-        if args.msk == "myoLeg80":
+        if args.msk == "myolegs":
             # <camera pos="-0.995 -2.282 1.032"
             #  xyaxes="0.917 -0.400 0 0.036 0.081 0.996"/>
             viewer.cam.azimuth = 66.4

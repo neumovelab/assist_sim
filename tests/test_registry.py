@@ -20,22 +20,22 @@ FIXTURES = Path(__file__).resolve().parent / "fixtures"
 def test_compatible_msk_keys_are_locked():
     """The set of pipeline-compatible MSK keys is curated, not autodiscovered."""
     assert set(registry._COMPATIBLE_MSK_KEYS) == {
-        "myoLeg22_2D",
-        "myoLeg26_3D",
-        "myoLeg80",
+        "myolegs22",
+        "myolegs26",
+        "myolegs",
     }
     # Every entry binds a myo_sim composed model (or None when planned) and a
     # minimum MuJoCo version.
     for key, src in registry._COMPATIBLE_MSK_KEYS.items():
         assert src.myo_sim_model is None or isinstance(src.myo_sim_model, str), key
         assert len(src.min_mujoco) == 3, key
-    # myoLeg26_3D is the Phase-1 model, backed by myo_sim's legs-only myolegs26.
-    assert registry._COMPATIBLE_MSK_KEYS["myoLeg26_3D"].myo_sim_model == "myolegs26"
+    # Keys mirror the myo_sim model names; myolegs26 is the Phase-1 model.
+    assert registry._COMPATIBLE_MSK_KEYS["myolegs26"].myo_sim_model == "myolegs26"
 
 
 def test_unknown_msk_raises_with_suggestion():
     """Typo-style lookups should suggest the closest valid key."""
-    with pytest.raises(ValueError, match="Did you mean.*myoLeg22_2D"):
+    with pytest.raises(ValueError, match="Did you mean.*myolegs22"):
         registry._resolve_msk("myoLeg22")
 
 
@@ -43,14 +43,14 @@ def test_planned_msk_raises_value_error():
     """A registered-but-not-yet-available MSK (no myo_sim source) errors, not
     warns, with an explanation."""
     with pytest.raises(ValueError, match="not available yet"):
-        registry._resolve_msk("myoLeg22_2D")
+        registry._resolve_msk("myolegs22")
 
 
 def test_resolve_msk_composes_or_raises():
     """With myo_sim present, resolving the Phase-1 MSK composes a model-only XML
     on disk; without it, _resolve_msk raises an ImportError pointing at install."""
     try:
-        result = registry._resolve_msk("myoLeg26_3D")
+        result = registry._resolve_msk("myolegs26")
     except ImportError:
         return  # expected when myo_sim not installed
     assert isinstance(result, Path) and result.exists()
@@ -75,13 +75,13 @@ def temp_models(tmp_path):
         encoding="utf-8",
     )
 
-    # Second device, only compatible with myoLeg22_2D.
+    # Second device, only compatible with myolegs22.
     dev2 = root / "PickyDir"
     dev2.mkdir(parents=True)
     shutil.copy(FIXTURES / "minimal_device.xml", dev2 / "L1model.xml")
     (dev2 / "L1config.yaml").write_text(
         'device:\n  name: "Picky"\n  model_xml: "L1model.xml"\n'
-        "  compatible_msk: [myoLeg22_2D]\n"
+        "  compatible_msk: [myolegs22]\n"
         "attachments:\n  - device_body: dev_a\n    parent_body: pelvis\n",
         encoding="utf-8",
     )
@@ -109,7 +109,7 @@ def test_device_name_alias_registered(temp_models):
 
 def test_compatibility_filter_recorded(temp_models):
     """`device.compatible_msk` is captured for filtering by get_available_combinations."""
-    assert registry._COMPATIBLE_MSK.get("PickyDir_L1") == ["myoLeg22_2D"]
+    assert registry._COMPATIBLE_MSK.get("PickyDir_L1") == ["myolegs22"]
     assert registry._COMPATIBLE_MSK.get("DevDir_L1") is None  # no restriction
 
 

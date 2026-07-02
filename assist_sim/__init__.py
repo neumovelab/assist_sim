@@ -8,7 +8,7 @@ Usage (by registry key -- the MSK is composed on demand by myo_sim)::
 
     from assist_sim import load_combined
 
-    model, data = load_combined("myoLeg26_3D", "DephyExoBoot_L1")
+    model, data = load_combined("myolegs26", "DephyExoBoot_L1")
 
 Or from explicit paths, if you already have a baseline MSK XML on disk::
 

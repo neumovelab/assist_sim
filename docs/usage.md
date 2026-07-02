@@ -29,7 +29,7 @@ baseline `human_xml` is never modified on disk.
 from assist_sim import load_combined
 
 model, data = load_combined(
-    msk: str,            # e.g. "myoLeg26_3D"
+    msk: str,            # e.g. "myolegs26"
     device: str,         # e.g. "DephyExoBoot_L1"
     cache_dir: Path | None = None,
 ) -> tuple[mj.MjModel, mj.MjData]
@@ -63,7 +63,7 @@ and returns the absolute path.
 from assist_sim import get_available_combinations
 
 combos = get_available_combinations()
-# {'myoLeg26_3D': ['DephyExoBoot_L1', 'HMEDI_L1', ...], ...}
+# {'myolegs26': ['DephyExoBoot_L1', 'HMEDI_L1', ...], ...}
 ```
 
 Returns a dict of `msk_key -> [device_key, ...]` honoring each device's
@@ -75,7 +75,7 @@ resolvable through the installed `myo_sim`.
 ```python
 from assist_sim import validate_combination
 
-assert validate_combination("myoLeg26_3D", "DephyExoBoot_L1")
+assert validate_combination("myolegs26", "DephyExoBoot_L1")
 ```
 
 Returns `True` if the pair resolves and is compatible. Catches the various
@@ -90,7 +90,7 @@ from assist_sim import DeviceConfig
 
 config = DeviceConfig.from_yaml("models/HMEDI/L1config.yaml")
 print(config.attachments)
-print(config.resolve_attachments("myoLeg80"))   # per-MSK resolved
+print(config.resolve_attachments("myolegs"))   # per-MSK resolved
 ```
 
 ## CLI
@@ -105,13 +105,13 @@ Examples:
 
 ```bash
 # Compile + write combined XML
-python -m assist_sim compile myoLeg26_3D DephyExoBoot_L1 --export combined.xml
+python -m assist_sim compile myolegs26 DephyExoBoot_L1 --export combined.xml
 
 # List everything available
 python -m assist_sim list
 
 # Compile and cache (faster on subsequent runs)
-python -m assist_sim compile myoLeg80 OpenSourceLeg_KA_L1 --cache ./.cache
+python -m assist_sim compile myolegs OpenSourceLeg_KA_L1 --cache ./.cache
 ```
 
 ## Registry
@@ -179,7 +179,7 @@ tendon_modifications:
   default:
     - name: gastroc_r_tendon
       wraps: ...
-  myoLeg80:
+  myolegs:
     - name: gasmed_r_tendon
       wraps: ...
 ```

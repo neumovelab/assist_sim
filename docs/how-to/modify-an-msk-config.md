@@ -56,7 +56,7 @@ actuator_removals:
   default:
     - "soleus_r"
     - "tibant_r"
-  myoLeg80:
+  myolegs:
     - "soleus_r"
     - "tibant_r"
     - "gaslat_r"      # 80 splits gastroc into gaslat + gasmed
@@ -78,7 +78,7 @@ In `models/OpenSourceLeg/KA_L1config.yaml`:
 
 ```yaml
 tendon_modifications:
-  myoLeg80: []           # 80 uses different tendon names; nothing to do here
+  myolegs: []           # 80 uses different tendon names; nothing to do here
   default:               # 22/26 only
     - name: "rect_fem_r_tendon"
       wraps:
@@ -93,13 +93,13 @@ tendon_modifications:
           pos: [0.03, -0.275, 0.0095]
 ```
 
-Why `myoLeg80: []` (empty list) instead of just omitting it?
+Why `myolegs: []` (empty list) instead of just omitting it?
 
 - If only `default:` is provided, every MSK gets that block.
 - For 80, the tendon names `rect_fem_r_tendon` / `vasti_r_tendon` don't
   exist (80 uses `recfem_r_tendon` / `vasint_r_tendon` etc.) -- applying
   the default would raise `unknown tendon`.
-- The empty `myoLeg80: []` opts 80 out cleanly without affecting 22/26.
+- The empty `myolegs: []` opts 80 out cleanly without affecting 22/26.
 
 ## Worked example: HMEDI per-MSK attachment
 
@@ -118,7 +118,7 @@ attachments:
     - device_body: "hmedi femurflap_r"
       parent_body: "femur_r"
     # ...
-  myoLeg80:
+  myolegs:
     - device_body: "hmedi_torso"
       parent_body: "pelvis"           # different parent
       pos: [-0.105, 0.08, 0]          # frame offset to compensate
@@ -141,22 +141,22 @@ from assist_sim import DeviceConfig
 
 config = DeviceConfig.from_yaml("models/MyDevice/L1config.yaml")
 default_atts = config.resolve_attachments()
-msk80_atts = config.resolve_attachments("myoLeg80")
+msk80_atts = config.resolve_attachments("myolegs")
 assert default_atts != msk80_atts
 ```
 
 End-to-end:
 
 ```bash
-python examples/quickstart.py myoLeg80 MyDevice_L1
-python examples/quickstart.py myoLeg26_3D MyDevice_L1
+python examples/quickstart.py myolegs MyDevice_L1
+python examples/quickstart.py myolegs26 MyDevice_L1
 ```
 
 Both should compile and look right.
 
 ## Common pitfalls
 
-1. **Forgetting `myoLeg80: []`** when the default block uses 22/26-only
+1. **Forgetting `myolegs: []`** when the default block uses 22/26-only
    names → `ValueError: unknown tendon` on 80.
 2. **Forgetting an attachment in the per-MSK block** → that device part
    floats free in the compiled model.

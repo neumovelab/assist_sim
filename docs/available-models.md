@@ -6,23 +6,24 @@ Inventory of what's compatible with what.
 
 `myo_sim` composes its leg models at runtime, so each MSK key is resolved by
 calling `myo_sim.build_spec(<model>)`, serializing to XML, and stripping the
-bundled myosuite scene (see [concepts.md](concepts.md)). Three keys are
-registered; which are buildable depends on the installed MuJoCo:
+bundled myosuite scene (see [concepts.md](concepts.md)). The assist_sim key
+matches the `myo_sim` model name. Three are registered; which are buildable
+depends on the installed MuJoCo:
 
-| Key | `myo_sim.build_spec` | Base DOFs | Status |
-|---|---|---|---|
-| `myoLeg26_3D` | `myolegs26` | 47 | **Available** (Phase 1) — 26-muscle, legs-only |
-| `myoLeg80`    | `myolegs`   | —  | Phase 2 — needs `mujoco>=3.3.4` (passive-torso conversion uses `MjSpec.delete`) |
-| `myoLeg22_2D` | *(planned)* | —  | Planned — a 26→22 mjspec reduction of `myolegs26`, not implemented yet |
+| Key (= `myo_sim` model) | Base DOFs | Status |
+|---|---|---|
+| `myolegs26` | 47 | **Available** (Phase 1) — 26-muscle, legs-only |
+| `myolegs`   | —  | Phase 2 — 80-muscle; needs `mujoco>=3.3.4` (passive-torso conversion uses `MjSpec.delete`) |
+| `myolegs22` | —  | Planned — a 26→22 mjspec reduction of `myolegs26`, not built yet |
 
-`myoLeg26_3D` is the only MSK buildable on the pinned `mujoco==3.3.3`. Resolving
+`myolegs26` is the only MSK buildable on the pinned `mujoco==3.3.3`. Resolving
 a gated/planned key raises a clear error (never a silent fallback).
 
 ### Important MSK notes (myolegs26)
 
 - **Legs-only.** `myolegs26` is intentionally trunk-less — no HAT, torso, arms,
   or head. Devices whose attachments target a `torso` body (e.g. HMEDI's torso
-  band) need a torso'd MSK (`myoLeg80`, Phase 2).
+  band) need a torso'd MSK (`myolegs`, Phase 2).
 - **Free-root base.** The root is a `freejoint` (myosuite convention), not
   `pelvis_tx`/`pelvis_ty` slide joints. Device keyframe overrides that target
   `pelvis_ty` are silently skipped (the joint doesn't exist); the standing
@@ -38,7 +39,7 @@ Six device directories under `models/`, contributing seven device keys:
 | Device key | Config | Type | Notes |
 |---|---|---|---|
 | `DephyExoBoot_L1`     | `models/DephyExoBoot/L1config.yaml` | Ankle exoskeleton | Bilateral; battery + Raspberry Pi + boot strapping; ankle ROM override |
-| `HMEDI_L1`            | `models/HMEDI/L1config.yaml` | Hip-flexion cable exo | Bilateral; spatial-tendon cables driven by `Exo_R`/`Exo_L`; torso re-parented on myoLeg80 |
+| `HMEDI_L1`            | `models/HMEDI/L1config.yaml` | Hip-flexion cable exo | Bilateral; spatial-tendon cables driven by `Exo_R`/`Exo_L`; torso re-parented on myolegs |
 | `Humotech_L1`         | `models/Humotech/L1config.yaml` | Ankle exo with cables | Bilateral; pf/df cables (passive); joint-transmission `Exo_R`/`Exo_L` |
 | `OpenExo_L1`          | `models/OpenExo/L1config.yaml` | Ankle exo | Bilateral |
 | `Tutorial_L1`         | `models/Tutorial/L1config.yaml` | Teaching device | Stripped-down exo for onboarding |
@@ -53,7 +54,7 @@ device YAML's `device.name`).
 ✓ = tested (frozen smoke signatures); — = not yet buildable (Phase 2 / planned);
 n/a = device needs a torso'd MSK.
 
-| Device | myoLeg26_3D | myoLeg80 | myoLeg22_2D |
+| Device | myolegs26 | myolegs | myolegs22 |
 |---|:-:|:-:|:-:|
 | `DephyExoBoot_L1`     | ✓ | — | — |
 | `OpenSourceLeg_A_L1`  | ✓ | — | — |
@@ -63,7 +64,7 @@ n/a = device needs a torso'd MSK.
 | `Tutorial_L1`         | ✓ | — | — |
 | `HMEDI_L1`            | n/a (needs torso) | — | — |
 
-Phase 1 wires `myoLeg26_3D`. The `myoLeg80` and `myoLeg22_2D` columns activate
+Phase 1 wires `myolegs26`. The `myolegs` and `myolegs22` columns activate
 in Phase 2 (mujoco 3.3.4 bump) and when the 26→22 reduction lands, respectively.
 
 ## Verifying combinations locally

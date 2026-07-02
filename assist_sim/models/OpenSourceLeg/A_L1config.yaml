@@ -16,7 +16,7 @@ mesh_replacements:
   default:
     - geom: "tibia_r_geom_1"
       mesh: "osl_tibia_fibula_trans_r"
-  myoLeg80:
+  myolegs:
     - geom: "r_tibia"
       mesh: "osl_tibia_fibula_trans_r"
 
@@ -24,7 +24,7 @@ mesh_replacements:
 geom_removals:
   default:
     - "tibia_r_geom_2"
-  myoLeg80:
+  myolegs:
     - "r_fibula"
 
 # --- Attach prosthetic chain to the residual tibia ---
@@ -39,7 +39,7 @@ actuator_removals:
     - "tibant_r"
     - "edl_r"
     - "fdl_r"
-  myoLeg80:
+  myolegs:
     - "soleus_r"
     - "tibant_r"
     - "edl_r"
@@ -60,7 +60,7 @@ tendon_removals:
     - "tib_ant_r_tendon"
     - "edl_r_tendon"
     - "fdl_r_tendon"
-  myoLeg80:
+  myolegs:
     - "soleus_r_tendon"
     - "tibant_r_tendon"
     - "edl_r_tendon"
@@ -84,13 +84,13 @@ tendon_removals:
 #   # `default` is used for the 22/26-muscle MSKs which share tendon naming
 #   # (gastroc_r_tendon, etc.). The 80-muscle MSK uses different tendon names
 #   # (gasmed_r / gaslat_r split, no shared gastroc), so we explicitly empty the
-#   # myoLeg80 override and add 80-specific entries here as needed.
+#   # myolegs override and add 80-specific entries here as needed.
 #   default:
 #     - name: "gastroc_r_tendon"
 #       wraps:
 #         - reposition_site: "gastroc_r_med_gas_r-P2"
 #           pos: [0.0, 0.0, 0.0]
-#   myoLeg80: []
+#   myolegs: []
 
 # --- Add prosthetic actuator ---
 actuators:
@@ -115,6 +115,6 @@ keyframe_overrides:
       osl_ankle_angle_r: 0.385
     lunge:
       pelvis_ty: 0.67
-  myoLeg80:
+  myolegs:
     squat:
       osl_ankle_angle_r: 0.385

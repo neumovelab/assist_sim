@@ -128,14 +128,14 @@ mesh_replacements:
   default:
     - geom: "tibia_r_geom_1"
       mesh: "my_device_residual_stump"
-  myoLeg80:
+  myolegs:
     - geom: "r_tibia"
       mesh: "my_device_residual_stump"
 
 geom_removals:
   default:
     - "tibia_r_geom_2"   # drop the fibula geom (covered by stump mesh)
-  myoLeg80:
+  myolegs:
     - "r_fibula"
 
 actuator_removals:
@@ -165,7 +165,7 @@ python -m assist_sim list
 ## Step 4 -- Compile + visually inspect
 
 ```bash
-python examples/quickstart.py myoLeg26_3D MyDevice_L1
+python examples/quickstart.py myolegs26 MyDevice_L1
 ```
 
 If it opens the viewer and shows the device attached, you're done. Common
