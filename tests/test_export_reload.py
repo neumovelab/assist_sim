@@ -12,6 +12,8 @@ Requires ``myo_sim`` (the MSKs are composed at runtime); skipped otherwise.
 
 from __future__ import annotations
 
+import xml.etree.ElementTree as ET
+
 import mujoco as mj
 import pytest
 
@@ -42,6 +44,23 @@ def test_export_reloads_from_disk(msk, device, tmp_path):
         model.nbody,
         model.ngeom,
     )
+
+
+@needs_myo_sim
+@pytest.mark.parametrize("msk,device", COMBOS, ids=lambda x: str(x))
+def test_export_drops_scene_lighting(msk, device, tmp_path):
+    """Model-only export carries no scene headlight/global.
+
+    The myosuite <visual> lighting is scene styling; leaving it in would merge
+    with (and partly override) a downstream scene's lighting when layered.
+    Downstream (e.g. myoassist.terrains) owns lighting.
+    """
+    out = tmp_path / f"{msk}__{device}.xml"
+    load_combined(msk, device, export_xml=str(out))
+    visual = ET.parse(out).getroot().find("visual")
+    if visual is not None:
+        assert visual.find("headlight") is None
+        assert visual.find("global") is None
 
 
 @needs_myo_sim

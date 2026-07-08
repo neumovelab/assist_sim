@@ -61,6 +61,7 @@ def export_combined_xml(
     if terrain_paths:
         _strip_terrain(root, terrain_paths)
     _strip_orphan_scene_assets(root)
+    _strip_scene_visual(root)
     _ensure_minimal_visual(root)
 
     final_xml = ET.tostring(root, encoding="unicode")
@@ -172,6 +173,27 @@ def strip_myosuite_scene_spec(spec) -> None:
     for mesh in list(spec.meshes):
         if mesh.name not in referenced:
             spec.delete(mesh)
+
+
+def _strip_scene_visual(root: ET.Element) -> None:
+    """Remove scene-lighting styling from ``<visual>`` so a downstream scene owns it.
+
+    myo_sim models carry the myosuite ``<visual>`` headlight + default camera
+    (``<global>``).  assist_sim emits model-only models and expects the consumer
+    (e.g. ``myoassist.terrains``) to supply lighting; leaving the myosuite
+    headlight in place makes MuJoCo merge it -- per attribute -- with the
+    downstream scene's ``<visual>``, so the myosuite ``ambient`` (0.5) survives
+    and washes out the scene's intended lighting.  Drop ``<headlight>`` and
+    ``<global>``; keep model-visualization settings (actuator ``<rgba>``,
+    ``<scale>``, ``<map>``, ``<quality>``).  MuJoCo's built-in default headlight
+    covers bare (scene-less) viewing.
+    """
+    visual = root.find("visual")
+    if visual is None:
+        return
+    for tag in ("headlight", "global"):
+        for elem in visual.findall(tag):
+            visual.remove(elem)
 
 
 def _ensure_minimal_visual(root: ET.Element) -> None:
