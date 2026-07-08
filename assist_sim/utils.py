@@ -51,6 +51,7 @@ def export_combined_xml(
 
     root = ET.fromstring(xml_string)
     _deduplicate_defaults(root)
+    _flatten_nested_defaults(root)
     _deduplicate_meshes(root)
     if mesh_dirs:
         normalized = [md if isinstance(md, tuple) else (md, "") for md in mesh_dirs]
@@ -59,6 +60,7 @@ def export_combined_xml(
 
     if terrain_paths:
         _strip_terrain(root, terrain_paths)
+    _strip_orphan_scene_assets(root)
     _ensure_minimal_visual(root)
 
     final_xml = ET.tostring(root, encoding="unicode")
@@ -286,6 +288,68 @@ def _deduplicate_defaults(root: ET.Element) -> None:
     default_root = root.find("default")
     if default_root is not None:
         _dedup_children(default_root)
+
+
+def _flatten_nested_defaults(root: ET.Element) -> None:
+    """Hoist children of nested UNNAMED ``<default>`` blocks into their parent.
+
+    myo_sim's composed-model ``to_xml`` can emit a ``<default>`` with no ``class``
+    nested inside another ``<default>`` (merged fragment defaults collapse into an
+    anonymous child).  MuJoCo rejects that on reload with "empty class name" -- a
+    *nested* default must be named.  An unnamed nested default is redundant with
+    its parent, so its children are spliced up in place and the wrapper dropped.
+    This is what makes torso'd composed models (e.g. ``myolegs``) round-trip.
+    """
+
+    def _hoist(parent: ET.Element) -> None:
+        for child in list(parent):
+            if child.tag != "default":
+                continue
+            _hoist(child)
+            if not child.get("class"):
+                idx = list(parent).index(child)
+                parent.remove(child)
+                for offset, sub in enumerate(list(child)):
+                    parent.insert(idx + offset, sub)
+
+    for top in root.findall("default"):
+        _hoist(top)
+
+
+def _strip_orphan_scene_assets(root: ET.Element) -> None:
+    """Drop scene textures/materials orphaned by the model-only scene strip.
+
+    ``strip_myosuite_scene_spec`` removes the myosuite scene's geoms but leaves
+    its 2D textures + materials in the asset block.  Once ``texturedir`` is
+    stripped on export their ``file="scene/*.png"`` paths dangle and the reload
+    fails with "Error opening file".  Any material not referenced by a geom
+    (directly or through a ``<default>`` geom class) and any non-skybox texture
+    not referenced by a surviving material is scene residue -- drop it.  A
+    ``skybox`` texture is kept regardless (it aids rendering and carries no file
+    dependency in the composed models).
+    """
+    asset = root.find("asset")
+    if asset is None:
+        return
+
+    referenced_materials: set[str] = {g.get("material") for g in root.iter("geom") if g.get("material")}
+    for default in root.iter("default"):
+        for geom in default.findall("geom"):
+            if geom.get("material"):
+                referenced_materials.add(geom.get("material"))
+
+    referenced_textures: set[str] = {
+        m.get("texture") for m in asset.findall("material") if m.get("name") in referenced_materials and m.get("texture")
+    }
+
+    for material in list(asset.findall("material")):
+        if material.get("name") not in referenced_materials:
+            asset.remove(material)
+    for texture in list(asset.findall("texture")):
+        if texture.get("type") == "skybox":
+            continue
+        if texture.get("name") not in referenced_textures:
+            asset.remove(texture)
 
 
 def _deduplicate_meshes(root: ET.Element) -> None:

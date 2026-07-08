@@ -47,6 +47,20 @@ def input_paths(human_xml: str, device_config_path: str, device_model_xml: str) 
     return sorted(paths, key=str)
 
 
+def input_paths_composed(device_config_path: str, device_model_xml: str) -> List[Path]:
+    """Collect cache-invalidating input files for a myo_sim-composed MSK.
+
+    Unlike :func:`input_paths`, there is no human XML on disk -- the MSK is
+    composed in-memory from the ``myo_sim`` package.  The myo_sim package
+    identity is folded into the cache key by the caller (via the ``version``
+    string), so only the device files are collected here.
+    """
+    paths: set = set()
+    paths.add(Path(device_config_path).resolve())
+    paths.update(_resolve_includes(Path(device_model_xml)))
+    return sorted(paths, key=str)
+
+
 def compute_key(paths: List[Path], version: str, msk_key: Optional[str] = None) -> str:
     """Hash input paths + their mtimes + pipeline version into a cache key."""
     h = hashlib.sha1()
