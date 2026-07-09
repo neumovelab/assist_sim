@@ -1,137 +1,121 @@
-<!-- =================================================
-    UT Ankle Exoskeleton (bilateral), ported into assist_sim as a standalone
-    device model.  Source: myosuite/simhive/exo_sim/ankle (Copyright 2024
-    Vikash Kumar, vikashplus@gmail.com): the ut_exo_*_dx / ut_exo_*_sx chains
-    and assets, merged here into one MSK-independent device XML.
-
-    The two exo roots (part3_dx / part3_sx) carry their own <freejoint>: the
-    device is *not* rigidly re-parented onto the leg.  assist_sim attaches each
-    root to worldbody (attachments: parent_body=world) and clamps it to the
-    calcaneus / talus / tibia via <equality><connect> constraints declared in
-    L1config.yaml.  Tendons + the cable actuators are imported by the pipeline.
-====================================================== -->
 <mujoco model="UTAnkleExoL2">
-    <compiler angle="radian"/>
+    <compiler angle="radian" />
 
     <default class="main">
         <default class="ut_exo_dx">
-            <geom margin="0.001" rgba="0.5 0.35 0.4 1" conaffinity="0" contype="0"/>
-            <joint armature="0.00001" limited="true"/>
-            <tendon rgba=".3 .3 .4 1" width=".005" limited="true"/>
+            <geom margin="0.001" rgba="0.5 0.35 0.4 1" conaffinity="0" contype="0" />
+            <joint armature="0.00001" limited="true" />
+            <tendon rgba=".3 .3 .4 1" width=".005" limited="true" />
             <default class="ut_exo_coll_dx">
-                <geom type="capsule" group="4" contype="1" conaffinity="0" condim="3" rgba="0.5 0.6 .7 .4" margin="0.001"/>
+                <geom type="capsule" group="4" contype="1" conaffinity="0" condim="3" rgba="0.5 0.6 .7 .4" margin="0.001" />
             </default>
         </default>
         <default class="ut_exo_sx">
-            <geom margin="0.001" rgba="0.5 0.35 0.4 1" conaffinity="0" contype="0"/>
-            <joint armature="0.00001" limited="true"/>
-            <tendon rgba=".3 .3 .4 1" width=".005" limited="true"/>
+            <geom margin="0.001" rgba="0.5 0.35 0.4 1" conaffinity="0" contype="0" />
+            <joint armature="0.00001" limited="true" />
+            <tendon rgba=".3 .3 .4 1" width=".005" limited="true" />
             <default class="ut_exo_coll_sx">
-                <geom type="capsule" group="4" contype="1" conaffinity="0" condim="3" rgba="0.5 0.6 .7 .4" margin="0.001"/>
+                <geom type="capsule" group="4" contype="1" conaffinity="0" condim="3" rgba="0.5 0.6 .7 .4" margin="0.001" />
             </default>
         </default>
     </default>
 
     <asset>
-        <mesh name="part1_dx" file="mesh/part1_zaxis_no_spring.stl" scale=".001 .001 .001"/>
-        <mesh name="part2_dx" file="mesh/part2_zaxis.stl" scale=".001 .001 .001"/>
-        <mesh name="part3_dx" file="mesh/part3_zaxis.stl" scale=".001 .001 .001"/>
-        <mesh name="part1_sx" file="mesh/part1_zaxis_no_spring.stl" scale="-.001 .001 .001"/>
-        <mesh name="part2_sx" file="mesh/part2_zaxis.stl" scale="-.001 .001 .001"/>
-        <mesh name="part3_sx" file="mesh/part3_zaxis.stl" scale="-.001 .001 .001"/>
+        <mesh name="part1_dx" file="mesh/part1_zaxis_no_spring.stl" scale=".001 .001 .001" />
+        <mesh name="part2_dx" file="mesh/part2_zaxis.stl" scale=".001 .001 .001" />
+        <mesh name="part3_dx" file="mesh/part3_zaxis.stl" scale=".001 .001 .001" />
+        <mesh name="part1_sx" file="mesh/part1_zaxis_no_spring.stl" scale="-.001 .001 .001" />
+        <mesh name="part2_sx" file="mesh/part2_zaxis.stl" scale="-.001 .001 .001" />
+        <mesh name="part3_sx" file="mesh/part3_zaxis.stl" scale="-.001 .001 .001" />
     </asset>
 
     <worldbody>
-        <!-- ============ RIGHT (dx) ============ -->
+        
         <body name="part3_dx" pos="0 0 0.05" euler="0 0 1.57" childclass="ut_exo_dx">
-            <freejoint name="utexo_root_dx"/>
-            <inertial pos="-0.044085 0.000792 0.050867" mass="0.4455" fullinertia="0.5817e-03 1.0000e-03 0.8725e-03 -0.0221e-03 -0.0094e-03 -0.1075e-03"/>
-            <geom type="mesh" mesh="part3_dx" class="ut_exo_dx" pos="-.12 0 0.0375" euler="1.57 0 0" rgba="0.65 0.6 0.6 1"/>
-            <geom type="box" size=".075 .015 .05" pos="-0.05 0 0.05" class="ut_exo_coll_dx"/>
-            <site name="part3_to_part1_on_parent_dx" pos="-.12 0 0.04" rgba="0 1 0 1"/>
-            <site name="constraint_tibia" pos=".012 .06 .2" size="0.015" rgba="0 1 0 1"/>
+            <freejoint name="utexo_root_dx" />
+            <inertial pos="-0.044085 0.000792 0.050867" mass="0.4455" fullinertia="0.5817e-03 1.0000e-03 0.8725e-03 -0.0221e-03 -0.0094e-03 -0.1075e-03" />
+            <geom type="mesh" mesh="part3_dx" class="ut_exo_dx" pos="-.12 0 0.0375" euler="1.57 0 0" rgba="0.65 0.6 0.6 1" />
+            <geom type="box" size=".075 .015 .05" pos="-0.05 0 0.05" class="ut_exo_coll_dx" />
+            <site name="part3_to_part1_on_parent_dx" pos="-.12 0 0.04" rgba="0 1 0 1" group="4" />
+            <site name="constraint_tibia" pos=".012 .06 .2" size="0.015" rgba="0 1 0 1" group="4" />
 
-            <!-- PART2 - upper part -->
+            
             <body name="part2_dx" pos="-.005 0 0.0975" euler="0 0 0">
-                <inertial pos="-0.03022 -0.002767 0.095074" mass="0.318" fullinertia="0.8018e-03 0.8480e-03 0.2663e-03 -0.0728e-03 0.0101e-03 0.0116e-03"/>
-                <geom type="mesh" mesh="part2_dx" class="ut_exo_dx" pos="-0.035 0 0" euler="1.57 0 0"/>
-                <geom type="box" size=".04 .01 .1" pos="-.015 0 0.1" class="ut_exo_coll_dx"/>
-                <joint name="joint2_dx" pos="-0.035 0 0" axis="0 1 0" range="-.86 .52" damping="0.1"/>
-                <site name="part2_attach_dx" pos="-.067 0 0.185" rgba="0 1 1 1"/>
-                <site name="part2_to_part3_encoder_dx" pos="-.035 0 0" rgba="0 1 0 1"/>
-                <site name="constraint_talus" pos=".01 .07 -0.085" size="0.015" rgba="1 0 0 1"/>
-                <site name="constraint_calcagno" pos="-0.06 .07 -0.085" size="0.015" rgba="1 1 0 1"/>
+                <inertial pos="-0.03022 -0.002767 0.095074" mass="0.318" fullinertia="0.8018e-03 0.8480e-03 0.2663e-03 -0.0728e-03 0.0101e-03 0.0116e-03" />
+                <geom type="mesh" mesh="part2_dx" class="ut_exo_dx" pos="-0.035 0 0" euler="1.57 0 0" />
+                <geom type="box" size=".04 .01 .1" pos="-.015 0 0.1" class="ut_exo_coll_dx" />
+                <joint name="joint2_dx" pos="-0.035 0 0" axis="0 1 0" range="-.86 .52" damping="0.1" />
+                <site name="part2_attach_dx" pos="-.067 0 0.185" rgba="0 1 1 1" group="4" />
+                <site name="part2_to_part3_encoder_dx" pos="-.035 0 0" rgba="0 1 0 1" group="4" />
+                <site name="constraint_talus" pos=".01 .07 -0.085" size="0.015" rgba="1 0 0 1" group="4" />
+                <site name="constraint_calcagno" pos="-0.06 .07 -0.085" size="0.015" rgba="1 1 0 1" group="4" />
             </body>
 
-            <!-- PART1 - load cell -->
+            
             <body name="part1_dx" pos="-.09 0 0.0375" euler="0 0 0">
-                <inertial pos="-0.026204 -0.000454 0.047435" mass="0.1832" fullinertia="0.2253e-03 0.2340e-03 0.0222e-03 0 -0.0409e-03 0"/>
-                <geom type="mesh" mesh="part1_dx" class="ut_exo_dx" pos="-.03 0 0" euler="1.57 0 3.04"/>
-                <joint name="joint1_dx" pos="-.03 0 0" axis="0 1 0" range="-.7 0.55" damping="0.1"/>
-                <site name="part1_attach_dx" pos="-0.026 0 0.04" rgba="1 0 0 1"/>
-                <site name="part3_attach_dx" pos="-0.022 0 0.0748"/>
-                <site name="part3_to_part1_on_part1_dx" pos="-0.03 0 0.0" size="0.01" rgba="0 0 0 1"/>
+                <inertial pos="-0.026204 -0.000454 0.047435" mass="0.1832" fullinertia="0.2253e-03 0.2340e-03 0.0222e-03 0 -0.0409e-03 0" />
+                <geom type="mesh" mesh="part1_dx" class="ut_exo_dx" pos="-.03 0 0" euler="1.57 0 3.04" />
+                <joint name="joint1_dx" pos="-.03 0 0" axis="0 1 0" range="-.7 0.55" damping="0.1" />
+                <site name="part1_attach_dx" pos="-0.026 0 0.04" rgba="1 0 0 1" group="4" />
+                <site name="part3_attach_dx" pos="-0.022 0 0.0748" group="4" />
+                <site name="part3_to_part1_on_part1_dx" pos="-0.03 0 0.0" size="0.01" rgba="0 0 0 1" group="4" />
             </body>
         </body>
 
-        <!-- ============ LEFT (sx) ============ -->
+        
         <body name="part3_sx" pos="0 0 0.05" euler="0 0 1.57" childclass="ut_exo_sx">
-            <freejoint name="utexo_root_sx"/>
-            <inertial pos="-0.194085 0.000792 0.050867" mass="0.4455" fullinertia="0.5817e-03 1.0000e-03 0.8725e-03 -0.0221e-03 -0.0094e-03 -0.1075e-03"/>
-            <geom type="mesh" mesh="part3_sx" class="ut_exo_sx" pos="-0.12 0 0.0375" euler="1.57 0 0" rgba="0.65 0.6 0.6 1"/>
-            <geom type="box" size=".075 .015 .05" pos="-0.192 0 0.05" class="ut_exo_coll_sx"/>
-            <site name="part3_to_part1_on_parent_sx" pos="-.12 0 0.04" rgba="0 1 0 1"/>
+            <freejoint name="utexo_root_sx" />
+            <inertial pos="-0.194085 0.000792 0.050867" mass="0.4455" fullinertia="0.5817e-03 1.0000e-03 0.8725e-03 -0.0221e-03 -0.0094e-03 -0.1075e-03" />
+            <geom type="mesh" mesh="part3_sx" class="ut_exo_sx" pos="-0.12 0 0.0375" euler="1.57 0 0" rgba="0.65 0.6 0.6 1" />
+            <geom type="box" size=".075 .015 .05" pos="-0.192 0 0.05" class="ut_exo_coll_sx" />
+            <site name="part3_to_part1_on_parent_sx" pos="-.12 0 0.04" rgba="0 1 0 1" group="4" />
 
-            <!-- PART2 - upper part -->
+            
             <body name="part2_sx" pos="-.005 0 0.0975" euler="0 0 0">
-                <inertial pos="-0.1922 -0.002767 0.095074" mass="0.318" fullinertia="0.8018e-03 0.8480e-03 0.2663e-03 0.0728e-03 0.0101e-03 0.0116e-03"/>
-                <geom type="mesh" mesh="part2_sx" class="ut_exo_sx" pos="-0.195 0.0005 0" euler="1.57 0 0"/>
-                <geom type="box" size=".04 .01 .1" pos="-.215 0 0.1" class="ut_exo_coll_sx"/>
-                <joint name="joint2_sx" pos="-0.195 0.0005 0" axis="0 -1 0" range="-.86 .52" damping="0.2"/>
-                <site name="part2_attach_sx" pos="-.164 0 0.185" rgba="0 1 1 1"/>
-                <site name="part2_to_part3_encoder_sx" pos="-0.195 0.0005 0" rgba="0 1 0 1"/>
+                <inertial pos="-0.1922 -0.002767 0.095074" mass="0.318" fullinertia="0.8018e-03 0.8480e-03 0.2663e-03 0.0728e-03 0.0101e-03 0.0116e-03" />
+                <geom type="mesh" mesh="part2_sx" class="ut_exo_sx" pos="-0.195 0.0005 0" euler="1.57 0 0" />
+                <geom type="box" size=".04 .01 .1" pos="-.215 0 0.1" class="ut_exo_coll_sx" />
+                <joint name="joint2_sx" pos="-0.195 0.0005 0" axis="0 -1 0" range="-.86 .52" damping="0.2" />
+                <site name="part2_attach_sx" pos="-.164 0 0.185" rgba="0 1 1 1" group="4" />
+                <site name="part2_to_part3_encoder_sx" pos="-0.195 0.0005 0" rgba="0 1 0 1" group="4" />
             </body>
 
-            <!-- PART1 - load cell -->
+            
             <body name="part1_sx" pos="-.09 0 0.0375" euler="0 0 0">
-                <inertial pos="-0.035204 -0.000454 0.047435" mass="0.1832" fullinertia="0.2253e-03 0.2340e-03 0.0222e-03 0 0.0309e-03 0"/>
-                <geom type="mesh" mesh="part1_sx" class="ut_exo_sx" pos="-.03 0 0" euler="1.57 0 -3.04"/>
-                <joint name="joint1_sx" pos="-.03 0 0" axis="0 -1 0" range="-0.7 0.55" damping="0.1"/>
-                <site name="part1_attach_sx" pos="-0.034 0 0.04" rgba="1 0 0 1"/>
-                <site name="part3_attach_sx" pos="-0.04 0 0.0748"/>
-                <site name="part3_to_part1_on_part1_sx" pos="-0.03 0 0.0" rgba="0 0 0 1"/>
+                <inertial pos="-0.035204 -0.000454 0.047435" mass="0.1832" fullinertia="0.2253e-03 0.2340e-03 0.0222e-03 0 0.0309e-03 0" />
+                <geom type="mesh" mesh="part1_sx" class="ut_exo_sx" pos="-.03 0 0" euler="1.57 0 -3.04" />
+                <joint name="joint1_sx" pos="-.03 0 0" axis="0 -1 0" range="-0.7 0.55" damping="0.1" />
+                <site name="part1_attach_sx" pos="-0.034 0 0.04" rgba="1 0 0 1" group="4" />
+                <site name="part3_attach_sx" pos="-0.04 0 0.0748" group="4" />
+                <site name="part3_to_part1_on_part1_sx" pos="-0.03 0 0.0" rgba="0 0 0 1" group="4" />
             </body>
         </body>
     </worldbody>
 
     <tendon>
-        <!-- Right: spring (part1<->part3) + cable (part3<->part2, actuated) -->
-        <spatial name="part2part3attach_dx" range="0.04 0.06" class="ut_exo_dx" stiffness="25000"
-                 solreflimit="0.002 1.0" solimplimit="0.9 0.95 0.01" rgba="0.8 0.8 0.8 1.0">
-            <site site="part1_attach_dx"/>
-            <site site="part3_attach_dx"/>
+        
+        <spatial name="part2part3attach_dx" range="0.04 0.06" class="ut_exo_dx" stiffness="25000" solreflimit="0.002 1.0" solimplimit="0.9 0.95 0.01" rgba="0.8 0.8 0.8 1.0">
+            <site site="part1_attach_dx" group="4" />
+            <site site="part3_attach_dx" group="4" />
         </spatial>
         <spatial name="part3part4attach_dx" limited="false" class="ut_exo_dx">
-            <site site="part3_attach_dx"/>
-            <site site="part2_attach_dx"/>
+            <site site="part3_attach_dx" group="4" />
+            <site site="part2_attach_dx" group="4" />
         </spatial>
 
-        <!-- Left: spring (part1<->part3) + cable (part3<->part2, actuated) -->
-        <spatial name="part2part3attach_sx" range="0.04 0.06" class="ut_exo_sx" stiffness="25000"
-                 solreflimit="0.002 1.0" solimplimit="0.9 0.95 0.01" rgba="0.8 0.8 0.8 1.0">
-            <site site="part1_attach_sx"/>
-            <site site="part3_attach_sx"/>
+        
+        <spatial name="part2part3attach_sx" range="0.04 0.06" class="ut_exo_sx" stiffness="25000" solreflimit="0.002 1.0" solimplimit="0.9 0.95 0.01" rgba="0.8 0.8 0.8 1.0">
+            <site site="part1_attach_sx" group="4" />
+            <site site="part3_attach_sx" group="4" />
         </spatial>
         <spatial name="part3part4attach_sx" limited="false" class="ut_exo_sx">
-            <site site="part3_attach_sx"/>
-            <site site="part2_attach_sx"/>
+            <site site="part3_attach_sx" group="4" />
+            <site site="part2_attach_sx" group="4" />
         </spatial>
     </tendon>
 
     <actuator>
-        <general name="part2part3act_dx" tendon="part3part4attach_dx" ctrlrange="-1 0.00"
-                 dyntype="filter" dynprm="0.07" gainprm="600.0" biastype="none"/>
-        <general name="part2part3act_sx" tendon="part3part4attach_sx" ctrlrange="-1 0.00"
-                 dyntype="filter" dynprm="0.07" gainprm="600.0" biastype="none"/>
+        <general name="part2part3act_dx" tendon="part3part4attach_dx" ctrlrange="-1 0.00" dyntype="filter" dynprm="0.07" gainprm="600.0" biastype="none" />
+        <general name="part2part3act_sx" tendon="part3part4attach_sx" ctrlrange="-1 0.00" dyntype="filter" dynprm="0.07" gainprm="600.0" biastype="none" />
     </actuator>
 </mujoco>
