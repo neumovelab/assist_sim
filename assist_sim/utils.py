@@ -50,8 +50,11 @@ def export_combined_xml(
     xml_string = spec.to_xml()
 
     root = ET.fromstring(xml_string)
+    # Name any unnamed nested <default> blocks before dedup, so the dedup pass
+    # only sees named classes -- a multi-fragment model (myofullbody) has several
+    # unnamed blocks whose element-level defaults must not be merged or collapsed.
+    _name_nested_defaults(root)
     _deduplicate_defaults(root)
-    _flatten_nested_defaults(root)
     _deduplicate_meshes(root)
     if mesh_dirs:
         normalized = [md if isinstance(md, tuple) else (md, "") for md in mesh_dirs]
@@ -284,26 +287,32 @@ def _strip_resource_dirs(root: ET.Element) -> None:
 
 
 def _deduplicate_defaults(root: ET.Element) -> None:
-    """Remove duplicate default class definitions created by multi-body attach.
+    """Remove duplicate default class definitions (globally, by class name).
 
-    When multiple bodies are attached from the same device spec, each
-    attach_body call re-creates the device's default class tree.  This
-    function keeps only the first occurrence of each class name.
+    Two things create repeated class names in the serialized default tree:
+    multi-body ``attach_body`` re-creating a device's class tree, and myo_sim's
+    composed ``to_xml`` re-emitting a fragment's classes once per attach (e.g.
+    the right arm and its mirrored left arm both carry the ``myoarm*`` classes).
+    MJCF class names are global, so any repeat is rejected on reload.  Keep the
+    first occurrence of each name and drop later ones (with their subtree);
+    elements referencing the name resolve to the survivor.  Where a duplicated
+    class differed between copies (e.g. a mirrored side's collision-geom
+    material), the first copy wins -- a cosmetic loss on the dropped side.
     """
+    seen_classes: set[str] = set()
 
     def _dedup_children(parent: ET.Element) -> None:
-        seen_classes: set[str] = set()
         to_remove: list[ET.Element] = []
-
         for child in list(parent):
             if child.tag == "default":
                 cls_name = child.get("class", "")
-                if cls_name in seen_classes:
+                # Unnamed <default> blocks are scope wrappers, never duplicates.
+                if cls_name and cls_name in seen_classes:
                     to_remove.append(child)
                 else:
-                    seen_classes.add(cls_name)
+                    if cls_name:
+                        seen_classes.add(cls_name)
                     _dedup_children(child)
-
         for elem in to_remove:
             parent.remove(elem)
 
@@ -312,30 +321,35 @@ def _deduplicate_defaults(root: ET.Element) -> None:
         _dedup_children(default_root)
 
 
-def _flatten_nested_defaults(root: ET.Element) -> None:
-    """Hoist children of nested UNNAMED ``<default>`` blocks into their parent.
+def _name_nested_defaults(root: ET.Element) -> None:
+    """Give every nested UNNAMED ``<default>`` a unique synthetic class name.
 
     myo_sim's composed-model ``to_xml`` can emit a ``<default>`` with no ``class``
-    nested inside another ``<default>`` (merged fragment defaults collapse into an
-    anonymous child).  MuJoCo rejects that on reload with "empty class name" -- a
-    *nested* default must be named.  An unnamed nested default is redundant with
-    its parent, so its children are spliced up in place and the wrapper dropped.
-    This is what makes torso'd composed models (e.g. ``myolegs``) round-trip.
-    """
+    nested inside another ``<default>`` (fragment defaults merged under an
+    anonymous scope).  MuJoCo rejects that on reload with "empty class name" -- a
+    *nested* default must be named; only the single top-level default may be
+    anonymous.
 
-    def _hoist(parent: ET.Element) -> None:
-        for child in list(parent):
-            if child.tag != "default":
-                continue
-            _hoist(child)
-            if not child.get("class"):
-                idx = list(parent).index(child)
-                parent.remove(child)
-                for offset, sub in enumerate(list(child)):
-                    parent.insert(idx + offset, sub)
+    Naming these blocks is lossless, where hoisting their children up is not:
+    the inheritance chain (and each block's own element-level ``<geom>`` /
+    ``<tendon>`` / ... defaults) is preserved intact, and multi-fragment models
+    (``myofullbody``) don't collapse several blocks' element defaults into one
+    parent (which violates MuJoCo's "one element per default" schema).  Since an
+    unnamed default cannot be referenced by ``class=`` anyway, the synthetic name
+    changes nothing referentially.  This makes torso'd / multi-fragment composed
+    models round-trip.
+    """
+    counter = [0]
+
+    def _name(default_elem: ET.Element, is_top: bool) -> None:
+        if not is_top and not default_elem.get("class"):
+            counter[0] += 1
+            default_elem.set("class", f"_assist_default_{counter[0]}")
+        for child in default_elem.findall("default"):
+            _name(child, is_top=False)
 
     for top in root.findall("default"):
-        _hoist(top)
+        _name(top, is_top=True)
 
 
 def _strip_orphan_scene_assets(root: ET.Element) -> None:
@@ -375,12 +389,22 @@ def _strip_orphan_scene_assets(root: ET.Element) -> None:
 
 
 def _deduplicate_meshes(root: ET.Element) -> None:
-    """Remove duplicate mesh definitions that reference the same file."""
+    """Remove duplicate mesh definitions.
+
+    Two ``<mesh>`` entries are duplicates only if they reference the same file
+    *and* carry identical transform attributes.  Crucially, a mirrored mesh
+    reuses its twin's file with ``scale="1 1 -1"`` (this is how myo_sim reflects
+    the left side of a body) -- so the dedup key must include ``scale`` (and any
+    other attribute), or the left mesh would be collapsed into the unreflected
+    right one, silently destroying the mirror.  Genuine duplicates (the same
+    device mesh re-added by multiple ``attach_body`` calls) share every
+    attribute and still collapse.
+    """
     asset_elem = root.find("asset")
     if asset_elem is None:
         return
 
-    seen_files: dict[str, str] = {}  # normalized_path -> first mesh name
+    seen: dict[tuple, str] = {}  # full attribute signature -> first mesh name
     to_remove = []
 
     for mesh in asset_elem.findall("mesh"):
@@ -388,8 +412,10 @@ def _deduplicate_meshes(root: ET.Element) -> None:
         if not file_path:
             continue
 
-        key = file_path.lower().replace("\\", "/")
-        first_name = seen_files.get(key)
+        attrs = {k: v for k, v in mesh.attrib.items() if k != "name"}
+        attrs["file"] = file_path.lower().replace("\\", "/")
+        sig = tuple(sorted(attrs.items()))
+        first_name = seen.get(sig)
 
         if first_name is not None:
             dup_name = mesh.get("name")
@@ -399,7 +425,7 @@ def _deduplicate_meshes(root: ET.Element) -> None:
                         geom.set("mesh", first_name)
             to_remove.append(mesh)
         else:
-            seen_files[key] = mesh.get("name", "")
+            seen[sig] = mesh.get("name", "")
 
     for mesh in to_remove:
         asset_elem.remove(mesh)
