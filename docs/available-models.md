@@ -33,15 +33,17 @@ a gated/planned key raises a clear error (never a silent fallback).
 
 ## Device models
 
-Six device directories under `models/`, contributing seven device keys:
+Eight device directories under `models/`, contributing nine device keys:
 
 | Device key | Config | Type | Notes |
 |---|---|---|---|
+| `Anatomics_L1`        | `models/Anatomics/L1config.yaml` | Ankle exoskeleton | Bilateral instrumented soles + right shank/foot frame; passive (welded, no actuators) |
 | `DephyExoBoot_L1`     | `models/DephyExoBoot/L1config.yaml` | Ankle exoskeleton | Bilateral; battery + Raspberry Pi + boot strapping; ankle ROM override |
 | `HMEDI_L1`            | `models/HMEDI/L1config.yaml` | Hip-flexion cable exo | Bilateral; spatial-tendon cables driven by `Exo_R`/`Exo_L`; torso re-parented on myolegs |
 | `Humotech_L1`         | `models/Humotech/L1config.yaml` | Ankle exo with cables | Bilateral; pf/df cables (passive); joint-transmission `Exo_R`/`Exo_L` |
 | `OpenExo_L1`          | `models/OpenExo/L1config.yaml` | Ankle exo | Bilateral |
 | `Tutorial_L1`         | `models/Tutorial/L1config.yaml` | Teaching device | Stripped-down exo for onboarding |
+| `KFoot_L1`            | `models/KFoot/L1config.yaml` | Transtibial prosthetic | Removes talus + below on the right side; residual stump tibia mesh; passive spring-damper ankle (`df_`/`pf_ankle_angle_r`) |
 | `OpenSourceLeg_A_L1`  | `models/OpenSourceLeg/A_L1config.yaml` | Transtibial prosthetic | Removes talus + below on the right side; replaces tibia mesh with residual stump |
 | `OpenSourceLeg_KA_L1` | `models/OpenSourceLeg/KA_L1config.yaml` | Transfemoral prosthetic | Removes tibia + below on the right side; replaces femur mesh with residual stump |
 
@@ -55,7 +57,9 @@ n/a = device needs a torso'd MSK.
 
 | Device | myolegs26 | myolegs | myolegs22 |
 |---|:-:|:-:|:-:|
+| `Anatomics_L1`        | ✓ | ✓ | — |
 | `DephyExoBoot_L1`     | ✓ | ✓ | — |
+| `KFoot_L1`            | ✓ | ✓ | — |
 | `OpenSourceLeg_A_L1`  | ✓ | ✓ | — |
 | `OpenSourceLeg_KA_L1` | ✓ | ✓ | — |
 | `Humotech_L1`         | ✓ | ✓ | — |

@@ -1,0 +1,35 @@
+device:
+  name: "Anatomics_L1"
+  model_xml: "L1model.xml"
+  compatible_msk: [myolegs26, myolegs]
+
+# --- Additive ankle exoskeleton ---
+# Rigid exo frame on the right shank + foot, plus bilateral instrumented
+# soles/uppers that form the ground interface. Everything is welded (no device
+# joints) and passive (no actuators), faithful to the source model. Biology is
+# untouched -- no removals.
+attachments:
+  # Right shank + foot exo frame
+  - device_body: "shank_exo"
+    parent_body: "tibia_r"
+  - device_body: "front_foot_exo"
+    parent_body: "calcn_r"
+  - device_body: "back_foot_exo"
+    parent_body: "calcn_r"
+  # Bilateral instrumented soles / uppers
+  - device_body: "r_aft_sole"
+    parent_body: "calcn_r"
+  - device_body: "r_aft_upper"
+    parent_body: "calcn_r"
+  - device_body: "r_fore_sole"
+    parent_body: "toes_r"
+  - device_body: "r_fore_upper"
+    parent_body: "toes_r"
+  - device_body: "l_aft_sole"
+    parent_body: "calcn_l"
+  - device_body: "l_aft_upper"
+    parent_body: "calcn_l"
+  - device_body: "l_fore_sole"
+    parent_body: "toes_l"
+  - device_body: "l_fore_upper"
+    parent_body: "toes_l"

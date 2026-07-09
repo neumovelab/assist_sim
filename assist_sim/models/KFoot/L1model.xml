@@ -1,0 +1,64 @@
+<!-- =================================================
+    Copyright 2026 NeuMove Laboratory, Northeastern University
+    Model   :: K-Foot Transtibial Prosthesis
+    Author  :: Calder Robbins (robbins.cal@northeastern.edu)
+    License :: Apache License, Version 2.0
+====================================================== -->
+<mujoco model="KFoot_Ankle">
+  <compiler angle="radian" />
+  <default class="main">
+    <joint armature="1e-05" damping="0.05" limited="true" />
+    <geom margin="0.001" rgba="0.8 0.6 0.4 1" />
+    <site size="0.001 0.005 0.005" />
+    <tendon rgba="0.95 0.3 0.3 1" width="0.005" />
+    <default class="muscle">
+      <general biasprm="0.75 1.05 -1 200 0.5 1.6 1.5 1.3 1.2 0" biastype="muscle" ctrllimited="true" ctrlrange="0 1" dynprm="0.01 0.04 0 0 0 0 0 0 0 0" dyntype="muscle" gainprm="0.75 1.05 -1 200 0.5 1.6 1.5 1.3 1.2 0" gaintype="muscle" />
+    </default>
+    <default class="motor">
+      <general gainprm="5 0 0 0 0 0 0 0 0 0" />
+    </default>
+    <default class="coll">
+      <geom type="capsule" group="4" contype="1" conaffinity="0" condim="3" rgba="0.8 0.7 .5 1" margin="0.001" material="MatSkin" />
+    </default>
+    <default class="myo_leg_touch">
+      <site type="box" group="3" rgba="0.8 0.2 .2 .4" />
+    </default>
+  </default>
+  <asset>
+    <mesh file="mesh/ankle_assem.stl" name="k_foot_ankle_assem_geom" />
+    <mesh file="mesh/foot_assem.stl" name="k_foot_foot_assem_geom" />
+    <mesh file="mesh/foot_shell.stl" name="k_foot_shell_geom" />
+    <mesh file="mesh/generic_socket.stl" name="generic_socket" />
+    <mesh file="mesh/tibia_fibula_trans_r.stl" name="tibia_fibula_trans_r" />
+    <material name="MatSkin" specular="0.2" shininess=".1" reflectance="0.5" rgba="0.9 .7 1 1" />
+  </asset>
+  <worldbody>
+    <body name="kap_generic_socket" pos="0 -0.3 0.006">
+      <inertial pos="-0.0025 0.105 0.0035" quat="0 0.5 0.5 0" mass="0.5" diaginertia="0.001 0.0015 0.0015" />
+      <geom name="generic_socket" type="mesh" rgba="0.6 0.6 0.6 0.35" mesh="generic_socket" condim="3" contype="1" />
+      <body name="kap_tibial_pylon" pos="0 0.045 0.006">
+        <inertial pos="0 -0.01 -0.0015" mass="0.2" diaginertia="0.0001 0.0001 0.0001" />
+        <geom name="kap_tibial_pylon_geom_1" type="cylinder" size="0.012 0.025" pos="0 -0.0275 0" quat="0.707035 0.707179 0 0" rgba="0.4 0.4 0.4 1" condim="3" contype="1" />
+        <body name="k_foot_ankle_assembly" pos="-0.012 -0.085 -0.0375">
+          <inertial pos="0 -0.0025 0.0375" quat="0.5 0 0 0" mass="0.567" diaginertia="0.001 0.001 0.001" />
+          <geom name="k_foot_ankle_assem_geom" type="mesh" rgba="0.886 0.133 0.133 1" mesh="k_foot_ankle_assem_geom" condim="3" contype="1" />
+          <site name="r_k_foot_load_force" type="box" pos="0.015 0.045 0.0375" size="0.02 0.03 0.02" euler="0 0 0" group="5" rgba="1 0.5 0.0 0.5" />
+          <body name="k_foot_foot_assem" pos="0.051 -0.05 0.0025">
+            <inertial pos="-0.005 -0.01 0.035" quat="0 0 0.5 0" mass="0.455" diaginertia="0.0005 0.0025 0.0025" />
+            <joint name="df_ankle_angle_r" pos="-0.04 0.038 0.0" axis="0 0 1" range="0 0.5236" stiffness="500" damping="5" />
+            <joint name="pf_ankle_angle_r" pos="-0.04 0.038 0.0" axis="0 0 1" range="-0.5236 0" stiffness="50" damping="5" />
+            <geom name="k_foot_foot_assem_geom" type="mesh" rgba="0.3 0.3 0.3 1" mesh="k_foot_foot_assem_geom" />
+            <site name="r_foot_touch" type="box" pos="-0.075 -0.045 0.035" size=".03 .02 .045" euler="0 0 0" class="myo_leg_touch" />
+            <site name="r_heel_btm" type="sphere" pos="-0.075 -0.05 0.035" size="0.01" group="4" rgba="0 1 0 0.4" />
+            <site name="r_toe_btm" type="sphere" pos="0.1 -0.055 0.035" size="0.01" group="4" rgba="0 1 0 0.4" />
+            <body name="k_foot_shell" pos="0.0235 -0.033 -0.013">
+              <inertial pos="0 0 0.05" quat="0.5 0 0 0.5" mass="0.1" diaginertia="0.0005 0.00012 0.0005" />
+              <geom name="k_foot_shell_geom" type="mesh" rgba="0.835 0.667 0.533 0.35" mesh="k_foot_shell_geom" condim="3" contype="1" />
+              <site name="r_toes_touch" type="box" pos="0.05 -0.02 0.05" size=".05 .025 .085" euler="0 -1.64 0" class="myo_leg_touch" />
+            </body>
+          </body>
+        </body>
+      </body>
+    </body>
+  </worldbody>
+</mujoco>

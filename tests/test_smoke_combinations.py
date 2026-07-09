@@ -30,9 +30,13 @@ EXPECTED = {
     ("myolegs26", "DephyExoBoot_L1"): (47, 28, 37, 28),
     ("myolegs26", "OpenSourceLeg_A_L1"): (46, 22, 24, 19),
     ("myolegs26", "OpenSourceLeg_KA_L1"): (38, 19, 23, 21),
+    ("myolegs26", "Anatomics_L1"): (47, 26, 34, 26),
+    ("myolegs26", "KFoot_L1"): (47, 21, 25, 20),
     ("myolegs", "DephyExoBoot_L1"): (35, 82, 44, 51),
     ("myolegs", "OpenSourceLeg_A_L1"): (33, 69, 31, 42),
     ("myolegs", "OpenSourceLeg_KA_L1"): (29, 56, 33, 44),
+    ("myolegs", "Anatomics_L1"): (35, 80, 41, 49),
+    ("myolegs", "KFoot_L1"): (34, 68, 32, 43),
 }
 
 # MSKs that are registered but not yet buildable, and the error resolve raises.
