@@ -118,6 +118,26 @@ keyframe_overrides:
     pelvis_ty: 0.93
 ```
 
+For a **free-floating mechanism** clamped to the leg at several points (a
+parallel-linkage exo, not a rigid strap-on), give each root body its own
+`<freejoint>` in the XML, attach it to `world`, and fasten it with `equality`
+constraints instead of rigid re-parenting (see `UTAnkleExo` and the
+[`equality` reference](../device-config-reference.md#equality)):
+
+```yaml
+attachments:
+  - device_body: "part3_r"       # top-level body with a <freejoint>
+    parent_body: "world"
+    pos: [-0.157, 0.035, -0.583]  # world pose so it sits on the leg
+    quat: [0.121, 0, 0, 0.993]
+
+equality:
+  - type: "connect"
+    device_body: "part3_r"
+    parent_body: "calcn_r"
+    anchor: [-0.071, 0.05, 0.005]  # in part3_r's local frame
+```
+
 For a prosthetic, add:
 
 ```yaml

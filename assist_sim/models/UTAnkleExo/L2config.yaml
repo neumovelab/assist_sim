@@ -1,0 +1,83 @@
+# =============================================================================
+# UT Ankle Exoskeleton (bilateral) -- assist_sim device config.
+#
+# Unlike the rigidly re-parented devices (DephyExoBoot, Humotech, ...), the UT
+# exo is a *free-floating* mechanism: each side is its own body tree (part3 ->
+# part2/part1, two internal hinges, a spring tendon, and an actuated cable).
+# Each root attaches to `world` (keeping its <freejoint>) and is clamped to the
+# leg via <equality><connect> point constraints -- faithful to the source
+# myoleg_abodomen_exo_double.xml. Biology is untouched (no removals); the exo
+# assists ankle plantar/dorsiflexion through the cable actuators.
+#
+# Source: myosuite/simhive/exo_sim (Copyright 2024 Vikash Kumar).
+# =============================================================================
+device:
+  name: "UTAnkleExo_L2"
+  model_xml: "L2model.xml"
+  compatible_msk: ["myolegs26", "myolegs"]
+
+# Free-rooted attach: graft each exo root under worldbody (freejoint preserved).
+# pos/quat place the root so the exo sits on the leg at the same pose relative
+# to the calcaneus as the source model; the <connect> constraints below then
+# pin it there.  Per-MSK because each baseline places the calcaneus in a
+# different world frame (myolegs is torso-composed under a yaw-rotated root).
+attachments:
+  default:  # myolegs26 (legs-only)
+    - device_body: "part3_dx"
+      parent_body: "world"
+      pos: [-0.1578, 0.04, -0.0423]
+      quat: [0.12087, 0.00536, -0.00809, 0.99262]
+    - device_body: "part3_sx"
+      parent_body: "world"
+      pos: [0.1081, 0.2797, -0.0387]
+      quat: [0.995, 0.00836, -0.0028, 0.09945]
+  myolegs:  # 80-muscle, passive torso
+    - device_body: "part3_dx"
+      parent_body: "world"
+      pos: [-0.1500, 0.0292, 0.0]
+      quat: [0.12050, -0.00005, 0.00040, 0.99271]
+    - device_body: "part3_sx"
+      parent_body: "world"
+      pos: [0.1000, 0.2692, 0.0]
+      quat: [0.99500, -0.00040, 0.00004, 0.09983]
+
+# Point-to-point clamps (anchor is in the device body's local frame), ported
+# verbatim from the source model's <equality>. dx -> right leg, sx -> left leg.
+equality:
+  # Right (dx)
+  - type: "connect"
+    device_body: "part3_dx"
+    parent_body: "calcn_r"
+    anchor: [-0.071, 0.05, 0.005]
+  - type: "connect"
+    device_body: "part3_dx"
+    parent_body: "talus_r"
+    anchor: [0.005, 0.06, 0.005]
+  - type: "connect"
+    device_body: "part2_dx"
+    parent_body: "tibia_r"
+    anchor: [0.012, 0.05, 0.1]
+  # Left (sx)
+  - type: "connect"
+    device_body: "part3_sx"
+    parent_body: "calcn_l"
+    anchor: [-0.17, 0.05, 0.005]
+  - type: "connect"
+    device_body: "part3_sx"
+    parent_body: "talus_l"
+    anchor: [-0.25, 0.05, 0.004]
+  - type: "connect"
+    device_body: "part2_sx"
+    parent_body: "tibia_l"
+    anchor: [-0.24, 0.05, 0.1]
+
+# Preset the internal hinge angles at the stand keyframe so the exo loads
+# already assembled on the leg -- the <connect> point clamps are satisfied at
+# load (no settling / drift). These are the constraint-solved joint angles at
+# the myolegs26 stand pose; only the 'stand' keyframe (myolegs26) has them.
+keyframe_overrides:
+  stand:
+    joint1_dx: 0.0752
+    joint2_dx: 0.0701
+    joint1_sx: 0.0606
+    joint2_sx: 0.0354

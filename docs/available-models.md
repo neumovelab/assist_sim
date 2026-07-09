@@ -33,7 +33,7 @@ a gated/planned key raises a clear error (never a silent fallback).
 
 ## Device models
 
-Eight device directories under `models/`, contributing nine device keys:
+Nine device directories under `models/`, contributing ten device keys:
 
 | Device key | Config | Type | Notes |
 |---|---|---|---|
@@ -42,6 +42,7 @@ Eight device directories under `models/`, contributing nine device keys:
 | `HMEDI_L1`            | `models/HMEDI/L1config.yaml` | Hip-flexion cable exo | Bilateral; spatial-tendon cables driven by `Exo_R`/`Exo_L`; torso re-parented on myolegs |
 | `Humotech_L1`         | `models/Humotech/L1config.yaml` | Ankle exo with cables | Bilateral; pf/df cables (passive); joint-transmission `Exo_R`/`Exo_L` |
 | `OpenExo_L1`          | `models/OpenExo/L1config.yaml` | Ankle exo | Bilateral |
+| `UTAnkleExo_L2`       | `models/UTAnkleExo/L2config.yaml` | Ankle exoskeleton (parallel linkage) | Bilateral; **free-rooted** (non-rigid), clamped to calcn/talus/tibia via `<connect>` equalities; spring + cable-actuated (`part2part3act_dx`/`_sx`) |
 | `Tutorial_L1`         | `models/Tutorial/L1config.yaml` | Teaching device | Stripped-down exo for onboarding |
 | `KFoot_L1`            | `models/KFoot/L1config.yaml` | Transtibial prosthetic | Removes talus + below on the right side; residual stump tibia mesh; passive spring-damper ankle (`df_`/`pf_ankle_angle_r`) |
 | `OpenSourceLeg_A_L1`  | `models/OpenSourceLeg/A_L1config.yaml` | Transtibial prosthetic | Removes talus + below on the right side; replaces tibia mesh with residual stump |
@@ -64,6 +65,7 @@ n/a = device needs a torso'd MSK.
 | `OpenSourceLeg_KA_L1` | ✓ | ✓ | — |
 | `Humotech_L1`         | ✓ | ✓ | — |
 | `OpenExo_L1`          | ✓ | ✓ | — |
+| `UTAnkleExo_L2`       | ✓ | ✓ | — |
 | `Tutorial_L1`         | ✓ | ✓ | — |
 | `HMEDI_L1`            | n/a (needs torso) | ✓ | — |
 

@@ -25,7 +25,7 @@ from typing import Dict, List, Optional, Tuple
 
 import mujoco as mj
 
-from .config import ActuatorDef, DeviceConfig
+from .config import ActuatorDef, DeviceConfig, EqualityConstraint
 from .errors import unknown_reference
 from .preprocess import KeyframeData, prepare_device_xml
 
@@ -66,6 +66,14 @@ _DYNTYPE_MAP = {
     "muscle": mj.mjtDyn.mjDYN_MUSCLE,
     "user": mj.mjtDyn.mjDYN_USER,
 }
+
+_EQTYPE_MAP = {
+    "connect": mj.mjtEq.mjEQ_CONNECT,
+    "weld": mj.mjtEq.mjEQ_WELD,
+}
+
+# Names that select the world body as an attachment parent (free-rooted device).
+_WORLD_PARENTS = ("world", "worldbody")
 
 
 class ModelCombiner:
@@ -133,6 +141,7 @@ class ModelCombiner:
             self._apply_joint_overrides(human_spec, device_config)
             self._add_actuators(human_spec, device_config, prefix)
             self._import_device_tendons_actuators(human_spec, device_xml, prefix)
+            self._add_equalities(human_spec, device_config, prefix, msk_key)
 
             # First compile gives the final qpos/dof layout used to rebuild
             # keyframes by joint name.
@@ -280,7 +289,14 @@ class ModelCombiner:
 
         attachments = config.resolve_attachments(msk_key)
         for i, att in enumerate(attachments):
-            parent_body = human_spec.body(att.parent_body)
+            # ``parent_body: world`` grafts a free-rooted device body (its own
+            # <freejoint>) directly under worldbody -- used by constraint-clamped
+            # devices whose parts float and are tied to the leg via <equality>
+            # rather than rigidly re-parented onto a human body.
+            if att.parent_body.lower() in _WORLD_PARENTS:
+                parent_body = human_spec.worldbody
+            else:
+                parent_body = human_spec.body(att.parent_body)
             if parent_body is None:
                 raise unknown_reference(
                     att.parent_body,
@@ -369,6 +385,53 @@ class ModelCombiner:
         for act_def in config.actuators:
             kwargs = _build_actuator_kwargs(act_def, human_spec, prefix)
             human_spec.add_actuator(**kwargs)
+
+    # ------------------------------------------------------------------
+    # Equality constraints (device body <-> human body)
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _add_equalities(
+        human_spec: mj.MjSpec,
+        config: DeviceConfig,
+        prefix: str,
+        msk_key: Optional[str] = None,
+    ) -> None:
+        """Emit device<->human equality constraints onto the combined spec.
+
+        Runs after attachment so both endpoints already exist in ``human_spec``:
+        the device endpoint is namespaced (``prefix + device_body``); the human
+        endpoint is bare.  This is how a free-rooted device (attached to
+        worldbody) is tied to the leg -- e.g. an exo clamped at the calcaneus,
+        talus, and tibia via ``connect`` constraints.
+        """
+        for eq_def in config.resolve_equalities(msk_key):
+            device_name = prefix + eq_def.device_body
+            if human_spec.body(device_name) is None:
+                raise unknown_reference(
+                    eq_def.device_body,
+                    [b.name for b in human_spec.bodies],
+                    section="equality.device_body",
+                    kind="device body",
+                )
+            if human_spec.body(eq_def.parent_body) is None:
+                raise unknown_reference(
+                    eq_def.parent_body,
+                    [b.name for b in human_spec.bodies],
+                    section="equality.parent_body",
+                    kind="body",
+                )
+            eq = human_spec.add_equality()
+            eq.type = _EQTYPE_MAP[eq_def.type]
+            eq.objtype = mj.mjtObj.mjOBJ_BODY
+            eq.name1 = device_name
+            eq.name2 = eq_def.parent_body
+            eq.active = bool(eq_def.active)
+            eq.data = _equality_data(eq_def)
+            if eq_def.solref is not None:
+                eq.solref = eq_def.solref
+            if eq_def.solimp is not None:
+                eq.solimp = eq_def.solimp
 
     # ------------------------------------------------------------------
     # Device-side tendon + tendon-transmission actuator import
@@ -508,6 +571,25 @@ class ModelCombiner:
                 # MSKs differ (e.g. myolegs has freejoint root, not pelvis_ty).
                 continue
             qpos[int(model.jnt_qposadr[jid])] = value
+
+
+def _equality_data(eq_def: EqualityConstraint) -> list:
+    """Build the 11-wide MuJoCo ``eq_data`` array for a constraint def.
+
+    - ``connect``: ``data[0:3]`` is the anchor (in the device body's frame).
+    - ``weld``: ``data[0:3]`` anchor, ``data[3:10]`` relpose (pos + quat,
+      identity quat by default), ``data[10]`` torquescale (1.0 by default).
+    """
+    data = [0.0] * 11
+    if eq_def.anchor is not None:
+        for i, v in enumerate(eq_def.anchor[:3]):
+            data[i] = float(v)
+    if eq_def.type == "weld":
+        relpose = eq_def.relpose if eq_def.relpose is not None else [0, 0, 0, 1, 0, 0, 0]
+        for i, v in enumerate(relpose[:7]):
+            data[3 + i] = float(v)
+        data[10] = float(eq_def.torquescale) if eq_def.torquescale is not None else 1.0
+    return data
 
 
 def _pad(values: list, size: int) -> list:

@@ -17,6 +17,7 @@ device:                      # required
 attachments: ...             # required
 
 # Optional sections, all default to empty:
+equality: ...
 joint_overrides: ...
 actuators: ...
 keyframe_overrides: ...
@@ -64,7 +65,7 @@ attachments:
 | Field | Type | Required | Meaning |
 |---|---|---|---|
 | `device_body` | string | yes | Name of a top-level body in the device XML. |
-| `parent_body` | string | yes | Name of the MSK body the device body attaches under. |
+| `parent_body` | string | yes | Name of the MSK body the device body attaches under. The special value `world` (or `worldbody`) grafts the device body directly under worldbody, keeping its own `<freejoint>` -- see [Free-rooted attachment](#free-rooted-attachment-parent_body-world). |
 | `pos` | `[x, y, z]` | no | Frame offset on the parent (composes with the device body's authored pos). Use when the device-body's authored pos needs adjustment per attach point. |
 | `quat` | `[w, x, y, z]` | no | Frame rotation. Useful when the parent body's frame differs across MSKs (e.g. 22 vs 80 torso). |
 
@@ -89,6 +90,66 @@ attachments:
 
 The resolver returns the matching MSK key's list if present, else `default`.
 Use this when even one attachment needs to differ per MSK.
+
+### Free-rooted attachment (`parent_body: world`)
+
+Most devices are *rigidly re-parented* onto a leg body. A device that is
+physically a separate mechanism strapped to the leg -- e.g. the UT ankle exo,
+a parallel linkage clamped at several points -- instead attaches to `world`
+and is tied to the leg with [`equality`](#equality) constraints:
+
+```yaml
+attachments:
+  - device_body: "part3_dx"      # a top-level body carrying its own <freejoint>
+    parent_body: "world"
+    pos: [-0.1574, 0.0345, -0.5832]   # world pose of the free root at qpos0
+    quat: [0.1209, 0.0, 0.0, 0.9927]
+```
+
+The device body must declare a `<freejoint>` in the device XML (otherwise it
+would be welded to the world, immobile). `pos` / `quat` are the world pose the
+free root starts at -- place it so the exo sits on the leg, because MuJoCo's
+`connect` constraints (below) pin the two bodies at *whatever* relative pose
+holds at compile time. Per-MSK `attachments` are usually needed here, since
+each baseline places the leg in a different world frame.
+
+## `equality`
+
+Add MuJoCo `<equality>` constraints tying a device body to an MSK body. This
+is how a free-rooted device (attached to `world`) is fastened to the leg --
+the counterpart to the rigid re-parenting that plain `attachments` perform.
+Emitted after attachment, so both endpoints exist.
+
+```yaml
+equality:
+  - type: "connect"            # point-to-point (ball) joint
+    device_body: "part3_dx"    # prefixed automatically
+    parent_body: "calcn_r"     # bare MSK body
+    anchor: [-0.071, 0.05, 0.005]   # in the device body's local frame
+  - type: "weld"               # fixes the full relative pose
+    device_body: "cuff_r"
+    parent_body: "tibia_r"
+    relpose: [0, 0, 0, 1, 0, 0, 0]  # optional pos + quat (default identity)
+    torquescale: 1.0                # optional
+```
+
+| Field | Type | Required | Meaning |
+|---|---|---|---|
+| `type` | `connect` \| `weld` | yes | `connect` = point-to-point; `weld` = full pose lock. |
+| `device_body` | string | yes | Device body (namespaced with the device prefix at combine time). |
+| `parent_body` | string | yes | MSK body (left bare). |
+| `anchor` | `[x, y, z]` | connect | Connection point in the device body's local frame. |
+| `relpose` | `[x, y, z, qw, qx, qy, qz]` | no (weld) | Relative pose; defaults to identity. |
+| `torquescale` | float | no (weld) | Weld torque scale; defaults to 1.0. |
+| `solref` / `solimp` | list | no | Constraint-solver knobs; default to MuJoCo's. |
+| `active` | bool | no | Whether the constraint starts active (default `true`). |
+
+Supports the per-MSK `default:` + `<msk_key>:` form, like `attachments`.
+
+> **connect anchors record their coincidence at compile.** A `connect`
+> introduces *no* initial violation regardless of placement -- it pins the two
+> bodies at their qpos0 relative pose. Getting the exo to sit correctly is
+> therefore about the *attachment* `pos`/`quat`, not the anchor.
 
 ## `joint_overrides`
 
@@ -321,6 +382,7 @@ Sections that support the `default:` + `<msk_key>:` dispatch:
 | Section | Per-MSK? |
 |---|---|
 | `attachments` | ✓ |
+| `equality` | ✓ |
 | `joint_overrides` | (planned; currently default form only) |
 | `actuators` | (planned; currently default form only) |
 | `keyframe_overrides` | ✓ |

@@ -68,6 +68,33 @@ def _parse_wrap_edit(raw: dict) -> "WrapEdit":
     return WrapEdit(op=op, site=site, new_body=new_body, pos=pos)
 
 
+_EQUALITY_TYPES = ("connect", "weld")
+
+
+def _parse_equality(raw: dict) -> "EqualityConstraint":
+    """Parse one equality-constraint dict from the ``equality:`` section."""
+    eq_type = raw.get("type", "connect")
+    if eq_type not in _EQUALITY_TYPES:
+        raise ValueError(f"equality 'type' must be one of {_EQUALITY_TYPES}; got {eq_type!r}")
+    device_body = raw.get("device_body")
+    parent_body = raw.get("parent_body")
+    if not device_body or not parent_body:
+        raise ValueError(f"each equality must have 'device_body' and 'parent_body'; got {raw}")
+    if eq_type == "connect" and raw.get("anchor") is None:
+        raise ValueError(f"connect equality on '{device_body}' requires 'anchor' (len-3)")
+    return EqualityConstraint(
+        type=eq_type,
+        device_body=device_body,
+        parent_body=parent_body,
+        anchor=raw.get("anchor"),
+        relpose=raw.get("relpose"),
+        torquescale=raw.get("torquescale"),
+        solref=raw.get("solref"),
+        solimp=raw.get("solimp"),
+        active=raw.get("active", True),
+    )
+
+
 @dataclass
 class Attachment:
     """Maps a device body to a parent body in the human model.
@@ -81,6 +108,37 @@ class Attachment:
     parent_body: str
     pos: Optional[List[float]] = None
     quat: Optional[List[float]] = None
+
+
+@dataclass
+class EqualityConstraint:
+    """A MuJoCo ``<equality>`` tying a device body to a human body.
+
+    Emitted onto the combined spec *after* attachment, so it can reference both
+    a device body (namespaced with the device prefix at combine time) and a
+    human body (left bare).  This is how a constraint-clamped device -- e.g. a
+    free-floating exo strapped to the leg at several points -- integrates
+    without the rigid re-parenting :class:`Attachment` performs.
+
+    - ``type="connect"``: point-to-point (ball) constraint.  ``anchor`` (len 3)
+      is the connection point, in ``device_body``'s local frame -- matching
+      MJCF ``<connect body1=device body2=human anchor=...>``.
+    - ``type="weld"``: fixes the full relative pose.  ``relpose`` (len 7,
+      ``pos`` + ``quat``) and ``torquescale`` are optional.
+
+    ``solref`` / ``solimp`` / ``active`` are optional constraint-solver knobs;
+    when ``None`` the MuJoCo defaults are used.
+    """
+
+    type: str
+    device_body: str
+    parent_body: str
+    anchor: Optional[List[float]] = None
+    relpose: Optional[List[float]] = None
+    torquescale: Optional[float] = None
+    solref: Optional[List[float]] = None
+    solimp: Optional[List[float]] = None
+    active: bool = True
 
 
 @dataclass
@@ -186,6 +244,7 @@ class DeviceConfig:
     model_xml: str
     attachments: List[Attachment]
     compatible_msk: Optional[List[str]] = None
+    equalities: List[EqualityConstraint] = field(default_factory=list)
     joint_overrides: List[JointOverride] = field(default_factory=list)
     actuators: List[ActuatorDef] = field(default_factory=list)
     keyframe_overrides: Dict[str, KeyframeOverride] = field(default_factory=dict)
@@ -206,6 +265,7 @@ class DeviceConfig:
     _tendon_removals_by_msk: Dict[str, List[str]] = field(default_factory=dict, repr=False)
     _attachments_by_msk: Dict[str, List["Attachment"]] = field(default_factory=dict, repr=False)
     _geom_removals_by_msk: Dict[str, List[str]] = field(default_factory=dict, repr=False)
+    _equalities_by_msk: Dict[str, List["EqualityConstraint"]] = field(default_factory=dict, repr=False)
 
     # Resolved at load time -- absolute path to the device XML
     _config_dir: Path = field(default=Path("."), repr=False)
@@ -268,6 +328,14 @@ class DeviceConfig:
         (myolegs's ``torso`` sits under a yaw-rotated ``root``).
         """
         return self._resolve(self._attachments_by_msk, msk_key, self.attachments)
+
+    def resolve_equalities(self, msk_key: Optional[str] = None) -> List["EqualityConstraint"]:
+        """Equality constraints for the given MSK (per-MSK override or default).
+
+        Lets a device pin its constraint anchors to different human bodies (or
+        skip some) per MSK, mirroring :meth:`resolve_attachments`.
+        """
+        return self._resolve(self._equalities_by_msk, msk_key, self.equalities)
 
     # ------------------------------------------------------------------
     # YAML loading
@@ -338,6 +406,9 @@ class DeviceConfig:
             attachments = attachments_by_msk["default"]
         else:
             attachments = _parse_attachment_list(raw_attachments)
+
+        # --- equality constraints (default list or per-MSK dict) ---
+        equalities, equalities_by_msk = _parse_per_msk_list(raw.get("equality", []), _parse_equality)
 
         # --- joint overrides ---
         joint_overrides = [
@@ -419,6 +490,8 @@ class DeviceConfig:
             model_xml=model_xml,
             attachments=attachments,
             compatible_msk=device_section.get("compatible_msk"),
+            equalities=equalities,
+            _equalities_by_msk=equalities_by_msk,
             joint_overrides=joint_overrides,
             actuators=actuators,
             keyframe_overrides=keyframe_overrides,
