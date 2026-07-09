@@ -25,12 +25,12 @@ attachments:
   default:  # myolegs26 (legs-only)
     - device_body: "part3_dx"
       parent_body: "world"
-      pos: [-0.1578, 0.04, -0.0423]
-      quat: [0.12087, 0.00536, -0.00809, 0.99262]
+      pos: [-0.1574, 0.0345, -0.5832]
+      quat: [0.12090, -0.00010, -0.00001, 0.99266]
     - device_body: "part3_sx"
       parent_body: "world"
-      pos: [0.1081, 0.2797, -0.0387]
-      quat: [0.995, 0.00836, -0.0028, 0.09945]
+      pos: [0.1078, 0.2743, -0.5832]
+      quat: [0.99504, -0.00001, -0.00010, 0.09944]
   myolegs:  # 80-muscle, passive torso
     - device_body: "part3_dx"
       parent_body: "world"
@@ -70,14 +70,3 @@ equality:
     device_body: "part2_sx"
     parent_body: "tibia_l"
     anchor: [-0.24, 0.05, 0.1]
-
-# Preset the internal hinge angles at the stand keyframe so the exo loads
-# already assembled on the leg -- the <connect> point clamps are satisfied at
-# load (no settling / drift). These are the constraint-solved joint angles at
-# the myolegs26 stand pose; only the 'stand' keyframe (myolegs26) has them.
-keyframe_overrides:
-  stand:
-    joint1_dx: 0.0752
-    joint2_dx: 0.0701
-    joint1_sx: 0.0606
-    joint2_sx: 0.0354
