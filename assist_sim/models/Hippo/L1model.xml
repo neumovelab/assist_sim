@@ -1,0 +1,61 @@
+<!-- =================================================
+    Copyright 2026 NeuMove Laboratory, Shepherd Laboratory, Northeastern University
+    Model   :: Hippo Exoskeleton
+    Author  :: Calder Robbins (robbins.cal@northeastern.edu)
+    License :: Apache License, Version 2.0
+====================================================== -->
+<mujoco model="HippoL1">
+    <compiler angle="radian" />
+    <default class="main" />
+
+    <asset>
+        <mesh file="mesh/hippo_backplate.stl"    name="hippo_backplate_geom" />
+        <mesh file="mesh/hippo_hipshell.stl"     name="hippo_hipshell_geom" />
+        <mesh file="mesh/hippo_waist_bands.stl"  name="hippo_waist_bands_geom" />
+        <mesh file="mesh/hippo_ak10_9.stl"       name="hippo_ak10_9_lr_geom" />
+        <mesh file="mesh/hippo_thigh_r.stl"      name="hippo_thigh_r_geom" />
+        <mesh file="mesh/hippo_thigh_l.stl"      name="hippo_thigh_l_geom" />
+        <mesh file="mesh/hippo_thigh_cuff_r.stl" name="hippo_thigh_cuff_r_geom" />
+        <mesh file="mesh/hippo_thigh_cuff_l.stl" name="hippo_thigh_cuff_l_geom" />
+    </asset>
+
+    <worldbody>
+        <!-- Pelvis-mounted backplate + hip shell + waistband + actuator housing -->
+        <body name="hippo_backplate" pos="-0.2 0.15 -0.1225">
+            <inertial diaginertia="0.000000001 0.000000001 0.000000001" mass="0.001" pos="-0.065 0.0 0.15" quat="1 1 0 0" />
+            <geom name="hippo_backplate_geom" mesh="hippo_backplate_geom" type="mesh" rgba="0.5 0.5 0.5 1" />
+            <body name="hippo_hipshell_lr" pos="0.1 -0.12 -0.06">
+                <inertial diaginertia="0.000000001 0.000000001 0.000000001" mass="0.001" pos="-0.065 0.0 0.15" quat="1 1 0 0" />
+                <geom name="hippo_hipshell_geom" mesh="hippo_hipshell_geom" type="mesh" rgba="0.486 0.424 0.82 1" />
+                <body name="hippo_waist_bands" pos="0.03 0.117 0.036">
+                    <inertial diaginertia="0.000000001 0.000000001 0.000000001" mass="0.00001" pos="0 0 0" quat="1 1 0 0" />
+                    <geom name="hippo_waist_bands_geom" mesh="hippo_waist_bands_geom" type="mesh" rgba="0.5 0.5 0.5 0.5" />
+                </body>
+                <body name="hippo_ak10_9" pos="0.0 -0.05 -0.04">
+                    <inertial diaginertia="0.000000001 0.000000001 0.000000001" mass="0.00001" pos="0 0 0" quat="1 1 0 0" />
+                    <geom name="hippo_ak10_9_lr_geom" mesh="hippo_ak10_9_lr_geom" type="mesh" rgba="0.5 0.5 0.5 1" />
+                </body>
+            </body>
+        </body>
+
+        <!-- Right thigh brace + cuff -->
+        <body name="hippo_thigh_r" pos="0.01 -0.065 -0.05" euler="0 0 0.15">
+            <inertial diaginertia="0.000000001 0.000000001 0.000000001" mass="0.001" pos="-0.065 0.0 0.15" quat="1 1 0 0" />
+            <geom name="hippo_thigh_r_geom" mesh="hippo_thigh_r_geom" type="mesh" rgba="0.486 0.424 0.82 1" />
+            <body name="hippo_thigh_cuff_r" pos="-0.025 -0.11 -0.014">
+                <inertial diaginertia="0.000000001 0.000000001 0.000000001" mass="0.001" pos="-0.065 0.0 0.15" quat="1 1 0 0" />
+                <geom name="hippo_thigh_cuff_r_geom" mesh="hippo_thigh_cuff_r_geom" type="mesh" rgba="0.5 0.5 0.5 0.5" />
+            </body>
+        </body>
+
+        <!-- Left thigh brace + cuff -->
+        <body name="hippo_thigh_l" pos="0.01 -0.065 -0.0975" euler="0 0 0.15">
+            <inertial diaginertia="0.000000001 0.000000001 0.000000001" mass="0.001" pos="-0.065 0.0 0.15" quat="1 1 0 0" />
+            <geom name="hippo_thigh_l_geom" mesh="hippo_thigh_l_geom" type="mesh" rgba="0.486 0.424 0.82 1" />
+            <body name="hippo_thigh_cuff_l" pos="-0.025 -0.11 0.015">
+                <inertial diaginertia="0.000000001 0.000000001 0.000000001" mass="0.001" pos="-0.065 0.0 0.15" quat="1 1 0 0" />
+                <geom name="hippo_thigh_cuff_l_geom" mesh="hippo_thigh_cuff_l_geom" type="mesh" rgba="0.5 0.5 0.5 0.5" />
+            </body>
+        </body>
+    </worldbody>
+</mujoco>

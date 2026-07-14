@@ -33,13 +33,14 @@ a gated/planned key raises a clear error (never a silent fallback).
 
 ## Device models
 
-Nine device directories under `models/`, contributing ten device keys:
+Ten device directories under `models/`, contributing eleven device keys:
 
 | Device key | Config | Type | Notes |
 |---|---|---|---|
 | `Anatomics_L1`        | `models/Anatomics/L1config.yaml` | Ankle exoskeleton | Bilateral instrumented soles + right shank/foot frame; passive (welded, no actuators) |
 | `DephyExoBoot_L1`     | `models/DephyExoBoot/L1config.yaml` | Ankle exoskeleton | Bilateral; battery + Raspberry Pi + boot strapping; ankle ROM override |
 | `HMEDI_L1`            | `models/HMEDI/L1config.yaml` | Hip-flexion cable exo | Bilateral; spatial-tendon cables driven by `Exo_R`/`Exo_L`; torso re-parented on myolegs |
+| `Hippo_L1`            | `models/Hippo/L1config.yaml` | Hip-flexion exoskeleton | Bilateral; pelvis backplate + hip shell + waistband + AK10-9 housing, thigh braces/cuffs on each femur (welded, visual); ideal fixed-gain hip actuators `Exo_R`/`Exo_L` on `hip_flexion_r`/`_l`; mounts on pelvis + femurs (no torso needed) |
 | `Humotech_L1`         | `models/Humotech/L1config.yaml` | Ankle exo with cables | Bilateral; pf/df cables (passive); joint-transmission `Exo_R`/`Exo_L` |
 | `OpenExo_L1`          | `models/OpenExo/L1config.yaml` | Ankle exo | Bilateral |
 | `UTAnkleExo_L2`       | `models/UTAnkleExo/L2config.yaml` | Ankle exoskeleton (parallel linkage) | Bilateral; **free-rooted** (non-rigid), clamped to calcn/talus/tibia via `<connect>` equalities; spring + cable-actuated (`part2part3act_dx`/`_sx`) |
@@ -68,6 +69,7 @@ n/a = device needs a torso'd MSK.
 | `UTAnkleExo_L2`       | ✓ | ✓ | — |
 | `Tutorial_L1`         | ✓ | ✓ | — |
 | `HMEDI_L1`            | n/a (needs torso) | ✓ | — |
+| `Hippo_L1`            | ✓ | ✓ | — |
 
 The `myolegs22` column activates when the 26→22 mjspec reduction lands.
 

@@ -1,0 +1,44 @@
+device:
+  name: "Hippo_L1"
+  model_xml: "L1model.xml"
+  compatible_msk: ["myolegs26", "myolegs"]
+
+# Rigid grafts: each device body keeps its own XML frame as the offset from its
+# parent (no pos/quat override needed -- the source positions are relative to
+# the same pelvis/femur bone frames myo_sim uses).
+attachments:
+  - device_body: "hippo_backplate"
+    parent_body: "pelvis"
+  - device_body: "hippo_thigh_r"
+    parent_body: "femur_r"
+  - device_body: "hippo_thigh_l"
+    parent_body: "femur_l"
+
+# Ideal hip-flexion actuators (fixed-gain joint transmission, bidirectional).
+# Gain/range are starting values -- tune per controller; sign follows the MSK
+# hip_flexion convention (positive = flexion).
+actuators:
+  - name: "Exo_R"
+    type: "general"
+    joint: "hip_flexion_r"
+    gaintype: "fixed"
+    gainprm: [100, 0, 0]
+    biastype: "none"
+    biasprm: [0, 0, 0]
+    dyntype: "none"
+    dynprm: [1, 0, 0]
+    ctrlrange: [-1, 1]
+    ctrllimited: true
+    gear: [1.0]
+  - name: "Exo_L"
+    type: "general"
+    joint: "hip_flexion_l"
+    gaintype: "fixed"
+    gainprm: [100, 0, 0]
+    biastype: "none"
+    biasprm: [0, 0, 0]
+    dyntype: "none"
+    dynprm: [1, 0, 0]
+    ctrlrange: [-1, 1]
+    ctrllimited: true
+    gear: [1.0]

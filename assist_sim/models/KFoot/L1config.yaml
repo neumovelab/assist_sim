@@ -7,8 +7,7 @@ device:
 # Same biological scope as OSL_A. The device is a passive powered-foot: a
 # socket -> pylon -> ankle -> foot -> shell chain whose ankle is a passive
 # spring-damper (df_/pf_ankle_angle_r, stiffness+damping baked into the device
-# model). No motor actuator -- faithful to the source (add one later if the
-# ankle should be active).
+# model).
 
 # --- Remove biological lower leg below the amputation ---
 body_removals:
