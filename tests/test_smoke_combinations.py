@@ -6,8 +6,9 @@ whole pipeline runs in-memory (``spec.delete`` surgery, no XML round-trip), so
 these require ``mujoco>=3.3.4``; the ``needs_myo_sim`` gate skips them when
 myo_sim isn't installed.
 
-``myolegs26`` (legs-only) and ``myolegs`` (80-muscle, passive torso) are both
-buildable.  ``myolegs22`` has no source yet (a planned 26->22 reduction) and is
+``myolegs26`` (26-muscle) and ``myolegs`` (80-muscle) are both buildable; each is a
+passive anatomical torso scaffold over its leg chain, so every combo carries the
+torso bodies.  ``myolegs22`` has no source yet (a planned 26->22 reduction) and is
 covered by :func:`test_gated_msk_raises`.  Signatures were captured on
 ``mujoco==3.3.4`` (the pinned floor).
 """
@@ -27,13 +28,13 @@ from .conftest import needs_myo_sim
 # stripped, and prosthetic surgery runs via spec.delete (which cascades the
 # subtree + the muscles/tendons/sensors that referenced removed bodies).
 EXPECTED = {
-    ("myolegs26", "DephyExoBoot_L1"): (47, 28, 37, 28),
-    ("myolegs26", "OpenSourceLeg_A_L1"): (46, 22, 24, 19),
-    ("myolegs26", "OpenSourceLeg_KA_L1"): (38, 19, 23, 21),
-    ("myolegs26", "Anatomics_L1"): (47, 26, 34, 26),
-    ("myolegs26", "KFoot_L1"): (47, 21, 25, 20),
-    ("myolegs26", "UTAnkleExo_L2"): (65, 28, 29, 21),
-    ("myolegs26", "Hippo_L1"): (47, 28, 31, 23),
+    ("myolegs26", "DephyExoBoot_L1"): (47, 28, 52, 50),
+    ("myolegs26", "OpenSourceLeg_A_L1"): (46, 22, 39, 41),
+    ("myolegs26", "OpenSourceLeg_KA_L1"): (38, 19, 38, 43),
+    ("myolegs26", "Anatomics_L1"): (47, 26, 49, 48),
+    ("myolegs26", "KFoot_L1"): (47, 21, 40, 42),
+    ("myolegs26", "UTAnkleExo_L2"): (65, 28, 44, 43),
+    ("myolegs26", "Hippo_L1"): (47, 28, 46, 45),
     ("myolegs", "DephyExoBoot_L1"): (35, 82, 44, 51),
     ("myolegs", "OpenSourceLeg_A_L1"): (33, 69, 31, 42),
     ("myolegs", "OpenSourceLeg_KA_L1"): (29, 56, 33, 44),
