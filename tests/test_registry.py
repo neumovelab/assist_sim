@@ -23,6 +23,7 @@ def test_compatible_msk_keys_are_locked():
         "myolegs22",
         "myolegs26",
         "myolegs",
+        "myofullbody",
     }
     # Every entry binds a myo_sim composed model (or None when planned) and a
     # minimum MuJoCo version.

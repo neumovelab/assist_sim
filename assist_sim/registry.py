@@ -78,6 +78,11 @@ _COMPATIBLE_MSK_KEYS: Dict[str, _MskSource] = {
         (3, 3, 4),
         "the 80-muscle model's passive-torso conversion uses MjSpec.delete, which needs mujoco>=3.3.4",
     ),
+    "myofullbody": _MskSource(
+        "myofullbody",
+        (3, 3, 4),
+        "the full-body model's scene strip uses MjSpec.delete, which needs mujoco>=3.3.4",
+    ),
 }
 
 _HAS_MYO_SIM = importlib.util.find_spec("myo_sim") is not None

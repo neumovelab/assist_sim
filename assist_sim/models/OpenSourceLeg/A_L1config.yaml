@@ -16,16 +16,19 @@ mesh_replacements:
   default:
     - geom: "tibia_r_geom_1"
       mesh: "osl_tibia_fibula_trans_r"
-  myolegs:
+  # myofullbody shares the 80-muscle leg naming, so its surgery == myolegs.
+  myolegs: &r80_mesh
     - geom: "tibia_r"
       mesh: "osl_tibia_fibula_trans_r"
+  myofullbody: *r80_mesh
 
 # --- Prosthetic: drop the surviving fibula geom (covered by stump mesh) ---
 geom_removals:
   default:
     - "tibia_r_geom_2"
-  myolegs:
+  myolegs: &r80_geom
     - "fibula_r"
+  myofullbody: *r80_geom
 
 # --- Attach prosthetic chain to the residual tibia ---
 attachments:
@@ -39,7 +42,7 @@ actuator_removals:
     - "tibant_r"
     - "edl_r"
     - "fdl_r"
-  myolegs:
+  myolegs: &r80_act
     - "soleus_r"
     - "tibant_r"
     - "edl_r"
@@ -52,6 +55,7 @@ actuator_removals:
     - "perlong_r"
     - "fhl_r"
     - "perbrev_r"
+  myofullbody: *r80_act
 
 # --- Remove tendons for fully removed muscles ---
 tendon_removals:
@@ -60,7 +64,7 @@ tendon_removals:
     - "tib_ant_r_tendon"
     - "edl_r_tendon"
     - "fdl_r_tendon"
-  myolegs:
+  myolegs: &r80_ten
     - "soleus_r_tendon"
     - "tibant_r_tendon"
     - "edl_r_tendon"
@@ -73,6 +77,7 @@ tendon_removals:
     - "perlong_r_tendon"
     - "fhl_r_tendon"
     - "perbrev_r_tendon"
+  myofullbody: *r80_ten
 
 # --- Tendon waypoint truncation ---
 

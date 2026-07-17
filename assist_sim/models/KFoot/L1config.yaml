@@ -1,7 +1,7 @@
 device:
   name: "KFoot_L1"
   model_xml: "L1model.xml"
-  compatible_msk: [myolegs26, myolegs]
+  compatible_msk: [myolegs26, myolegs, myofullbody]
 
 # --- Prosthetic: right transtibial (below-knee) amputation ---
 # Same biological scope as OSL_A. The device is a passive powered-foot: a
@@ -21,15 +21,19 @@ mesh_replacements:
   default:
     - geom: "tibia_r_geom_1"
       mesh: "tibia_fibula_trans_r"
-  myolegs:
+  # myofullbody shares the 80-muscle leg naming (tibia_r geom, fibula_r, etc.),
+  # so its surgery is identical to myolegs -- aliased via YAML anchors below.
+  myolegs: &r80_mesh
     - geom: "tibia_r"
       mesh: "tibia_fibula_trans_r"
+  myofullbody: *r80_mesh
 
 geom_removals:
   default:
     - "tibia_r_geom_2"
-  myolegs:
+  myolegs: &r80_geom
     - "fibula_r"
+  myofullbody: *r80_geom
 
 # --- Attach the prosthetic chain to the residual tibia ---
 attachments:
@@ -43,7 +47,7 @@ actuator_removals:
     - "tibant_r"
     - "edl_r"
     - "fdl_r"
-  myolegs:
+  myolegs: &r80_act
     - "soleus_r"
     - "tibant_r"
     - "edl_r"
@@ -56,6 +60,7 @@ actuator_removals:
     - "perlong_r"
     - "fhl_r"
     - "perbrev_r"
+  myofullbody: *r80_act
 
 # --- Remove tendons for fully removed muscles ---
 tendon_removals:
@@ -64,7 +69,7 @@ tendon_removals:
     - "tib_ant_r_tendon"
     - "edl_r_tendon"
     - "fdl_r_tendon"
-  myolegs:
+  myolegs: &r80_ten
     - "soleus_r_tendon"
     - "tibant_r_tendon"
     - "edl_r_tendon"
@@ -77,3 +82,4 @@ tendon_removals:
     - "perlong_r_tendon"
     - "fhl_r_tendon"
     - "perbrev_r_tendon"
+  myofullbody: *r80_ten

@@ -1,7 +1,7 @@
 device:
   name: "Hippo_L1"
   model_xml: "L1model.xml"
-  compatible_msk: ["myolegs26", "myolegs"]
+  compatible_msk: ["myolegs26", "myolegs", "myofullbody"]
 
 # Rigid grafts: each device body keeps its own XML frame as the offset from its
 # parent (no pos/quat override needed -- the source positions are relative to
