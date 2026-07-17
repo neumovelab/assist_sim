@@ -11,7 +11,7 @@ assist_sim key matches the `myo_sim` model name:
 
 | Key (= `myo_sim` model) | Base DOFs | Status |
 |---|---|---|
-| `myolegs26` | 47 | **Available** — 26-muscle, legs-only |
+| `myolegs26` | 47 | **Available** — 26-muscle, passive torso + legs |
 | `myolegs`   | 35 | **Available** — 80-muscle, passive torso |
 | `myolegs22` | —  | Planned — a 26→22 mjspec reduction of `myolegs26`, not built yet |
 
@@ -20,16 +20,16 @@ a gated/planned key raises a clear error (never a silent fallback).
 
 ### Important MSK notes (myolegs26)
 
-- **Legs-only.** `myolegs26` is intentionally trunk-less — no HAT, torso, arms,
-  or head. Devices whose attachments target a `torso` body (e.g. HMEDI's torso
-  band) need a torso'd MSK (`myolegs`).
-- **Free-root base.** The root is a `freejoint` (myosuite convention), not
-  `pelvis_tx`/`pelvis_ty` slide joints. Device keyframe overrides that target
-  `pelvis_ty` are silently skipped (the joint doesn't exist); the standing
-  height comes from the base `stand` keyframe's free-root height.
-- **Ships a `stand` keyframe** (fully at-rest, feet on the pedestal). The scene
-  is stripped by assist_sim, but the keyframe's authored joint values are
-  preserved by name through the pipeline.
+- **Torso'd.** `myolegs26` is the 26-muscle counterpart to `myolegs`: a passive
+  anatomical torso scaffold (spine, ribs, head; no arms, no torso muscles) over
+  the 26-muscle legs. Torso-targeting devices (e.g. HMEDI's torso band) work on
+  it, just like on `myolegs`.
+- **Free-root base.** The root is a `freejoint` (myosuite convention) on the
+  torso scaffold, not `pelvis_tx`/`pelvis_ty` slide joints. Device keyframe
+  overrides that target `pelvis_ty` are silently skipped (the joint doesn't exist).
+- **No keyframe.** The model loads at `qpos0`, which is the assembled standing
+  pose (baked into the reference configuration upstream). Like `myolegs`, it
+  loads floating slightly above the ground — there is no `stand` keyframe.
 
 ## Device models
 

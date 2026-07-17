@@ -8,7 +8,7 @@ Two distinct discovery models:
   ``myo_sim.build_spec(<model>)`` and stripping the bundled myosuite scene,
   returning an editable ``MjSpec`` that the pipeline mutates in place (surgery
   via ``spec.delete``) -- it is never serialized to XML.  ``myolegs26``
-  (legs-only) and ``myolegs`` (80-muscle, passive torso) are buildable;
+  (26-muscle, torso'd) and ``myolegs`` (80-muscle, passive torso) are buildable;
   ``myolegs22`` has no source yet (a planned 26->22 reduction).
 - **Device configs** are autodiscovered by scanning ``models/<dir>/*config.yaml``
   in this repository.  Adding a new device dir with a config file makes it

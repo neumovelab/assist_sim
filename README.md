@@ -46,7 +46,7 @@ python examples/quickstart.py myolegs26 DephyExoBoot_L1
 
 ## Available Combinations
 
-MSK keys mirror the myo_sim model names. `myolegs26` (legs-only, 26-muscle) and
+MSK keys mirror the myo_sim model names. `myolegs26` (26-muscle, passive torso) and
 `myolegs` (80-muscle, passive torso) are both wired and tested. `myolegs22` (a
 planned 26→22 reduction) has no source yet and resolves to a clear error.
 

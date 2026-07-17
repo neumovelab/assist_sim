@@ -13,7 +13,7 @@ frameworks. Four packages collaborate:
   XML), so `assist_sim` obtains an editable `MjSpec` via
   `myo_sim.build_spec(<model>)`, serializes it, strips the bundled myosuite
   scene, and caches the model-only XML. assist_sim's MSK keys mirror the
-  myo_sim model names. `myolegs26` (legs-only, 26-muscle) and `myolegs`
+  myo_sim model names. `myolegs26` (26-muscle, passive torso) and `myolegs`
   (80-muscle, passive torso) are wired; `myolegs22` follows when the 26→22
   reduction lands.
 - **`assist_sim`** (this repo) holds the *combination pipeline* and *device
