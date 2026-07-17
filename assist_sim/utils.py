@@ -203,26 +203,46 @@ def _strip_scene_visual(root: ET.Element) -> None:
 
 
 def _ensure_minimal_visual(root: ET.Element) -> None:
-    """Emit a baseline ``<visual>`` block if none survived the export.
+    """Guarantee the model-only export renders sensibly on its own.
 
-    MSKs typically carry their own visual section (headlight, scale, haze)
-    that passes through unchanged.  But if a model was authored without one
-    -- or if the terrain strip removed the only visual block (e.g. when the
-    skybox texture was the only ``<visual>`` content) -- this default keeps
-    the model viewable in a MuJoCo viewer.
+    assist_sim emits model-only XMLs and expects a downstream scene
+    (e.g. ``myoassist.terrains``) to own the final lighting + ground.  But the
+    exports are also opened standalone for inspection, where ``_strip_scene_visual``
+    has already removed the myosuite headlight -- leaving MuJoCo's flat built-in
+    headlight and a black (skybox-less) background.  So ensure a soft headlight
+    and a neutral gradient skybox: both are *overridable* -- a downstream scene's
+    own ``<headlight>`` / skybox takes precedence when layered -- but bare viewing
+    now has directional light and a sky rather than a dark void.
     """
-    if root.find("visual") is not None:
-        return
-    visual = ET.Element("visual")
-    ET.SubElement(
-        visual,
-        "headlight",
-        {"diffuse": "0.6 0.6 0.6", "specular": "0.3 0.3 0.3", "ambient": "0.3 0.3 0.3"},
-    )
-    ET.SubElement(visual, "rgba", {"haze": "0.15 0.15 0.15 1"})
-    ET.SubElement(visual, "scale", {"framelength": "0.5", "framewidth": "0.01"})
-    # Insert near the top so it lands before bodies / assets.
-    root.insert(0, visual)
+    visual = root.find("visual")
+    if visual is None:
+        visual = ET.Element("visual")
+        root.insert(0, visual)
+    if visual.find("headlight") is None:
+        ET.SubElement(
+            visual,
+            "headlight",
+            {"diffuse": "0.6 0.6 0.6", "specular": "0.2 0.2 0.2", "ambient": "0.4 0.4 0.4"},
+        )
+    if visual.find("scale") is None:
+        ET.SubElement(visual, "scale", {"framelength": "0.5", "framewidth": "0.01"})
+    asset = root.find("asset")
+    if asset is None:
+        asset = ET.Element("asset")
+        root.insert(1, asset)
+    if not any(tex.get("type") == "skybox" for tex in asset.findall("texture")):
+        ET.SubElement(
+            asset,
+            "texture",
+            {
+                "type": "skybox",
+                "builtin": "gradient",
+                "rgb1": "0.4 0.5 0.6",
+                "rgb2": "0.1 0.12 0.15",
+                "width": "512",
+                "height": "512",
+            },
+        )
 
 
 def _rewrite_mesh_paths(

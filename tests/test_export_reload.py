@@ -48,19 +48,33 @@ def test_export_reloads_from_disk(msk, device, tmp_path):
 
 @needs_myo_sim
 @pytest.mark.parametrize("msk,device", COMBOS, ids=lambda x: str(x))
-def test_export_drops_scene_lighting(msk, device, tmp_path):
-    """Model-only export carries no scene headlight/global.
+def test_export_swaps_scene_lighting_for_standalone_visual(msk, device, tmp_path):
+    """Export drops the myosuite scene styling but stays viewable on its own.
 
-    The myosuite <visual> lighting is scene styling; leaving it in would merge
-    with (and partly override) a downstream scene's lighting when layered.
-    Downstream (e.g. myoassist.terrains) owns lighting.
+    The myosuite <visual> headlight (heavy ambient) + <global> camera are scene
+    styling; left in, they'd fight a downstream scene's lighting when layered.
+    ``_strip_scene_visual`` drops them, then ``_ensure_minimal_visual`` guarantees
+    a *soft* headlight (ambient 0.4) + a skybox so the model-only export still
+    renders sensibly opened standalone.  Both are overridable: a downstream scene's
+    own <visual>/skybox wins when layered (last-include-wins), so downstream still
+    owns the final lighting.
     """
     out = tmp_path / f"{msk}__{device}.xml"
     load_combined(msk, device, export_xml=str(out))
-    visual = ET.parse(out).getroot().find("visual")
-    if visual is not None:
-        assert visual.find("headlight") is None
-        assert visual.find("global") is None
+    root = ET.parse(out).getroot()
+
+    visual = root.find("visual")
+    assert visual is not None
+    # No scene camera framing survives.
+    assert visual.find("global") is None
+    # The headlight is the soft standalone default, not the myosuite scene one.
+    headlight = visual.find("headlight")
+    assert headlight is not None
+    assert headlight.get("ambient") == "0.4 0.4 0.4"
+    # A skybox is present so standalone viewing is not a black void.
+    asset = root.find("asset")
+    assert asset is not None
+    assert any(t.get("type") == "skybox" for t in asset.findall("texture"))
 
 
 @needs_myo_sim
