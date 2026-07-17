@@ -1,9 +1,9 @@
 device:
   name: "HMEDI_L1"
   model_xml: "L1model.xml"
-  # HMEDI's torso band attaches to a `torso` body, so it needs a torso'd MSK:
-  # the legs-only myolegs26 has no torso, but the 80-muscle myolegs does.
-  compatible_msk: [myolegs]
+  # HMEDI's torso band needs a torso'd MSK. Both leg models qualify: the
+  # 80-muscle myolegs and the torso'd 26-muscle myolegs26 (same passive scaffold).
+  compatible_msk: [myolegs, myolegs26]
 
 # HMEDI's hip-flexion assistance is driven by two spatial-tendon "cable"
 # actuators (Exo_R/Exo_L) that wrap over sites on the torso + thigh
@@ -39,7 +39,7 @@ attachments:
   # pos here is the legacy 80 value, equivalent to (22-torso-relative pos)
   # + (22-torso-pos in 22-pelvis) = (-0.125, 0.25, -0.1) + (-0.1007, 0.0815, 0)
   # ≈ (-0.23, 0.33, -0.1). No quat override needed.
-  myolegs:
+  myolegs: &torsod_legs
     - device_body: "hmedi waistband"
       parent_body: "pelvis"
     # `pos` here is the FRAME offset (composes with the device body's authored
@@ -58,3 +58,6 @@ attachments:
       parent_body: "femur_l"
     - device_body: "hmedi thigh_l"
       parent_body: "femur_l"
+  # myolegs26 is the same passive-torso scaffold + 26-muscle legs, so it reuses
+  # the myolegs attachment verbatim (torso bypassed to pelvis, same frame).
+  myolegs26: *torsod_legs

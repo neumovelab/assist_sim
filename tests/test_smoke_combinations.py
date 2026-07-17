@@ -35,6 +35,7 @@ EXPECTED = {
     ("myolegs26", "KFoot_L1"): (47, 21, 40, 42),
     ("myolegs26", "UTAnkleExo_L2"): (65, 28, 44, 43),
     ("myolegs26", "Hippo_L1"): (47, 28, 46, 45),
+    ("myolegs26", "HMEDI_L1"): (47, 28, 48, 47),
     ("myolegs", "DephyExoBoot_L1"): (35, 82, 44, 51),
     ("myolegs", "OpenSourceLeg_A_L1"): (33, 69, 31, 42),
     ("myolegs", "OpenSourceLeg_KA_L1"): (29, 56, 33, 44),
@@ -42,6 +43,7 @@ EXPECTED = {
     ("myolegs", "KFoot_L1"): (34, 68, 32, 43),
     ("myolegs", "UTAnkleExo_L2"): (53, 82, 36, 44),
     ("myolegs", "Hippo_L1"): (35, 82, 38, 46),
+    ("myolegs", "HMEDI_L1"): (35, 82, 40, 48),
 }
 
 # MSKs that are registered but not yet buildable, and the error resolve raises.
@@ -130,16 +132,18 @@ def test_utankleexo_connect_equalities_and_free_roots():
     assert prefix + "part2part3act_sx" in actuators
 
 
-def test_hmedi_torso_per_msk_attachment_on_80(models_dir):
-    """myolegs attaches hmedi_torso to pelvis (not torso) with a compensating
-    pos offset.  Pure config-resolution test -- doesn't require myo_sim to run."""
+def test_hmedi_torso_per_msk_attachment(models_dir):
+    """Both torso'd leg models (myolegs, myolegs26) attach hmedi_torso to pelvis
+    (not torso) with a compensating pos offset -- myolegs26 reuses the myolegs
+    attachment verbatim.  Pure config-resolution test -- doesn't require myo_sim."""
     from assist_sim.config import DeviceConfig
 
     config = DeviceConfig.from_yaml(str(models_dir / "HMEDI" / "L1config.yaml"))
     default_atts = {a.device_body: a for a in config.resolve_attachments()}
-    msk80_atts = {a.device_body: a for a in config.resolve_attachments("myolegs")}
     assert default_atts["hmedi_torso"].parent_body == "torso"
     assert default_atts["hmedi_torso"].pos is None
-    assert msk80_atts["hmedi_torso"].parent_body == "pelvis"
-    assert msk80_atts["hmedi_torso"].pos == [-0.105, 0.08, 0]
-    assert msk80_atts["hmedi_torso"].quat is None
+    for msk in ("myolegs", "myolegs26"):
+        atts = {a.device_body: a for a in config.resolve_attachments(msk)}
+        assert atts["hmedi_torso"].parent_body == "pelvis", msk
+        assert atts["hmedi_torso"].pos == [-0.105, 0.08, 0], msk
+        assert atts["hmedi_torso"].quat is None, msk
