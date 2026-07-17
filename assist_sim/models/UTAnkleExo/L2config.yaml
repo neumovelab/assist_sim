@@ -22,15 +22,15 @@ device:
 # pin it there.  Per-MSK because each baseline places the calcaneus in a
 # different world frame (myolegs is torso-composed under a yaw-rotated root).
 attachments:
-  default:  # myolegs26 (legs-only)
+  default:  # myolegs26 (torso'd, assembled qpos0)
     - device_body: "part3_dx"
       parent_body: "world"
-      pos: [-0.1574, 0.0345, -0.5832]
-      quat: [0.12090, -0.00010, -0.00001, 0.99266]
+      pos: [-0.15748, 0.03818, 0.07181]
+      quat: [0.61612, 0.0, 0.0, -0.78765]
     - device_body: "part3_sx"
       parent_body: "world"
-      pos: [0.1078, 0.2743, -0.5832]
-      quat: [0.99504, -0.00001, -0.00010, 0.09944]
+      pos: [0.10772, 0.27798, 0.07181]
+      quat: [0.63360, 0.0, 0.0, 0.77366]
   myolegs:  # 80-muscle, passive torso
     - device_body: "part3_dx"
       parent_body: "world"
