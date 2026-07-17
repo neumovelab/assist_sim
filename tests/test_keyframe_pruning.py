@@ -1,10 +1,14 @@
-"""Test that a composed MSK's authored keyframe values survive the in-memory
-pipeline (decompose-by-name before surgery, rebuild after the final compile)."""
+"""The keyframe pipeline gracefully handles keyframe-less composed MSKs.
+
+Both composed leg models (``myolegs`` and ``myolegs26``) now ship without a
+keyframe, so a device's ``keyframe_overrides`` have no base keyframe to modify.
+The pipeline must no-op cleanly -- no crash, no fabricated keyframe -- rather than
+the old behavior where a MSK ``stand`` keyframe was decomposed by joint name and
+rebuilt after surgery.
+"""
 
 from __future__ import annotations
 
-import mujoco as mj
-import pytest
 
 from assist_sim import load_combined
 
@@ -12,33 +16,12 @@ from .conftest import needs_myo_sim
 
 
 @needs_myo_sim
-def test_combined_keyframes_preserve_source_values():
-    """End-to-end: a combined model's keyframes carry the MSK's authored joint
-    values by name. Regression for the bug where only overridden joints survived
-    and everything else was zeroed.
-
-    The composed spec's ``stand`` keyframe is decomposed by joint name before
-    surgery (which changes nq/nv) and rebuilt after the final compile.  myolegs26
-    is a myosuite-convention model with a free ``root`` joint (not a ``pelvis_ty``
-    slide), so DephyExoBoot's ``pelvis_ty`` override is a no-op here (the
-    free-root height comes from the base stand keyframe)."""
-    model, _ = load_combined("myolegs26", "DephyExoBoot_L1")
-    kf = mj.mj_name2id(model, mj.mjtObj.mjOBJ_KEY, "stand")
-    assert kf >= 0
-    qpos = list(model.key_qpos[kf])
-
-    # Free-root base, no pelvis_ty (the DephyExoBoot pelvis_ty override no-ops).
-    assert mj.mj_name2id(model, mj.mjtObj.mjOBJ_JOINT, "root") >= 0
-    assert mj.mj_name2id(model, mj.mjtObj.mjOBJ_JOINT, "pelvis_ty") < 0
-
-    # Non-trivial authored joint values from the myolegs26 stand keyframe are
-    # preserved through surgery + attach + recompile.
-    expected = {
-        "knee_r_translation1": -0.003639,
-        "knee_r_translation2": -0.395,
-        "ankle_angle_r": -0.0143,
-    }
-    for name, value in expected.items():
-        jid = mj.mj_name2id(model, mj.mjtObj.mjOBJ_JOINT, name)
-        assert jid >= 0, f"joint {name} missing from compiled model"
-        assert qpos[int(model.jnt_qposadr[jid])] == pytest.approx(value, abs=1e-6), f"keyframe lost authored value for {name}"
+def test_keyframe_overrides_noop_without_base_keyframe():
+    """DephyExoBoot declares per-keyframe ``keyframe_overrides`` (e.g. pelvis_ty),
+    but the composed MSK is keyframe-less, so the overrides have nothing to attach
+    to.  The combine must still succeed and emit no keyframe -- exercising the
+    keyframe-handling path's no-base branch (graceful degradation now that no
+    composed MSK ships a keyframe)."""
+    for msk in ("myolegs26", "myolegs"):
+        model, _ = load_combined(msk, "DephyExoBoot_L1")
+        assert model.nkey == 0, f"{msk}: unexpected keyframe from a keyframe-less base"
