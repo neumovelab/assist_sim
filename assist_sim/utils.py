@@ -50,9 +50,12 @@ def export_combined_xml(
     xml_string = spec.to_xml()
 
     root = ET.fromstring(xml_string)
-    # Name any unnamed nested <default> blocks before dedup, so the dedup pass
-    # only sees named classes -- a multi-fragment model (myofullbody) has several
-    # unnamed blocks whose element-level defaults must not be merged or collapsed.
+    # Hoist each attached fragment's unnamed "main" default into the root so
+    # class-less elements (the leg muscle tendons + massless muscle-routing
+    # joints, authored with no class) keep the rgba / armature / damping they
+    # inherit in the live spec; then name any remaining nested unnamed blocks and
+    # dedup repeated class names.
+    _hoist_nested_defaults(root)
     _name_nested_defaults(root)
     _deduplicate_defaults(root)
     _deduplicate_meshes(root)
@@ -319,6 +322,45 @@ def _deduplicate_defaults(root: ET.Element) -> None:
     default_root = root.find("default")
     if default_root is not None:
         _dedup_children(default_root)
+
+
+def _hoist_nested_defaults(root: ET.Element) -> None:
+    """Unwrap each unnamed nested ``<default>`` directly under the root default.
+
+    myo_sim's composed ``to_xml`` emits every attached fragment's top (``main``)
+    default as an UNNAMED ``<default>`` nested under the root.  In the live spec a
+    fragment's class-less elements (e.g. the leg muscle tendons and the massless
+    muscle-routing joints, authored with no ``class``) inherit their ``rgba`` /
+    ``armature`` / ``damping`` from that block.  MuJoCo rejects an unnamed nested
+    default on reload, and merely *naming* it severs that inheritance -- the
+    class-less elements fall back to the (empty) root and lose their color and
+    joint dynamics (grey muscles; NaN from zero-armature coupled joints).
+
+    Hoisting fixes both: each unnamed block's element-level defaults (``<geom>`` /
+    ``<joint>`` / ``<tendon>`` / ``<site>`` / ...) are merged into the root's
+    corresponding element (attributes unioned, block wins), its named subclass
+    children are re-parented onto the root, and the emptied block is removed.
+    Class-less elements then inherit from the root exactly as they did in the live
+    spec, named subclasses keep their inheritance chain, and the model
+    round-trips.  (Class-less elements come from a single leg fragment in the
+    composed models assist_sim exports, so merging is unambiguous.)
+    """
+    default_root = root.find("default")
+    if default_root is None:
+        return
+    for block in list(default_root):
+        if block.tag != "default" or block.get("class"):
+            continue  # only unnamed nested <default> blocks (fragment "main"s)
+        for child in list(block):
+            if child.tag == "default":
+                default_root.append(child)  # promote named subclass to the root
+            else:
+                existing = default_root.find(child.tag)
+                if existing is None:
+                    default_root.append(child)
+                else:
+                    existing.attrib.update(child.attrib)  # merge element-default
+        default_root.remove(block)
 
 
 def _name_nested_defaults(root: ET.Element) -> None:
