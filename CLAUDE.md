@@ -66,8 +66,7 @@ planned 26→22 mjspec reduction) and raises a clear `ValueError` when resolved.
 
 Torso-composed models (`myolegs`, and any device that needs a torso like HMEDI) are why the
 pipeline is in-memory: their serialized `to_xml` doesn't round-trip (nested unnamed `<default>` →
-"empty class name" on reload), so assist_sim never serializes the human model. Background
-write-up: `myo_sim-leg-integration.md`.
+"empty class name" on reload), so assist_sim never serializes the human model.
 
 ## More detail
 
