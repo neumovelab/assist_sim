@@ -24,7 +24,7 @@ unchanged from the no-export case.
 ## Export from the CLI
 
 ```bash
-python -m assist_sim compile myolegs26 DephyExoBoot_L1 --export combined.xml
+python -m assist_sim combine myolegs26 DephyExoBoot_L1 -o combined.xml
 ```
 
 Identical behavior to the Python form. Prints the resulting `(nq, nu,
@@ -127,8 +127,8 @@ python examples/quickstart.py myolegs26 MyDevice_L1
 ### Generate a combined XML for use in another tool
 
 ```bash
-python -m assist_sim compile myolegs26 DephyExoBoot_L1 \
-    --export /path/to/other_project/models/combined.xml
+python -m assist_sim combine myolegs26 DephyExoBoot_L1 \
+    -o /path/to/other_project/models/combined.xml
 ```
 
 The other tool loads the XML directly via `MjModel.from_xml_path`.
