@@ -6,10 +6,11 @@ whole pipeline runs in-memory (``spec.delete`` surgery, no XML round-trip), so
 these require ``mujoco>=3.3.4``; the ``needs_myo_sim`` gate skips them when
 myo_sim isn't installed.
 
-``myolegs26`` (26-muscle) and ``myolegs`` (80-muscle) are both buildable; each is a
-passive anatomical torso scaffold over its leg chain, so every combo carries the
-torso bodies.  ``myolegs22`` (planar 22-muscle) is derived from ``myolegs26`` by the
-26->22 reduction and combines with the (unrestricted) devices here; its own
+All four MSK models share a passive anatomical torso scaffold over their leg
+chain -- ``myolegs22`` (planar 22-muscle), ``myolegs26`` (26-muscle), ``myolegs``
+(80-muscle) and ``myofullbody`` -- so every device attaches to every model: the
+matrix is the full cross-product (no device pins its ``compatible_msk``).
+``myolegs22`` is derived from ``myolegs26`` by the 26->22 reduction; its own
 reduction is pinned in :mod:`tests.test_reduce_legs`.  Signatures were captured on
 ``mujoco==3.3.4`` (the pinned floor).
 """
@@ -29,25 +30,50 @@ from .conftest import needs_myo_sim
 # stripped, and prosthetic surgery runs via spec.delete (which cascades the
 # subtree + the muscles/tendons/sensors that referenced removed bodies).
 EXPECTED = {
+    ("myolegs22", "Anatomics_L1"): (39, 22, 49, 48),
     ("myolegs22", "DephyExoBoot_L1"): (39, 24, 52, 50),
+    ("myolegs22", "HMEDI_L1"): (39, 24, 48, 47),
+    ("myolegs22", "Hippo_L1"): (39, 24, 46, 45),
+    ("myolegs22", "Humotech_L1"): (39, 24, 56, 55),
+    ("myolegs22", "KFoot_L1"): (39, 17, 40, 43),
+    ("myolegs22", "OpenExo_L1"): (39, 24, 44, 43),
     ("myolegs22", "OpenSourceLeg_A_L1"): (38, 18, 39, 41),
     ("myolegs22", "OpenSourceLeg_KA_L1"): (30, 15, 38, 43),
+    ("myolegs22", "Tutorial_L1"): (39, 24, 44, 43),
+    ("myolegs22", "UTAnkleExo_L2"): (57, 24, 44, 43),
+    ("myolegs26", "Anatomics_L1"): (47, 26, 49, 48),
     ("myolegs26", "DephyExoBoot_L1"): (47, 28, 52, 50),
+    ("myolegs26", "HMEDI_L1"): (47, 28, 48, 47),
+    ("myolegs26", "Hippo_L1"): (47, 28, 46, 45),
+    ("myolegs26", "Humotech_L1"): (47, 28, 56, 55),
+    ("myolegs26", "KFoot_L1"): (47, 21, 40, 43),
+    ("myolegs26", "OpenExo_L1"): (47, 28, 44, 43),
     ("myolegs26", "OpenSourceLeg_A_L1"): (46, 22, 39, 41),
     ("myolegs26", "OpenSourceLeg_KA_L1"): (38, 19, 38, 43),
-    ("myolegs26", "Anatomics_L1"): (47, 26, 49, 48),
-    ("myolegs26", "KFoot_L1"): (47, 21, 40, 43),
+    ("myolegs26", "Tutorial_L1"): (47, 28, 44, 43),
     ("myolegs26", "UTAnkleExo_L2"): (65, 28, 44, 43),
-    ("myolegs26", "Hippo_L1"): (47, 28, 46, 45),
-    ("myolegs26", "HMEDI_L1"): (47, 28, 48, 47),
+    ("myolegs", "Anatomics_L1"): (35, 80, 41, 49),
     ("myolegs", "DephyExoBoot_L1"): (35, 82, 44, 51),
+    ("myolegs", "HMEDI_L1"): (35, 82, 40, 48),
+    ("myolegs", "Hippo_L1"): (35, 82, 38, 46),
+    ("myolegs", "Humotech_L1"): (35, 82, 48, 56),
+    ("myolegs", "KFoot_L1"): (34, 68, 32, 44),
+    ("myolegs", "OpenExo_L1"): (35, 82, 36, 44),
     ("myolegs", "OpenSourceLeg_A_L1"): (33, 69, 31, 42),
     ("myolegs", "OpenSourceLeg_KA_L1"): (29, 56, 33, 44),
-    ("myolegs", "Anatomics_L1"): (35, 80, 41, 49),
-    ("myolegs", "KFoot_L1"): (34, 68, 32, 44),
+    ("myolegs", "Tutorial_L1"): (35, 82, 36, 44),
     ("myolegs", "UTAnkleExo_L2"): (53, 82, 36, 44),
-    ("myolegs", "Hippo_L1"): (35, 82, 38, 46),
-    ("myolegs", "HMEDI_L1"): (35, 82, 40, 48),
+    ("myofullbody", "Anatomics_L1"): (129, 416, 115, 113),
+    ("myofullbody", "DephyExoBoot_L1"): (129, 418, 118, 115),
+    ("myofullbody", "HMEDI_L1"): (129, 418, 114, 112),
+    ("myofullbody", "Hippo_L1"): (129, 418, 112, 110),
+    ("myofullbody", "Humotech_L1"): (129, 418, 122, 120),
+    ("myofullbody", "KFoot_L1"): (128, 404, 106, 108),
+    ("myofullbody", "OpenExo_L1"): (129, 418, 110, 108),
+    ("myofullbody", "OpenSourceLeg_A_L1"): (127, 405, 105, 106),
+    ("myofullbody", "OpenSourceLeg_KA_L1"): (123, 392, 107, 108),
+    ("myofullbody", "Tutorial_L1"): (129, 418, 110, 108),
+    ("myofullbody", "UTAnkleExo_L2"): (147, 418, 110, 108),
 }
 
 @needs_myo_sim
