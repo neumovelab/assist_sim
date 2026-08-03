@@ -4,4 +4,4 @@
 -r requirements.txt
 
 pytest>=7.0
-ruff
+ruff==0.15.20  # pinned: ruff's formatter changes between minor releases; keep CI == local
