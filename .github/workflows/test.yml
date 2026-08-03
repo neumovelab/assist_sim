@@ -47,7 +47,7 @@ jobs:
           python -m build --wheel
           python -c "
           import zipfile
-          with zipfile.ZipFile('dist/assist_sim-0.1.0-py3-none-any.whl') as z:
+          with zipfile.ZipFile('dist/assist_sim-0.5.2-py3-none-any.whl') as z:
               names = z.namelist()
           assert any(n.endswith('.yaml') for n in names), 'device YAMLs missing from wheel'
           assert any(n.endswith('.stl') for n in names), 'mesh STLs missing from wheel'

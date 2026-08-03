@@ -19,7 +19,7 @@ which is not installed. Install it with `pip install myo_sim` ...
 ```bash
 pip install myo_sim   # once on PyPI
 # or, interim:
-pip install git+https://github.com/MyoHub/myo_sim.git@mm_refactor
+pip install git+https://github.com/MyoHub/myo_sim.git@dev
 ```
 
 ### `ImportError: MSK model '...' requires ... mujoco>=3.3.4`

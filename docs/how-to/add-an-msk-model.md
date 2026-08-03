@@ -6,7 +6,7 @@ here.
 
 ## Step 1 -- Contribute the MSK to `myo_sim`
 
-Upstream the new MSK to `MyoHub/myo_sim` via PR. On the `mm_refactor` branch,
+Upstream the new MSK to `MyoHub/myo_sim` via PR. On the `dev` branch,
 leg models are *composed at runtime* and exposed as editable specs, so a new
 MSK means:
 

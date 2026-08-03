@@ -113,20 +113,12 @@ def main() -> None:
     import mujoco as mj
     import mujoco.viewer
 
-    from assist_sim import load_combined_model
-    from assist_sim.registry import resolve
+    from assist_sim import load_combined
 
-    print(f"Resolving {args.msk} + {args.device} ...")
-    msk_path, device_path = resolve(args.msk, args.device)
-    print(f"  MSK:    {msk_path}")
-    print(f"  Device: {device_path}")
-
-    print("Compiling combined model ...")
-    model, data = load_combined_model(
-        human_xml=str(msk_path),
-        device_config=str(device_path),
-        msk_key=args.msk,
-    )
+    print(f"Compiling {args.msk} + {args.device} ...")
+    # load_combined composes the MSK via myo_sim, attaches the device, and
+    # returns the compiled (MjModel, MjData) directly.
+    model, data = load_combined(args.msk, args.device)
     print(f"  nq={model.nq}  nu={model.nu}  nbody={model.nbody}  nmesh={model.nmesh}  nkey={model.nkey}")
 
     # Load the first keyframe if any, so the model isn't sitting at qpos0.

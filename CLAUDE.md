@@ -57,7 +57,7 @@ per-MSK resolvers. `preprocess.py` is now just device-XML prep (`prepare_device_
 ## myo_sim integration status
 
 Baseline MSKs live in `myo_sim`, not here; assist_sim resolves them via `_COMPATIBLE_MSK_KEYS` in
-`registry.py`. On myo_sim's `mm_refactor` branch, leg models are **composed at runtime** (no static
+`registry.py`. On myo_sim's `dev` branch, leg models are **composed at runtime** (no static
 XML), and assist_sim's keys mirror the myo_sim model names. `_resolve_msk` calls
 `myo_sim.build_spec(<model>)`, strips the bundled myosuite scene, and returns a live `MjSpec` that
 `combine.py` mutates in place. Buildable now (on `mujoco>=3.3.4`): **`myolegs26`** (26-muscle,
@@ -66,8 +66,7 @@ planned 26→22 mjspec reduction) and raises a clear `ValueError` when resolved.
 
 Torso-composed models (`myolegs`, and any device that needs a torso like HMEDI) are why the
 pipeline is in-memory: their serialized `to_xml` doesn't round-trip (nested unnamed `<default>` →
-"empty class name" on reload), so assist_sim never serializes the human model. Background
-write-up: `myo_sim-leg-integration.md`.
+"empty class name" on reload), so assist_sim never serializes the human model.
 
 ## More detail
 

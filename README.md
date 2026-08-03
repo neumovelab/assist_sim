@@ -34,7 +34,7 @@ model, data = load_combined_model(
 Or from the CLI:
 
 ```bash
-python -m assist_sim compile myolegs26 DephyExoBoot_L1 --export combined.xml
+python -m assist_sim combine myolegs26 DephyExoBoot_L1 -o combined.xml
 python -m assist_sim list
 ```
 
@@ -59,6 +59,10 @@ planned 26→22 reduction) has no source yet and resolves to a clear error.
 | `OpenExo_L1`          | ✓ | ✓ | — |
 | `Tutorial_L1`         | ✓ | ✓ | — |
 | `HMEDI_L1`            | n/a (needs torso) | ✓ | — |
+| `Anatomics_L1`        | ✓ | ✓ | — |
+| `Hippo_L1`            | ✓ | ✓ | — |
+| `KFoot_L1`            | ✓ | ✓ | — |
+| `UTAnkleExo_L2`       | ✓ | ✓ | — |
 
 See [docs/available-models.md](docs/available-models.md) for descriptions of
 each device + tested combinations.

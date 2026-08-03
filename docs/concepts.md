@@ -9,7 +9,7 @@ pipeline, and how it fits with `myo_sim` and downstream training frameworks.
 frameworks. Four packages collaborate:
 
 - **`myo_sim`** provides the baseline MSK models and their meshes. On the
-  `mm_refactor` branch these leg models are *composed at runtime* (no static
+  `dev` branch these leg models are *composed at runtime* (no static
   XML), so `assist_sim` obtains an editable `MjSpec` via
   `myo_sim.build_spec(<model>)`, serializes it, strips the bundled myosuite
   scene, and caches the model-only XML. assist_sim's MSK keys mirror the

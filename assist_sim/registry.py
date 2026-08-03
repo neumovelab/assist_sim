@@ -43,7 +43,7 @@ MODELS_ROOT = Path(str(_files("assist_sim").joinpath("models")))
 # ----------------------------------------------------------------------
 # MSK registry (explicit, composed at runtime by myo_sim)
 # ----------------------------------------------------------------------
-# On myo_sim's mm_refactor branch the leg models are *composed* at runtime --
+# On myo_sim's dev branch the leg models are *composed* at runtime --
 # there is no static XML on disk.  assist_sim obtains an editable MjSpec via
 # ``myo_sim.build_spec(<model>)``, strips the bundled myosuite scene (outputs are
 # model-only), and hands the live spec to the combination pipeline, which edits

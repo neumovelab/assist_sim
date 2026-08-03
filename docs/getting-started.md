@@ -24,7 +24,7 @@ separately).
 
 ### myo_sim
 
-`myo_sim` provides the baseline MSK models. On the `mm_refactor` branch it
+`myo_sim` provides the baseline MSK models. On the `dev` branch it
 *composes* leg models at runtime, and `assist_sim` obtains them via
 `myo_sim.build_spec(<model>)`. Three install options:
 
@@ -33,7 +33,7 @@ separately).
 pip install myo_sim
 
 # (2) From a git branch in the meantime:
-pip install git+https://github.com/MyoHub/myo_sim.git@mm_refactor
+pip install git+https://github.com/MyoHub/myo_sim.git@dev
 
 # (3) Editable, for local development on myo_sim itself:
 git clone https://github.com/MyoHub/myo_sim.git

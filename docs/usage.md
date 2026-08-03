@@ -40,22 +40,22 @@ path via local autodiscovery) and calls `load_combined_model` under the
 hood. Auto-passes `msk_key=msk` for per-MSK override resolution. The
 preferred entrypoint once `myo_sim` is installed.
 
-### `resolve_model_path` -- compile + export, return XML path
+### `resolve_model_path` -- resolve keys to a spec + device-config path
 
 ```python
 from assist_sim import resolve_model_path
 
-path = resolve_model_path(
-    msk: str,
-    device: str,
-    cache_dir: Path | None = None,
-    export_dir: Path | None = None,
-) -> str
+human_spec, device_config = resolve_model_path(
+    msk: str,            # e.g. "myolegs26"
+    device: str,         # e.g. "DephyExoBoot_L1"
+) -> tuple[mj.MjSpec, Path]
 ```
 
-For callers (e.g. RL training configs) that want a file path to a combined
-XML. Compiles the combination, writes it to a cache or export directory,
-and returns the absolute path.
+A thin wrapper over `registry.resolve`. Returns the freshly-composed,
+model-only `MjSpec` for the MSK (composed on demand by `myo_sim`) plus the
+filesystem `Path` to the device's config YAML -- it does **not** compile,
+export, or return an XML file path. Raises `ValueError` / `ImportError`
+for unknown, incompatible, or unbuildable keys.
 
 ### `get_available_combinations`
 
@@ -96,7 +96,7 @@ print(config.resolve_attachments("myolegs"))   # per-MSK resolved
 ## CLI
 
 ```bash
-python -m assist_sim compile <msk> <device> [--export PATH] [--cache DIR]
+python -m assist_sim combine <msk> <device> [-o PATH] [--cache-dir DIR]
 python -m assist_sim list                       # all available combinations
 python -m assist_sim --version
 ```
@@ -104,14 +104,14 @@ python -m assist_sim --version
 Examples:
 
 ```bash
-# Compile + write combined XML
-python -m assist_sim compile myolegs26 DephyExoBoot_L1 --export combined.xml
+# Combine + write combined XML
+python -m assist_sim combine myolegs26 DephyExoBoot_L1 -o combined.xml
 
 # List everything available
 python -m assist_sim list
 
-# Compile and cache (faster on subsequent runs)
-python -m assist_sim compile myolegs OpenSourceLeg_KA_L1 --cache ./.cache
+# Combine and cache (faster on subsequent runs)
+python -m assist_sim combine myolegs OpenSourceLeg_KA_L1 --cache-dir ./.cache
 ```
 
 ## Registry
@@ -127,10 +127,10 @@ The registry has two halves:
 
 ```python
 from assist_sim.registry import (
-    MSK_MODELS,               # {msk_key: resolved Path}
+    _COMPATIBLE_MSK_KEYS,     # {msk_key: _MskSource}  (curated MSK table)
     DEVICE_CONFIGS,           # {device_key: Path}
-    resolve,                  # (msk, device) -> (msk_path, device_path)
-    refresh,                  # re-scan models/ and re-resolve via myo_sim
+    resolve,                  # (msk, device) -> (human_spec: MjSpec, device_config: Path)
+    refresh,                  # re-scan models/ for device configs
 )
 ```
 
