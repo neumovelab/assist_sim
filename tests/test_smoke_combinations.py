@@ -76,6 +76,7 @@ EXPECTED = {
     ("myofullbody", "UTAnkleExo_L2"): (147, 418, 110, 108),
 }
 
+
 @needs_myo_sim
 @pytest.mark.parametrize("keys,expected", list(EXPECTED.items()), ids=lambda x: str(x))
 def test_combination_signature(keys, expected):
