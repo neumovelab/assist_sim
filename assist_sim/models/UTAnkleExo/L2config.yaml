@@ -14,7 +14,7 @@
 device:
   name: "UTAnkleExo_L2"
   model_xml: "L2model.xml"
-  compatible_msk: ["myolegs26", "myolegs", "myofullbody"]
+  compatible_msk: ["myolegs22", "myolegs26", "myolegs", "myofullbody"]
 
 # Free-rooted attach: graft each exo root under worldbody (freejoint preserved).
 # pos/quat place the root so the exo sits on the leg at the same pose relative

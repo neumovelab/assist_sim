@@ -1,7 +1,7 @@
 device:
   name: "KFoot_L1"
   model_xml: "L1model.xml"
-  compatible_msk: [myolegs26, myolegs, myofullbody]
+  compatible_msk: [myolegs22, myolegs26, myolegs, myofullbody]
 
 # --- Prosthetic: right transtibial (below-knee) amputation ---
 # Same biological scope as OSL_A. The device is a passive powered-foot: a

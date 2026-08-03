@@ -9,7 +9,8 @@ Two distinct discovery models:
   returning an editable ``MjSpec`` that the pipeline mutates in place (surgery
   via ``spec.delete``) -- it is never serialized to XML.  ``myolegs26``
   (26-muscle, torso'd) and ``myolegs`` (80-muscle, passive torso) are buildable;
-  ``myolegs22`` has no source yet (a planned 26->22 reduction).
+  ``myolegs22`` (planar 22-muscle) is derived from ``myolegs26`` by an in-spec
+  26->22 reduction (:func:`assist_sim.reduce_legs.reduce_myolegs26_to_22`).
 - **Device configs** are autodiscovered by scanning ``models/<dir>/*config.yaml``
   in this repository.  Adding a new device dir with a config file makes it
   available next import; no registry edit required.
@@ -57,21 +58,20 @@ class _MskSource(NamedTuple):
     source exists yet (planned work).  ``min_mujoco`` is the lowest MuJoCo
     version that can *build* it -- the passive-torso models need ``MjSpec.delete``
     (3.3.4+).  ``note`` explains a gated/planned state in the error the caller sees.
+    ``reduce_to_22`` marks a key whose composed spec is post-processed by the
+    26->22 planar reduction before the scene strip (only ``myolegs22`` today).
     """
 
     myo_sim_model: Optional[str]
     min_mujoco: Tuple[int, int, int]
     note: str
+    reduce_to_22: bool = False
 
 
 # Curated, not autodiscovered.  Keys are assist_sim-facing aliases; values bind
 # them to the myo_sim composed models that back them.
 _COMPATIBLE_MSK_KEYS: Dict[str, _MskSource] = {
-    "myolegs22": _MskSource(
-        None,
-        (3, 3, 3),
-        "myolegs22 will be derived from myolegs26 via a 26->22 mjspec reduction, which is not implemented yet",
-    ),
+    "myolegs22": _MskSource("myolegs26", (3, 3, 3), "", reduce_to_22=True),
     "myolegs26": _MskSource("myolegs26", (3, 3, 3), ""),
     "myolegs": _MskSource(
         "myolegs",
@@ -139,6 +139,10 @@ def _resolve_msk(key: str) -> "mujoco.MjSpec":
 
     try:
         spec = myo_sim.build_spec(src.myo_sim_model)
+        if src.reduce_to_22:
+            from .reduce_legs import reduce_myolegs26_to_22
+
+            reduce_myolegs26_to_22(spec)
     except Exception as exc:  # noqa: BLE001 - surface any build failure as a clear ImportError
         raise ImportError(
             f"Failed to compose MSK model '{key}' via myo_sim.build_spec({src.myo_sim_model!r}): {type(exc).__name__}: {exc}"
