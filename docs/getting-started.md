@@ -24,7 +24,7 @@ separately).
 
 ### myo_sim
 
-`myo_sim` provides the baseline MSK models. On the `mm_refactor` branch it
+`myo_sim` provides the baseline MSK models. On the `dev` branch it
 *composes* leg models at runtime, and `assist_sim` obtains them via
 `myo_sim.build_spec(<model>)`. Three install options:
 
