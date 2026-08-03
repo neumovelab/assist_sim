@@ -8,8 +8,9 @@ myo_sim isn't installed.
 
 ``myolegs26`` (26-muscle) and ``myolegs`` (80-muscle) are both buildable; each is a
 passive anatomical torso scaffold over its leg chain, so every combo carries the
-torso bodies.  ``myolegs22`` has no source yet (a planned 26->22 reduction) and is
-covered by :func:`test_gated_msk_raises`.  Signatures were captured on
+torso bodies.  ``myolegs22`` (planar 22-muscle) is derived from ``myolegs26`` by the
+26->22 reduction and combines with the (unrestricted) devices here; its own
+reduction is pinned in :mod:`tests.test_reduce_legs`.  Signatures were captured on
 ``mujoco==3.3.4`` (the pinned floor).
 """
 
@@ -28,6 +29,9 @@ from .conftest import needs_myo_sim
 # stripped, and prosthetic surgery runs via spec.delete (which cascades the
 # subtree + the muscles/tendons/sensors that referenced removed bodies).
 EXPECTED = {
+    ("myolegs22", "DephyExoBoot_L1"): (39, 24, 52, 50),
+    ("myolegs22", "OpenSourceLeg_A_L1"): (38, 18, 39, 41),
+    ("myolegs22", "OpenSourceLeg_KA_L1"): (30, 15, 38, 43),
     ("myolegs26", "DephyExoBoot_L1"): (47, 28, 52, 50),
     ("myolegs26", "OpenSourceLeg_A_L1"): (46, 22, 39, 41),
     ("myolegs26", "OpenSourceLeg_KA_L1"): (38, 19, 38, 43),
@@ -45,12 +49,6 @@ EXPECTED = {
     ("myolegs", "Hippo_L1"): (35, 82, 38, 46),
     ("myolegs", "HMEDI_L1"): (35, 82, 40, 48),
 }
-
-# MSKs that are registered but not yet buildable, and the error resolve raises.
-GATED = {
-    "myolegs22": ValueError,  # no source yet (planned 26->22 mjspec reduction)
-}
-
 
 @needs_myo_sim
 @pytest.mark.parametrize("keys,expected", list(EXPECTED.items()), ids=lambda x: str(x))
@@ -70,14 +68,6 @@ def test_combination_is_simulatable(keys):
     mj.mj_forward(model, data)
     for _ in range(5):
         mj.mj_step(model, data)
-
-
-@needs_myo_sim
-@pytest.mark.parametrize("msk_key,exc", list(GATED.items()))
-def test_gated_msk_raises(msk_key, exc):
-    """MSKs without a source raise a clear error (no silent fallback)."""
-    with pytest.raises(exc):
-        load_combined(msk_key, "DephyExoBoot_L1")
 
 
 @needs_myo_sim

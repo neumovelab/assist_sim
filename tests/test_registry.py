@@ -40,11 +40,19 @@ def test_unknown_msk_raises_with_suggestion():
         registry._resolve_msk("myoLeg22")
 
 
-def test_planned_msk_raises_value_error():
-    """A registered-but-not-yet-available MSK (no myo_sim source) errors, not
-    warns, with an explanation."""
-    with pytest.raises(ValueError, match="not available yet"):
-        registry._resolve_msk("myolegs22")
+def test_myolegs22_resolves_via_reduction():
+    """``myolegs22`` is derived from ``myolegs26`` by the 26->22 reduction: with
+    myo_sim present it composes a reduced, scene-stripped ``MjSpec``
+    (``nq=39, nu=22``); without it, ``_resolve_msk`` raises ImportError."""
+    import mujoco as mj
+
+    try:
+        spec = registry._resolve_msk("myolegs22")
+    except ImportError:
+        return  # expected when myo_sim not installed
+    assert isinstance(spec, mj.MjSpec)
+    model = spec.compile()
+    assert (model.nq, model.nu, model.njnt, model.nkey) == (39, 22, 39, 5)
 
 
 def test_resolve_msk_composes_or_raises():
