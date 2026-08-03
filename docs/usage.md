@@ -96,7 +96,7 @@ print(config.resolve_attachments("myolegs"))   # per-MSK resolved
 ## CLI
 
 ```bash
-python -m assist_sim compile <msk> <device> [--export PATH] [--cache DIR]
+python -m assist_sim combine <msk> <device> [-o PATH] [--cache-dir DIR]
 python -m assist_sim list                       # all available combinations
 python -m assist_sim --version
 ```
@@ -104,14 +104,14 @@ python -m assist_sim --version
 Examples:
 
 ```bash
-# Compile + write combined XML
-python -m assist_sim compile myolegs26 DephyExoBoot_L1 --export combined.xml
+# Combine + write combined XML
+python -m assist_sim combine myolegs26 DephyExoBoot_L1 -o combined.xml
 
 # List everything available
 python -m assist_sim list
 
-# Compile and cache (faster on subsequent runs)
-python -m assist_sim compile myolegs OpenSourceLeg_KA_L1 --cache ./.cache
+# Combine and cache (faster on subsequent runs)
+python -m assist_sim combine myolegs OpenSourceLeg_KA_L1 --cache-dir ./.cache
 ```
 
 ## Registry

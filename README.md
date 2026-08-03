@@ -34,7 +34,7 @@ model, data = load_combined_model(
 Or from the CLI:
 
 ```bash
-python -m assist_sim compile myolegs26 DephyExoBoot_L1 --export combined.xml
+python -m assist_sim combine myolegs26 DephyExoBoot_L1 -o combined.xml
 python -m assist_sim list
 ```
 
