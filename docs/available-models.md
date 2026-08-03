@@ -11,12 +11,14 @@ assist_sim key matches the `myo_sim` model name:
 
 | Key (= `myo_sim` model) | Base DOFs | Status |
 |---|---|---|
-| `myolegs26` | 47 | **Available** — 26-muscle, passive torso + legs |
-| `myolegs`   | 35 | **Available** — 80-muscle, passive torso |
-| `myolegs22` | —  | Planned — a 26→22 mjspec reduction of `myolegs26`, not built yet |
+| `myolegs22`   | 39  | **Available** — planar 22-muscle, sagittal-plane legs + passive torso; a 26→22 reduction of `myolegs26` |
+| `myolegs26`   | 47  | **Available** — 26-muscle, passive torso + legs |
+| `myolegs`     | 35  | **Available** — 80-muscle, passive torso |
+| `myofullbody` | 129 | **Available** — full-body (torso muscles + arms + legs) |
 
-Both buildable models require `mujoco>=3.3.4` (in-memory `MjSpec.delete`). Resolving
-a gated/planned key raises a clear error (never a silent fallback).
+`myolegs`, `myofullbody`, and `myolegs22` (which reduces `myolegs26`) require
+`mujoco>=3.3.4` (in-memory `MjSpec.delete`); `myolegs26` builds on `3.3.3`.
+Resolving an unknown key raises a clear error (never a silent fallback).
 
 ### Important MSK notes (myolegs26)
 
@@ -31,6 +33,16 @@ a gated/planned key raises a clear error (never a silent fallback).
   pose (baked into the reference configuration upstream). Like `myolegs`, it
   loads floating slightly above the ground — there is no `stand` keyframe.
 
+### Important MSK notes (myolegs22)
+
+- **Planar root.** Unlike `myolegs26`'s `freejoint`, `myolegs22` replaces the
+  root with three sagittal-plane DOFs — `pelvis_tx` (fore-aft), `pelvis_ty`
+  (vertical), `pelvis_tilt` — so device keyframe overrides targeting `pelvis_ty`
+  apply. The frontal-plane hip DOFs (`hip_adduction`/`hip_rotation`) and the
+  `abd`/`add` muscles are removed (26 → 22 muscles); the torso is kept.
+- **Keyframes.** Ships five keyframes — `stand`, `walk_left`, `walk_right`,
+  `squat`, `lunge` — that survive device combination.
+
 ## Device models
 
 Ten device directories under `models/`, contributing eleven device keys:
@@ -39,7 +51,7 @@ Ten device directories under `models/`, contributing eleven device keys:
 |---|---|---|---|
 | `Anatomics_L1`        | `models/Anatomics/L1config.yaml` | Ankle exoskeleton | Bilateral instrumented soles + right shank/foot frame; passive (welded, no actuators) |
 | `DephyExoBoot_L1`     | `models/DephyExoBoot/L1config.yaml` | Ankle exoskeleton | Bilateral; battery + Raspberry Pi + boot strapping; ankle ROM override |
-| `HMEDI_L1`            | `models/HMEDI/L1config.yaml` | Hip-flexion cable exo | Bilateral; spatial-tendon cables driven by `Exo_R`/`Exo_L`; torso piece attached to `pelvis` on both torso'd leg models |
+| `HMEDI_L1`            | `models/HMEDI/L1config.yaml` | Hip-flexion cable exo | Bilateral; spatial-tendon cables driven by `Exo_R`/`Exo_L`; torso piece attached to `pelvis` on the torso'd leg models |
 | `Hippo_L1`            | `models/Hippo/L1config.yaml` | Hip-flexion exoskeleton | Bilateral; pelvis backplate + hip shell + waistband + AK10-9 housing, thigh braces/cuffs on each femur (welded, visual); ideal fixed-gain hip actuators `Exo_R`/`Exo_L` on `hip_flexion_r`/`_l`; mounts on pelvis + femurs (no torso needed) |
 | `Humotech_L1`         | `models/Humotech/L1config.yaml` | Ankle exo with cables | Bilateral; pf/df cables (passive); joint-transmission `Exo_R`/`Exo_L` |
 | `OpenExo_L1`          | `models/OpenExo/L1config.yaml` | Ankle exo | Bilateral |
@@ -54,23 +66,23 @@ device YAML's `device.name`).
 
 ## Compatibility matrix
 
-✓ = tested (frozen smoke signatures); — = not yet buildable (planned MSK).
+✓ = tested (frozen smoke signatures). Every device works with every MSK model:
+all four share the passive torso scaffold, so no device pins its
+`compatible_msk`.
 
-| Device | myolegs26 | myolegs | myolegs22 |
-|---|:-:|:-:|:-:|
-| `Anatomics_L1`        | ✓ | ✓ | — |
-| `DephyExoBoot_L1`     | ✓ | ✓ | — |
-| `KFoot_L1`            | ✓ | ✓ | — |
-| `OpenSourceLeg_A_L1`  | ✓ | ✓ | — |
-| `OpenSourceLeg_KA_L1` | ✓ | ✓ | — |
-| `Humotech_L1`         | ✓ | ✓ | — |
-| `OpenExo_L1`          | ✓ | ✓ | — |
-| `UTAnkleExo_L2`       | ✓ | ✓ | — |
-| `Tutorial_L1`         | ✓ | ✓ | — |
-| `HMEDI_L1`            | ✓ | ✓ | — |
-| `Hippo_L1`            | ✓ | ✓ | — |
-
-The `myolegs22` column activates when the 26→22 mjspec reduction lands.
+| Device | myolegs22 | myolegs26 | myolegs | myofullbody |
+|---|:-:|:-:|:-:|:-:|
+| `Anatomics_L1`        | ✓ | ✓ | ✓ | ✓ |
+| `DephyExoBoot_L1`     | ✓ | ✓ | ✓ | ✓ |
+| `KFoot_L1`            | ✓ | ✓ | ✓ | ✓ |
+| `OpenSourceLeg_A_L1`  | ✓ | ✓ | ✓ | ✓ |
+| `OpenSourceLeg_KA_L1` | ✓ | ✓ | ✓ | ✓ |
+| `Humotech_L1`         | ✓ | ✓ | ✓ | ✓ |
+| `OpenExo_L1`          | ✓ | ✓ | ✓ | ✓ |
+| `UTAnkleExo_L2`       | ✓ | ✓ | ✓ | ✓ |
+| `Tutorial_L1`         | ✓ | ✓ | ✓ | ✓ |
+| `HMEDI_L1`            | ✓ | ✓ | ✓ | ✓ |
+| `Hippo_L1`            | ✓ | ✓ | ✓ | ✓ |
 
 ## Verifying combinations locally
 
