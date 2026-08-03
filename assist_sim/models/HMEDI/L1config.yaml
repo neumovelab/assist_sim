@@ -1,9 +1,10 @@
 device:
   name: "HMEDI_L1"
   model_xml: "L1model.xml"
-  # HMEDI's torso band needs a torso'd MSK. Both leg models qualify: the
-  # 80-muscle myolegs and the torso'd 26-muscle myolegs26 (same passive scaffold).
-  compatible_msk: [myolegs, myolegs26, myofullbody]
+  # HMEDI's torso band needs a torso'd MSK. Every leg model qualifies -- the
+  # planar 22-muscle myolegs22, the 26-muscle myolegs26 and the 80-muscle myolegs
+  # share the same passive torso scaffold -- as does myofullbody.
+  compatible_msk: [myolegs22, myolegs26, myolegs, myofullbody]
 
 # HMEDI's hip-flexion assistance is driven by two spatial-tendon "cable"
 # actuators (Exo_R/Exo_L) that wrap over sites on the torso + thigh

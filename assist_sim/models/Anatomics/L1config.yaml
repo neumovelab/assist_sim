@@ -1,7 +1,7 @@
 device:
   name: "Anatomics_L1"
   model_xml: "L1model.xml"
-  compatible_msk: [myolegs26, myolegs, myofullbody]
+  compatible_msk: [myolegs22, myolegs26, myolegs, myofullbody]
 
 # --- Additive ankle exoskeleton ---
 # Rigid exo frame on the right shank + foot, plus bilateral instrumented
