@@ -168,8 +168,8 @@ def reduce_myolegs26_to_22(spec: "mujoco.MjSpec") -> "mujoco.MjSpec":
     keep_sites = _surviving_site_names(spec.copy(), mujoco)
 
     # 1. Face +x / up +z: yaw the torso + leg root siblings, drop pelvis to ground.
-    _require(spec.body("sacrum"), "body", "sacrum").quat = _YAW_QUAT
-    _require(spec.body("pelvis"), "body", "pelvis").quat = _YAW_QUAT
+    _set_body_quat(_require(spec.body("sacrum"), "body", "sacrum"), _YAW_QUAT, mujoco)
+    _set_body_quat(_require(spec.body("pelvis"), "body", "pelvis"), _YAW_QUAT, mujoco)
     full_body = _require(spec.body("Full Body"), "body", "Full Body")
     full_body.pos = [0.0, 0.0, 0.0]
 
@@ -243,6 +243,20 @@ def _surviving_site_names(probe: "mujoco.MjSpec", mujoco) -> set:
             keep.add(mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_SITE, model.sensor_objid[sid]))
 
     return keep
+
+
+def _set_body_quat(body: "mujoco.MjsBody", quat, mujoco) -> None:
+    """Set *body*'s orientation to the absolute *quat*.
+
+    ``MjsBody`` can carry an alternative orientation (``alt`` -- euler / xyaxes /
+    zaxis / axisangle) that the compiler uses *in place of* ``quat`` when its
+    ``type`` isn't ``mjORIENTATION_QUAT``.  ``sacrum`` ships an euler ``alt``, so
+    assigning ``quat`` alone is silently ignored (the euler wins) and the torso
+    seats on the pelvis at the wrong angle.  Reset ``alt`` to the quat form first
+    so ``quat`` is authoritative, then assign it.
+    """
+    body.alt.type = mujoco.mjtOrientation.mjORIENTATION_QUAT
+    body.quat = quat
 
 
 def _add_planar_root(body: "mujoco.MjsBody", mujoco) -> None:
