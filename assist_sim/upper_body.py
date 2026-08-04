@@ -15,6 +15,7 @@ from __future__ import annotations
 from importlib.resources import files as _files
 
 import mujoco
+import numpy as np
 from myo_sim.build.compose import (
     LEFT_ARM_ATTACH_SITE,
     MODEL_REGISTRY,
@@ -31,10 +32,10 @@ _WHEELCHAIR_XML = str(_files("assist_sim").joinpath("models", "Wheelchair", "whe
 # Chair placement relative to the human worldbody (identity keeps it upright).
 _CHAIR_SEAT_OFFSET = (0.22, 0.36, 0.55)
 
-# Seated lock pose for the (muscle-less) legs [rad], applied + pinned per side.
-# The original env baked the legs rigid (no leg joints); we pin each leg DOF to a
-# tight range so it is rigid in practice while still sourced from myo_sim.
-_PIN_EPS = 1e-3
+# Seated pose baked into the (muscle-less) legs [rad], per side. The original env
+# shipped the legs rigid (no leg joints); we reproduce that by baking this pose into
+# the leg body geometry and deleting the leg joints (see _freeze_legs_seated).
+_LEG_JOINT_TOKENS = ("hip_", "knee_angle", "walker_knee", "ankle_angle", "subtalar_", "mtp_", "patella")
 _SEATED_LEGS = {
     "hip_flexion": 1.5,
     "hip_adduction": 0.05,
@@ -166,18 +167,22 @@ def _build_human(arms: str) -> "mujoco.MjSpec":
     for pair in list(human.pairs):
         if pair.geomname1 not in geom_names or pair.geomname2 not in geom_names:
             human.delete(pair)
-    # qpos0 = start_return arm pose (default load = seated recovery, not standing).
-    joints = {j.name: j for j in human.joints}
-    for side in _ARM_SIDES[arms]:
-        for name, value in _ARM_START.items():
-            jname = _arm_joint(name, side, joints.keys())
-            if jname is not None:
-                joints[jname].ref = value
+    # NB: arm joints keep ref=0 -- the arm pose comes from the keyframes (net joint
+    # rotation = keyframe qpos). Setting ref would relabel zero and cancel the pose.
     return human
 
 
-def _add_locked_legs(human: "mujoco.MjSpec") -> None:
-    """Attach both legs as a muscle-less scaffold, pinned rigid in the seated pose."""
+def _is_leg_joint(name: str | None) -> bool:
+    return bool(name) and any(tok in name for tok in _LEG_JOINT_TOKENS)
+
+
+def _freeze_legs_seated(human: "mujoco.MjSpec") -> None:
+    """Attach both legs muscle-less, then bake the seated pose into the leg body
+    geometry and delete every leg joint -- rigid seated legs with no leg DOF, as in
+    the original env (which shipped zero leg joints). This is the only way to load
+    in a posed configuration: `ref` merely relabels a joint's zero, so a hinge can
+    only be posed by baking the rotation into the body frame.
+    """
     legs = load_legs_spec()
     for actuator in list(legs.actuators):  # strip leg muscles
         legs.delete(actuator)
@@ -187,16 +192,54 @@ def _add_locked_legs(human: "mujoco.MjSpec") -> None:
     frame.name = "legs_attach"
     human.attach(legs, prefix="", suffix="", frame=frame)
 
-    joints = {j.name: j for j in human.joints}
-    for side in ("r", "l"):
-        for base, value in _SEATED_LEGS.items():
-            jname = f"{base}_{side}"
-            if jname not in joints:
-                continue
-            joint = joints[jname]
-            joint.ref = value  # qpos0 = seated
-            joint.range = [value - _PIN_EPS, value + _PIN_EPS]  # pin ~rigid
-            joint.limited = 1
+    # Solve the seated configuration on a throwaway compile.
+    wm = human.compile()
+    wd = mujoco.MjData(wm)
+    mujoco.mj_resetData(wm, wd)
+    for j in range(wm.njnt):
+        name = mujoco.mj_id2name(wm, mujoco.mjtObj.mjOBJ_JOINT, j)
+        base = name.rsplit("_", 1)[0]  # strip _r/_l
+        if base in _SEATED_LEGS:
+            wd.qpos[wm.jnt_qposadr[j]] = _SEATED_LEGS[base]
+    # satisfy the coupled-knee sub-joints: qpos[obj1] = poly(qpos[obj2])
+    for e in range(wm.neq):
+        if wm.eq_type[e] != mujoco.mjtEq.mjEQ_JOINT:
+            continue
+        n1 = mujoco.mj_id2name(wm, mujoco.mjtObj.mjOBJ_JOINT, wm.eq_obj1id[e])
+        if not _is_leg_joint(n1):
+            continue
+        x = wd.qpos[wm.jnt_qposadr[wm.eq_obj2id[e]]]
+        c = wm.eq_data[e][:5]
+        wd.qpos[wm.jnt_qposadr[wm.eq_obj1id[e]]] = c[0] + c[1] * x + c[2] * x**2 + c[3] * x**3 + c[4] * x**4
+    mujoco.mj_forward(wm, wd)
+
+    # Record each leg-jointed body's seated transform relative to its parent.
+    baked = {}
+    for j in range(wm.njnt):
+        if not _is_leg_joint(mujoco.mj_id2name(wm, mujoco.mjtObj.mjOBJ_JOINT, j)):
+            continue
+        bid = int(wm.jnt_bodyid[j])
+        pid = int(wm.body_parentid[bid])
+        pconj = np.zeros(4)
+        mujoco.mju_negQuat(pconj, wd.xquat[pid])
+        rel_pos = np.zeros(3)
+        mujoco.mju_rotVecQuat(rel_pos, wd.xpos[bid] - wd.xpos[pid], pconj)
+        rel_quat = np.zeros(4)
+        mujoco.mju_mulQuat(rel_quat, pconj, wd.xquat[bid])
+        baked[mujoco.mj_id2name(wm, mujoco.mjtObj.mjOBJ_BODY, bid)] = (rel_pos.copy(), rel_quat.copy())
+
+    # Apply the bake to the spec, then delete every leg joint + coupled-knee equality.
+    for bname, (rel_pos, rel_quat) in baked.items():
+        body = human.body(bname)
+        body.alt.type = mujoco.mjtOrientation.mjORIENTATION_QUAT
+        body.pos = rel_pos
+        body.quat = rel_quat
+    for joint in list(human.joints):
+        if _is_leg_joint(joint.name):
+            human.delete(joint)
+    for eq in list(human.equalities):
+        if eq.type == mujoco.mjtEq.mjEQ_JOINT and _is_leg_joint(eq.name1 or ""):
+            human.delete(eq)
 
 
 def _attach_chair(human: "mujoco.MjSpec") -> None:
@@ -217,7 +260,7 @@ def _add_keyframes(human: "mujoco.MjSpec", arms: str) -> None:
     jointset = {mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_JOINT, i) for i in range(model.njnt)}
 
     def qpos_for(arm_pose: dict) -> list:
-        q = model.qpos0.copy()  # qpos0 already carries the seated legs (leg refs)
+        q = model.qpos0.copy()  # legs are baked geometry (no leg DOF); this sets arm
         for side in _ARM_SIDES[arms]:
             for name, value in arm_pose.items():
                 jname = _arm_joint(name, side, jointset)
@@ -238,9 +281,10 @@ def build_wheelchair_spec(arms: str = "both") -> "mujoco.MjSpec":
 
     ``arms`` selects the muscled arm(s): ``"both"`` (mirrored bimanual), ``"right"``,
     or ``"left"``. Torso is a locked muscle-less scaffold (from ``myoarms``); legs are
-    a muscle-less scaffold pinned rigid in a seated pose; only the selected arm(s)
-    carry muscles. Ships ``start_return`` + ``pushing`` keyframes whose arm poses are
-    transcribed from the original env and mirrored onto the active arm(s).
+    a muscle-less scaffold baked rigid into a seated pose (no leg joints, like the
+    original); only the selected arm(s) carry muscles. Ships ``start_return`` +
+    ``pushing`` keyframes whose arm poses are transcribed from the original env and
+    mirrored onto the active arm(s).
 
     The human is the base spec on purpose: attaching it as a child drops the
     cross-body propulsion muscles, so the rigid chair is attached into it instead --
@@ -249,7 +293,7 @@ def build_wheelchair_spec(arms: str = "both") -> "mujoco.MjSpec":
     if arms not in _ARM_SIDES:
         raise ValueError(f"arms must be one of {sorted(_ARM_SIDES)}, got {arms!r}")
     human = _build_human(arms)
-    _add_locked_legs(human)
+    _freeze_legs_seated(human)
     _attach_chair(human)
     _add_keyframes(human, arms)
     return human
