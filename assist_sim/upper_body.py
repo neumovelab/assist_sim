@@ -37,12 +37,15 @@ _CHAIR_SEAT_OFFSET = (0.213, 0.357, 0.48)
 # shipped the legs rigid (no leg joints); we reproduce that by baking this pose into
 # the leg body geometry and deleting the leg joints (see _freeze_legs_seated).
 _LEG_JOINT_TOKENS = ("hip_", "knee_angle", "walker_knee", "ankle_angle", "subtalar_", "mtp_", "patella")
+# Seated leg pose hand-tuned in the viewer to rest the soles on the footplates (left
+# leg posed; identical values mirror onto the right). Applied per side and baked.
 _SEATED_LEGS = {
-    "hip_flexion": 1.5,
-    "hip_adduction": 0.05,
-    "hip_rotation": 0.0,
+    "hip_flexion": 1.7668,
+    "hip_adduction": -0.16757,
+    "hip_rotation": -0.04189,
     "knee_angle": 1.6,
-    "ankle_angle": 0.0,
+    "knee_angle_rotation3": 0.2628,
+    "ankle_angle": 0.27315,
     "subtalar_angle": 0.0,
     "mtp_angle": 0.0,
 }
@@ -198,21 +201,11 @@ def _freeze_legs_seated(human: "mujoco.MjSpec") -> None:
     wd = mujoco.MjData(wm)
     mujoco.mj_resetData(wm, wd)
     for j in range(wm.njnt):
-        name = mujoco.mj_id2name(wm, mujoco.mjtObj.mjOBJ_JOINT, j)
-        base = name.rsplit("_", 1)[0]  # strip _r/_l
+        name = mujoco.mj_id2name(wm, mujoco.mjtObj.mjOBJ_JOINT, j) or ""
+        base = name.rsplit("_", 1)[0]  # strip _r/_l -> matches _SEATED_LEGS keys
         if base in _SEATED_LEGS:
             wd.qpos[wm.jnt_qposadr[j]] = _SEATED_LEGS[base]
-    # satisfy the coupled-knee sub-joints: qpos[obj1] = poly(qpos[obj2])
-    for e in range(wm.neq):
-        if wm.eq_type[e] != mujoco.mjtEq.mjEQ_JOINT:
-            continue
-        n1 = mujoco.mj_id2name(wm, mujoco.mjtObj.mjOBJ_JOINT, wm.eq_obj1id[e])
-        if not _is_leg_joint(n1):
-            continue
-        x = wd.qpos[wm.jnt_qposadr[wm.eq_obj2id[e]]]
-        c = wm.eq_data[e][:5]
-        wd.qpos[wm.jnt_qposadr[wm.eq_obj1id[e]]] = c[0] + c[1] * x + c[2] * x**2 + c[3] * x**3 + c[4] * x**4
-    mujoco.mj_forward(wm, wd)
+    mujoco.mj_forward(wm, wd)  # exact posed config (no polycoef re-solve)
 
     # Record each leg-jointed body's seated transform relative to its parent.
     baked = {}
