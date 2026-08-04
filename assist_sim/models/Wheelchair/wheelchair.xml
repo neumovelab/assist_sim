@@ -1,0 +1,24 @@
+<mujoco model="Wheelchair">
+    <!-- Standalone wheelchair-hardware model (no human). Chair frame, seat,
+         rear wheels + casters (jointed), and the handrail collision geoms +
+         grip sites the arm(s) push against. Meshes live in ./mesh; the human
+         is added by composing myo_sim `myoarms` onto this (see build_wheelchair).
+         Relocated from the retired myoassist myosuite fork; see TODO.md. -->
+    <compiler meshdir="mesh" angle="radian"/>
+
+    <default>
+        <!-- CAD coordinate convention carried from the source model -->
+        <geom type="mesh" xyaxes="1 0 0 0 1 0" conaffinity="1" contype="1"/>
+    </default>
+
+    <include file="assets/wheelchair_assets.xml"/>
+
+    <worldbody>
+        <include file="assets/wheelchair_chain.xml"/>
+    </worldbody>
+
+    <contact>
+        <exclude body1="static" body2="left_caster_wheel"/>
+        <exclude body1="static" body2="right_caster_wheel"/>
+    </contact>
+</mujoco>

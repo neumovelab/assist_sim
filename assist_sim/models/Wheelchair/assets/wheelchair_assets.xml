@@ -1,0 +1,47 @@
+<mujocoinclude model="wheelchair_assets">
+    <asset>
+        <!-- materials -->
+        <material name="dark_blue" rgba="0.098 0.145 0.302 1"/>
+        <material name="cyan" rgba="0.149 0.463 0.55 1" shininess="0.9"/>
+        <material name="orange" rgba="0.576 0.322 0.094 1" shininess="0.9"/>
+        <material name="metal" rgba="0.706 0.706 0.713 1" shininess="0.9"/>
+        <material name="grey" rgba="0.329 0.329 0.329 1"/>
+        <material name="dark_grey" rgba="0.196 0.196 0.196 1"/>
+        <!-- chair-hardware meshes (meshdir resolves to ./mesh) -->
+        <mesh name="armrest1" file="Armrest_001.stl" scale="0.001 0.001 0.001"/>
+        <mesh name="armrest2" file="Armrest_002.stl" scale="0.001 0.001 0.001"/>
+        <mesh name="backrest" file="Backrest_001.stl" scale="0.001 0.001 0.001"/>
+        <mesh name="caster_fork1" file="Caster_fork_001.stl" scale="0.001 0.001 0.001"/>
+        <mesh name="caster_fork2" file="Caster_fork_002.stl" scale="0.001 0.001 0.001"/>
+        <mesh name="caster_wheel1" file="Caster_wheel_001.stl" scale="0.001 0.001 0.001"/>
+        <mesh name="caster_wheel2" file="Caster_wheel_002.stl" scale="0.001 0.001 0.001"/>
+        <mesh name="footplate1" file="Footplate_001.stl" scale="0.001 0.001 0.001"/>
+        <mesh name="footplate2" file="Footplate_002.stl" scale="0.001 0.001 0.001"/>
+        <mesh name="frame" file="Frame_001.stl" scale="0.001 0.001 0.001"/>
+        <mesh name="pin1" file="Pin_001.stl" scale="0.001 0.001 0.001"/>
+        <mesh name="pin2" file="Pin_002.stl" scale="0.001 0.001 0.001"/>
+        <mesh name="push_handle1" file="Push_handle_001.stl" scale="0.001 0.001 0.001"/>
+        <mesh name="push_handle2" file="Push_handle_002.stl" scale="0.001 0.001 0.001"/>
+        <mesh name="rear_wheel1" file="Rear_wheel_001.stl" scale="0.001 0.001 0.001"/>
+        <mesh name="rear_wheel2" file="Rear_wheel_002.stl" scale="0.001 0.001 0.001"/>
+        <mesh name="seat" file="Seat_001.stl" scale="0.001 0.001 0.001"/>
+        <mesh name="side_panel1" file="Side_panel_001.stl" scale="0.001 0.001 0.001"/>
+        <mesh name="side_panel2" file="Side_panel_002.stl" scale="0.001 0.001 0.001"/>
+        <mesh name="handrail_coll1" file="handrail_coll1.obj"/>
+        <mesh name="handrail_coll2" file="handrail_coll2.obj"/>
+        <mesh name="handrail_coll3" file="handrail_coll3.obj"/>
+        <mesh name="handrail_coll4" file="handrail_coll4.obj"/>
+        <mesh name="handrail_coll5" file="handrail_coll5.obj"/>
+        <mesh name="handrail_coll6" file="handrail_coll6.obj"/>
+        <mesh name="handrail_coll7" file="handrail_coll7.obj"/>
+        <mesh name="handrail_coll8" file="handrail_coll8.obj"/>
+        <mesh name="handrail_coll9" file="handrail_coll9.obj"/>
+        <mesh name="handrail_coll10" file="handrail_coll10.obj"/>
+        <mesh name="handrail_coll11" file="handrail_coll11.obj"/>
+        <mesh name="handrail_coll12" file="handrail_coll12.obj"/>
+        <mesh name="handrail_coll13" file="handrail_coll13.obj"/>
+        <mesh name="handrail_coll14" file="handrail_coll14.obj"/>
+        <mesh name="handrail_coll15" file="handrail_coll15.obj"/>
+        <mesh name="handrail_coll16" file="handrail_coll16.obj"/>
+    </asset>
+</mujocoinclude>
