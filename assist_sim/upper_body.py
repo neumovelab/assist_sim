@@ -29,8 +29,9 @@ from myo_sim.build.compose import (
 
 _WHEELCHAIR_XML = str(_files("assist_sim").joinpath("models", "Wheelchair", "wheelchair.xml"))
 
-# Chair placement relative to the human worldbody (identity keeps it upright).
-_CHAIR_SEAT_OFFSET = (0.22, 0.36, 0.55)
+# Chair placement (world seat frame). Tuned so the pushing-keyframe hand matches the
+# original's hand-in-chair position; see _attach_chair.
+_CHAIR_SEAT_OFFSET = (0.213, 0.357, 0.48)
 
 # Seated pose baked into the (muscle-less) legs [rad], per side. The original env
 # shipped the legs rigid (no leg joints); we reproduce that by baking this pose into
@@ -243,15 +244,36 @@ def _freeze_legs_seated(human: "mujoco.MjSpec") -> None:
 
 
 def _attach_chair(human: "mujoco.MjSpec") -> None:
-    """Rigidly seat the chair into the human; freejoint the rig so it rolls."""
-    human.body("Full Body").add_freejoint()
+    """Rigidly fix the chair to the torso (into ``Full Body``) so the human is truly
+    seated -- pelvis welded to the chair -- then freejoint ``Full Body`` so the whole
+    human+chair rig is one free body that rolls on its wheels (as in the original,
+    which freejoints the wheelchair and nests the human rigidly inside it).
+
+    The chair is attached at ``_CHAIR_SEAT_OFFSET`` expressed in the WORLD frame; we
+    convert it to a frame on ``Full Body`` (whose rest pose is offset/rotated) so the
+    chair keeps its tuned world placement while becoming rigid to the torso.
+    """
+    fb = human.body("Full Body")
+    # Rest-pose world transform of Full Body (to keep the chair's tuned placement).
+    tmp = human.compile()
+    td = mujoco.MjData(tmp)
+    mujoco.mj_resetData(tmp, td)
+    mujoco.mj_forward(tmp, td)
+    fbid = mujoco.mj_name2id(tmp, mujoco.mjtObj.mjOBJ_BODY, "Full Body")
+    fb_conj = np.zeros(4)
+    mujoco.mju_negQuat(fb_conj, td.xquat[fbid])
+    rel_pos = np.zeros(3)
+    mujoco.mju_rotVecQuat(rel_pos, np.asarray(_CHAIR_SEAT_OFFSET) - td.xpos[fbid], fb_conj)
+
     chair = mujoco.MjSpec.from_file(_WHEELCHAIR_XML)
     for joint in list(chair.joints):  # rigid seat: drop the chair's own freejoint
         if joint.type == mujoco.mjtJoint.mjJNT_FREE:
             chair.delete(joint)
-    frame = human.worldbody.add_frame()
-    frame.pos = _CHAIR_SEAT_OFFSET
+    frame = fb.add_frame()
+    frame.pos = rel_pos
+    frame.quat = fb_conj  # world seat frame is identity-oriented -> cancel FB's rotation
     human.attach(chair, prefix="wc_", frame=frame)
+    fb.add_freejoint()
 
 
 def _add_keyframes(human: "mujoco.MjSpec", arms: str) -> None:
@@ -276,6 +298,30 @@ def _add_keyframes(human: "mujoco.MjSpec", arms: str) -> None:
         key.qpos = qpos_for(pose)
 
 
+def _add_ground(human: "mujoco.MjSpec") -> None:
+    """Add a ground plane (at the resting wheel height) + a light so the rig rolls,
+    and match the original's 1 ms timestep. Terrain composition replaces this later.
+    """
+    human.option.timestep = 0.001
+    tmp = human.compile()
+    td = mujoco.MjData(tmp)
+    mujoco.mj_resetData(tmp, td)
+    mujoco.mj_forward(tmp, td)
+    floor_z = float(td.geom_xpos[:, 2].min()) if tmp.ngeom else 0.0
+
+    light = human.worldbody.add_light()
+    light.pos = [0, -2, 4]
+    light.dir = [0, 0.4, -1]
+    ground = human.worldbody.add_geom()
+    ground.name = "floor"
+    ground.type = mujoco.mjtGeom.mjGEOM_PLANE
+    ground.size = [0, 0, 0.05]
+    ground.pos = [0, 0, floor_z]
+    ground.contype = 1
+    ground.conaffinity = 1
+    ground.rgba = [0.6, 0.6, 0.6, 1]
+
+
 def build_wheelchair_spec(arms: str = "both") -> "mujoco.MjSpec":
     """Compose the seated wheelchair env and return the (uncompiled) ``MjSpec``.
 
@@ -296,6 +342,7 @@ def build_wheelchair_spec(arms: str = "both") -> "mujoco.MjSpec":
     _freeze_legs_seated(human)
     _attach_chair(human)
     _add_keyframes(human, arms)
+    _add_ground(human)
     return human
 
 
