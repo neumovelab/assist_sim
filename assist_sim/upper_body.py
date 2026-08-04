@@ -38,8 +38,8 @@ _SEATED_LEGS = {
     "hip_flexion": 1.5,
     "hip_adduction": 0.0,
     "hip_rotation": 0.0,
-    "knee_angle": -1.6,
-    "ankle_angle": 0.2,
+    "knee_angle": 1.6,
+    "ankle_angle": 0.0,
     "subtalar_angle": 0.0,
     "mtp_angle": 0.0,
 }
@@ -76,6 +76,13 @@ def _build_human(arms: str) -> "mujoco.MjSpec":
     for pair in list(human.pairs):
         if pair.geomname1 not in geom_names or pair.geomname2 not in geom_names:
             human.delete(pair)
+    # qpos0 = start_return arm pose (so the default load pose is a seated recovery).
+    joints = {j.name: j for j in human.joints}
+    for side in _ARM_SIDES[arms]:
+        for base, value in _ARM_START.items():
+            jname = f"{base}_{side}"
+            if jname in joints:
+                joints[jname].ref = value
     return human
 
 
@@ -90,12 +97,13 @@ def _add_locked_legs(human: "mujoco.MjSpec") -> None:
     frame.name = "legs_attach"
     human.attach(legs, prefix="", suffix="", frame=frame)
 
-    joint_names = {j.name for j in human.joints}
+    joints = {j.name: j for j in human.joints}
     for side in ("r", "l"):
         for base, value in _SEATED_LEGS.items():
             jname = f"{base}_{side}"
-            if jname not in joint_names:
+            if jname not in joints:
                 continue
+            joints[jname].ref = value  # qpos0 = seated (so it loads seated, not standing)
             eq = human.add_equality()  # lock each primary leg DOF to the seated angle
             eq.type = mujoco.mjtEq.mjEQ_JOINT
             eq.name = f"lock_{jname}"
