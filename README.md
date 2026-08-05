@@ -67,6 +67,24 @@ planned 26→22 reduction) has no source yet and resolves to a clear error.
 See [docs/available-models.md](docs/available-models.md) for descriptions of
 each device + tested combinations.
 
+## Collaboration environments (upper-body)
+
+Alongside the modular lower-limb devices, `assist_sim` ships **upper-body
+collaboration environments** — single composed models (a `myo_sim` human +
+collaborator hardware) built by dedicated functions in
+`assist_sim/upper_body.py`, rather than by `load_combined`. These are **not**
+registry devices and are **not** modular:
+
+```python
+from assist_sim.upper_body import build_wheelchair
+model, data = build_wheelchair(arms="both", torso="passive")
+```
+
+The **Wheelchair** (seated human propelling a manual wheelchair) is fully
+ported; **MPL** (Modular Prosthetic Limb) and **AuxivoLiftsuit** (a passive
+torso back-exosuit) are being added in parallel. See
+[docs/collaboration-environments.md](docs/collaboration-environments.md).
+
 ## Installation
 
 ```bash
@@ -97,6 +115,7 @@ pytest
 | [docs/usage.md](docs/usage.md) | Full API: `load_combined_model`, caching, CLI, registry |
 | [docs/device-config-reference.md](docs/device-config-reference.md) | Every YAML field with examples |
 | [docs/available-models.md](docs/available-models.md) | Devices + MSKs + which combinations are tested |
+| [docs/collaboration-environments.md](docs/collaboration-environments.md) | Upper-body collaboration environments (wheelchair, MPL, liftsuit) |
 | [docs/troubleshooting.md](docs/troubleshooting.md) | Common errors and how to fix |
 | [docs/how-to/](docs/how-to/) | Task-focused guides (add a device, use custom devices, modify a config, debug, export) |
 
