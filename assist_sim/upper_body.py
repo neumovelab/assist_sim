@@ -26,6 +26,7 @@ from myo_sim.build.compose import (
 )
 
 _WHEELCHAIR_XML = str(_files("assist_sim").joinpath("models", "Wheelchair", "wheelchair.xml"))
+_MPL_XML = str(_files("assist_sim").joinpath("models", "MPL", "scenes", "sally.xml"))
 
 # Chair placement in the world seat frame (tuned so the pushing hand matches the original).
 _CHAIR_SEAT_OFFSET = (0.213, 0.357, 0.48)
@@ -305,4 +306,16 @@ def build_wheelchair_spec(arms: str = "both", torso: str = "passive") -> "mujoco
 def build_wheelchair(arms: str = "both", torso: str = "passive"):
     """Compile the wheelchair env. Returns ``(MjModel, MjData)``."""
     model = build_wheelchair_spec(arms, torso).compile()
+    return model, mujoco.MjData(model)
+
+
+def build_mpl():
+    """Load the MPL (Modular Prosthetic Limb) bimanual robot env (``sally``).
+
+    Unlike the other upper-body envs, MPL is a self-contained *robotic* model (its
+    own meshes + actuators, no myo_sim human) relocated verbatim from the collaborator
+    fork; it is loaded directly rather than composed. Returns ``(MjModel, MjData)``.
+    See ``models/MPL/CONVERSION.md``.
+    """
+    model = mujoco.MjModel.from_xml_path(_MPL_XML)
     return model, mujoco.MjData(model)
