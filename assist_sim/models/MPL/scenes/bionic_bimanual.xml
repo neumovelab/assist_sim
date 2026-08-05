@@ -1,0 +1,82 @@
+<mujoco model="bionic_bimanual_scene">
+<!-- =================================================
+    MyoChallenge "bionic bimanual" static scene (relocated into assist_sim).
+
+    This file holds only the STATIC half of the environment: the MPL left
+    prosthetic arm, the YCB gelatin box (manip_object, freejoint), the start/goal
+    mocap pillars, and the touch sensor. The biological RIGHT arm (myo_sim human)
+    is composed in at load time by assist_sim.upper_body.build_bionic_bimanual()
+    -- the current myo_sim myoarm_r cannot self-assemble (chest/thorax muscle
+    origins moved to myotorso in the 2026-06 refactor), so the human is a
+    passive-torso + right-arm MjSpec composition instead of a static include.
+
+    Mesh/texture directories are the tokens __MPLMESH__ (models/MPL/meshes),
+    __YCB__ (models/YCB) and __MYOSIM__ (myo_sim models dir); the loader replaces
+    them with absolute, forward-slashed paths. All <include> paths resolve
+    relative to THIS file's directory (MuJoCo resolves every include relative to
+    the main model file). See models/MPL/CONVERSION.md.
+====================================================== -->
+  <compiler angle="radian"/>
+  <option timestep="0.002">
+    <flag multiccd="enable"/>
+  </option>
+
+  <include file="../assets/left_arm_assets.xml"/>
+  <include file="../assets/handL_assets.xml"/>
+  <include file="../../YCB/defaults_ycb.xml"/>
+  <include file="../../YCB/assets_009_gelatin_box.xml"/>
+
+  <asset>
+    <texture name="tabletop" type="2d" file="__MPLMESH__/../scenes/textures/stone1.png"/>
+    <material name="tabletop" texture="tabletop" rgba=".95 .95 .95 1"/>
+    <texture name="texwood" type="cube" file="__MYOSIM__/scene/floor0.png"/>
+    <material name="matwood" reflectance="0.01" texture="texwood" texuniform="false"/>
+
+    <texture type="2d" name="pillar_start" builtin="checker" mark="random" rgb1="0.4 0.4 0.4" rgb2="0.38 0.38 0.38"
+        markrgb="0.8 0.8 0.8" width="300" height="300" random="0.5"/>
+    <material name="pillar_start" texture="pillar_start" texuniform="true" texrepeat="5 5" reflectance="0.1"/>
+
+    <texture type="2d" name="pillar_goal" builtin="checker" mark="random" rgb1="0.45 0.45 0.45" rgb2="0.47 0.47 0.47"
+        markrgb="0.6 0.6 0.6" width="300" height="300" random="0.4"/>
+    <material name="pillar_goal" texture="pillar_goal" texuniform="true" texrepeat="5 5" reflectance="0.1"/>
+
+    <!-- Base pedestal (myosuite-branded, sized to the original myosuite scene pedestal:
+         radius 1.05, half-height 0.205). UV-wrapped side tube + white cap disks. -->
+    <mesh name="pedestal_side" file="__MPLMESH__/../scenes/meshes/pedestal_side.obj"/>
+    <texture name="tex_pedestal" type="2d" file="__MPLMESH__/../scenes/textures/pedestal_myosuite.png"/>
+    <material name="mat_pedestal" texture="tex_pedestal" texrepeat="1 1" texuniform="false" specular="0.1" shininess="0.1"/>
+  </asset>
+
+  <worldbody>
+    <!-- ======= Base pedestal (static; z is seated under the feet at build time) ======= -->
+    <body name="pedestal" pos="0 0 0">
+      <geom name="ped_side" type="mesh" mesh="pedestal_side" material="mat_pedestal" contype="0" conaffinity="0"/>
+      <geom name="ped_top" type="cylinder" size="1.053 0.006" pos="0 0 0.211" rgba="1 1 1 1" contype="0" conaffinity="0"/>
+      <geom name="ped_bottom" type="cylinder" size="1.053 0.006" pos="0 0 -0.211" rgba="1 1 1 1" contype="0" conaffinity="0"/>
+    </body>
+
+    <!-- ======= MPL LEFT prosthesis (attaches in world at 0.18 0.1 1.38) ======= -->
+    <include file="../assets/left_arm_chain_myochallenge.xml"/>
+
+    <!-- ======= Object ======= -->
+    <body pos="-0.4 -0.2 1.2" euler="1.57 0 3.14" name="manip_object">
+      <freejoint name="manip_object/freejoint"/>
+      <include file="../../YCB/body_009_gelatin_box.xml"/>
+      <site name="touch_site" pos="0 0 0.015" type="sphere" size="0.1" group="5" rgba="0.1 0.1 0.1 0.1"/>
+    </body>
+
+    <!-- ======= Start ======= -->
+    <body name="start" mocap="true" pos="-0.4 -0.25 1.05">
+      <geom name="start_pillar" type="cylinder" size="0.15 1.09" pos="0 0 -1.05" material="pillar_start" contype="1" conaffinity="1" solref="0.001 1" priority="2"/>
+    </body>
+
+    <!-- ======= Goal ======= -->
+    <body name="goal" mocap="true" pos="0.4 -0.25 1.05">
+      <geom name="goal_pillar" type="cylinder" size="0.15 1.09" pos="0 0 -1.05" material="pillar_goal" contype="1" conaffinity="1" solref="0.001 1" priority="2"/>
+    </body>
+  </worldbody>
+
+  <sensor>
+    <touch site="touch_site"/>
+  </sensor>
+</mujoco>

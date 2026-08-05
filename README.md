@@ -67,6 +67,37 @@ planned 26→22 reduction) has no source yet and resolves to a clear error.
 See [docs/available-models.md](docs/available-models.md) for descriptions of
 each device + tested combinations.
 
+## Collaboration environments (upper-body)
+
+Alongside the modular lower-limb devices, `assist_sim` ships **upper-body
+collaboration environments** built by dedicated functions in
+`assist_sim/upper_body.py`, rather than by `load_combined`. These are **not**
+registry devices and are **not** modular:
+
+```python
+from assist_sim.upper_body import (
+    build_wheelchair,
+    build_mpl,
+    build_auxivo_liftsuit,
+    build_bionic_bimanual,
+)
+
+model, data = build_wheelchair(arms="both", torso="passive")  # "both"|"right"|"left"; "passive"|"muscled"
+model, data = build_mpl()               # standalone bimanual MPL robot (no human)
+model, data = build_auxivo_liftsuit()   # passive back-exosuit on the muscled myotorso
+model, data = build_bionic_bimanual()   # MyoChallenge arm + MPL-prosthesis manipulation task
+```
+
+All four are available today: the **Wheelchair** (seated human propelling a
+manual wheelchair), the **MPL** (a standalone bimanual Modular Prosthetic Limb
+robot), the **AuxivoLiftsuit** (a passive back-exosuit on the muscled
+`myotorso`), and **bionic-bimanual** (the MyoChallenge manipulation task pairing
+a biological arm with an MPL prosthesis). Each builder returns
+`(MjModel, MjData)`; the three composed environments also expose a
+`build_*_spec()` companion returning the uncompiled `MjSpec`, which
+`export_upper_body_xml(spec, path)` serializes to a standalone, reloadable XML.
+See [docs/collaboration-environments.md](docs/collaboration-environments.md).
+
 ## Installation
 
 ```bash
@@ -97,6 +128,7 @@ pytest
 | [docs/usage.md](docs/usage.md) | Full API: `load_combined_model`, caching, CLI, registry |
 | [docs/device-config-reference.md](docs/device-config-reference.md) | Every YAML field with examples |
 | [docs/available-models.md](docs/available-models.md) | Devices + MSKs + which combinations are tested |
+| [docs/collaboration-environments.md](docs/collaboration-environments.md) | Upper-body collaboration environments (wheelchair, MPL, liftsuit, bionic-bimanual) |
 | [docs/troubleshooting.md](docs/troubleshooting.md) | Common errors and how to fix |
 | [docs/how-to/](docs/how-to/) | Task-focused guides (add a device, use custom devices, modify a config, debug, export) |
 
