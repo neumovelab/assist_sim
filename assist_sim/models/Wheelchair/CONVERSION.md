@@ -45,6 +45,12 @@ torso="passive"|"muscled")` → `(MjModel, MjData)`.
 At the `pushing` keyframe the hand position (in the chair frame) matches the original to
 **< 1 mm**, using the original's arm joint angles verbatim.
 
+## Export
+`build_wheelchair_spec(...)` returns the composed `MjSpec`; serialize it to a standalone,
+reloadable XML with `assist_sim.upper_body.export_upper_body_xml(spec, path)` (routes
+through `utils.export_combined_xml`, which flattens the merged defaults and rewrites mesh
+paths). A raw `spec.to_xml()` will *not* reload.
+
 ## Files
 - `wheelchair.xml` + `assets/wheelchair_{assets,chain}.xml` — chair-hardware model.
 - `mesh/` — 35 chair-hardware meshes (19 STL + 16 handrail collision OBJ).

@@ -1,25 +1,25 @@
-<mujoco model="MyoExoTorso">
-  <!-- =================================================
-  Copyright 2024
-  Model	:: MyoTorso (MuJoCoV3.0)
-  Author	::  Rohan Walia, Morgane Billot, Kevin Garzon-Aguirre, Swathika Subramanian, Huiyi Wang,
-                 Mohamed Irfan Refai, Guillaume Durandau, Vikash Kumar (vikashplus@gmail.com), Vittorio Caggiano
-  License	:: Under Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
-  ====================================================== -->
-
-  <include file="__MYOSIM__/scene/myosuite_scene.xml"/>
-  <include file="__MYOSIM__/torso/assets/myotorso_assets.xml"/>
-  <include file="__MYOSIM__/head/assets/myohead_simple_assets.xml"/>
-  <compiler meshdir="__MYOSIM__" texturedir="__MYOSIM__"/>
-
+<mujoco model="AuxivoLiftsuit">
+  <!-- Auxivo Liftsuit back-exosuit hardware (MyoAssist collaborator env).
+       DEVICE FRAGMENT ONLY: three exo bodies (upper-back panel, waist belt, leg
+       straps), their wrap geom + sites, and the four spring tendons. It is attached
+       at load onto the muscled myo_sim `myotorso` by
+       `assist_sim.upper_body.build_auxivo_liftsuit`, which places it at the original
+       exo->trunk pose and adds the two body welds. Mesh dir resolves via `__EXO__`.
+       Original author credit (MyoAssist / MyoTorso): Rohan Walia, Morgane Billot,
+       Kevin Garzon-Aguirre, Swathika Subramanian, Huiyi Wang, Mohamed Irfan Refai,
+       Guillaume Durandau, Vikash Kumar, Vittorio Caggiano. Apache-2.0. See CONVERSION.md. -->
+  <!-- The exo body/geom eulers below are in RADIANS (as authored in the original). Without
+       this, MjSpec parses them as degrees and the mesh panels are rotated ~1.57 deg instead
+       of 90 deg (splayed open) -- while site positions, which carry no euler, still match. -->
+  <compiler angle="radian"/>
   <default class="main">
     <default class="myotorsoexo">
-      <geom margin="0.001" material="mat_myotorso" rgba="0.35 0.3 0.3 1" conaffinity="0" contype="0"/>
+      <geom margin="0.001" rgba="0.35 0.3 0.3 1" conaffinity="0" contype="0"/>
       <site size="0.001 0.005 0.005"/>
       <tendon limited="false" width="0.006" group="1" rgba="0.38 0.33 0.33 1"/>
     </default>
-    <!-- wrap-cylinder + sidesite classes (dropped from the current myo_sim torso assets;
-         restored here so the exosuit's spring-tendon wrap geom compiles). -->
+    <!-- Restored locally: dropped from the current myo_sim myotorso_assets.xml, but the
+         exosuit's spring-tendon wrap cylinder + side site still need them. -->
     <default class="myoBack_wrap">
       <geom rgba=".5 .5 .9 0.5" group="3" contype="0" conaffinity="0" type="cylinder"/>
     </default>
@@ -35,10 +35,6 @@
   </asset>
 
   <worldbody>
-    <body name="full_body" pos=".005 0.1 0.93">
-      <include file="__MYOSIM__/torso/assets/myotorso_chain.xml"/>
-    </body>
-
     <body name="exo_pelvis" pos="-.025 0.1 0.979" quat="0.707035 0.707179 0 0" childclass="myotorsoexo">
       <geom name="lower_exo_legs_geom" type="mesh" euler="1.57 3.14 -1.57" pos="-0.08 0.1 0" mesh="lower_exo_legs_geom_1"/>
       <site name="Lower_Exo_Left_Leg" pos="-0.08 -0.15 -0.17" size="0.005" rgba="0.4 0.4 0.4 1"/>
@@ -64,30 +60,24 @@
     </body>
   </worldbody>
 
-  <equality>
-    <weld body1="torso" body2="exo_torso" anchor="-0.1 0.2 0"/>
-    <weld body1="lumbar4" body2="exo_lumbar4"/>
-  </equality>
-
   <tendon>
     <spatial name="Exo_LS_RL" stiffness="515.5998876" springlength="0 0.37" class="myotorsoexo">
-        <site site="Exo_RightShoulder"/>
-        <geom geom="Exo_cylinder" sidesite="Exo_sidesite"/>
-        <site site="Exo_LeftLeg"/>
+      <site site="Exo_RightShoulder"/>
+      <geom geom="Exo_cylinder" sidesite="Exo_sidesite"/>
+      <site site="Exo_LeftLeg"/>
     </spatial>
     <spatial name="Exo_RS_LL" stiffness="515.5998876" springlength="0 0.37" class="myotorsoexo">
-        <site site="Exo_LeftShoulder"/>
-        <geom geom="Exo_cylinder" sidesite="Exo_sidesite"/>
-        <site site="Exo_RightLeg"/>
+      <site site="Exo_LeftShoulder"/>
+      <geom geom="Exo_cylinder" sidesite="Exo_sidesite"/>
+      <site site="Exo_RightLeg"/>
     </spatial>
     <spatial name="Lower_Exo_Left" stiffness="0" class="myotorsoexo">
-        <site site="Lower_Exo_Left_Belt"/>
-        <site site="Lower_Exo_Left_Leg"/>
+      <site site="Lower_Exo_Left_Belt"/>
+      <site site="Lower_Exo_Left_Leg"/>
     </spatial>
-        <spatial name="Lower_Exo_Right" stiffness="0" class="myotorsoexo">
-        <site site="Lower_Exo_Right_Belt"/>
-        <site site="Lower_Exo_Right_Leg"/>
+    <spatial name="Lower_Exo_Right" stiffness="0" class="myotorsoexo">
+      <site site="Lower_Exo_Right_Belt"/>
+      <site site="Lower_Exo_Right_Leg"/>
     </spatial>
   </tendon>
-
 </mujoco>

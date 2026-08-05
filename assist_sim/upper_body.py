@@ -1,17 +1,24 @@
-"""Composed upper-body environments (wheelchair, ...).
+"""Composed upper-body environments (wheelchair, Auxivo Liftsuit, MPL).
 
 These are single composed models (a myo_sim human + device hardware attached via
 ``MjSpec``), not the modular MSK x device compositions the lower-limb devices use.
 Anatomical meshes come from the myo_sim import; assist_sim houses only device
-hardware meshes under ``models/<Name>/mesh``. See ``models/Wheelchair/CONVERSION.md``
-for how the wheelchair maps to the original collaborator environment.
+hardware meshes under ``models/<Name>/mesh``. See each ``models/<Name>/CONVERSION.md``
+for how an env maps to the original collaborator environment.
+
+Each composed env has a ``build_*_spec()`` (uncompiled ``MjSpec``) and a ``build_*()``
+(compiled ``(MjModel, MjData)``). To serialize a composed env to a standalone,
+reloadable XML, use :func:`export_upper_body_xml` -- never a raw ``spec.to_xml()``,
+which emits anonymous ``<default>`` blocks and dangling asset paths that fail to reload.
 """
 
 from __future__ import annotations
 
 from importlib.resources import files as _files
+from pathlib import Path
 
 import mujoco
+import myo_sim
 import numpy as np
 from myo_sim.build.compose import (
     LEFT_ARM_ATTACH_SITE,
@@ -29,6 +36,13 @@ _WHEELCHAIR_XML = str(_files("assist_sim").joinpath("models", "Wheelchair", "whe
 _MPL_XML = str(_files("assist_sim").joinpath("models", "MPL", "scenes", "sally.xml"))
 _AUXIVO_XML = str(_files("assist_sim").joinpath("models", "AuxivoLiftsuit", "auxivo_liftsuit.xml"))
 _AUXIVO_MESH = str(_files("assist_sim").joinpath("models", "AuxivoLiftsuit", "mesh"))
+
+# The exosuit hardware was authored against the original env's `torso` world pose; the
+# suit is placed by the rigid map taking this pose to the current build's `torso` pose.
+_AUXIVO_AUTHOR_TORSO_POS = (-0.099, 0.099977354, 1.041199998)
+_AUXIVO_AUTHOR_TORSO_QUAT = (0.707034778, 0.707178777, 0.0, 0.0)
+# Body welds coupling the suit to the trunk, with the original weld anchors.
+_AUXIVO_WELDS = (("torso", "exo_torso", (-0.1, 0.2, 0.0)), ("lumbar4", "exo_lumbar4", (0.0, 0.0, 0.0)))
 
 # Chair placement in the world seat frame (tuned so the pushing hand matches the original).
 _CHAIR_SEAT_OFFSET = (0.213, 0.357, 0.48)
@@ -145,15 +159,24 @@ def _arm_joint(orig_name: str, side: str, jointset: set) -> str | None:
     return orig_name + "_l" if orig_name + "_l" in jointset else None
 
 
+def _strip_scene_decor(human: "mujoco.MjSpec") -> None:
+    """Drop the myo_sim scene decor (worldbody floor/skybox geoms + lights).
+
+    assist_sim emits model-only envs (a downstream scene/terrain supplies the
+    ground + lighting). Removing these geoms also un-references the scene
+    textures/materials so the model exports cleanly via ``export_combined_xml``."""
+    for geom in list(human.worldbody.geoms):
+        human.delete(geom)
+    for light in list(human.worldbody.lights):
+        human.delete(light)
+
+
 def _build_human(arms: str, torso: str = "passive") -> "mujoco.MjSpec":
     """Torso + the selected muscled arm(s). ``torso="passive"`` is a locked muscle-less
     scaffold (default); ``"muscled"`` keeps the active ``myotorso`` (spine joints + muscles)."""
     reg = MODEL_REGISTRY["myoarms"]
     human = load_passive_torso_spec(reg) if torso == "passive" else load_torso_spec(reg)
-    for geom in list(human.worldbody.geoms):  # drop myo_sim scene decor
-        human.delete(geom)
-    for light in list(human.worldbody.lights):
-        human.delete(light)
+    _strip_scene_decor(human)
     if arms in ("both", "right"):
         human.attach(load_right_arm_spec(), prefix="", suffix="", site=find_site(human, RIGHT_ARM_ATTACH_SITE))
     if arms in ("both", "left"):
@@ -323,15 +346,86 @@ def build_mpl():
     return model, mujoco.MjData(model)
 
 
-def build_auxivo_liftsuit():
-    """Load the Auxivo Liftsuit env: a myo_sim torso wearing the passive back-exosuit.
+def build_auxivo_liftsuit_spec() -> "mujoco.MjSpec":
+    """Compose the Auxivo Liftsuit env; return the uncompiled ``MjSpec``.
 
-    The torso/scene/head are pulled from the installed **myo_sim** package at load
-    (so no anatomical assets are housed here); only the three exosuit meshes live under
-    ``models/AuxivoLiftsuit/mesh``. Returns ``(MjModel, MjData)``. See the CONVERSION.md.
+    The muscled myo_sim ``myotorso`` (spine joints + trunk muscles) is the base; the
+    back-exosuit hardware fragment (``models/AuxivoLiftsuit/auxivo_liftsuit.xml``) is
+    attached at the original exo->trunk pose via a rigid map from the authoring torso
+    pose to this build's torso pose, then coupled with the two original body welds. No
+    anatomical assets are housed here -- the human comes from the myo_sim import; only
+    the three exosuit meshes live under ``models/AuxivoLiftsuit/mesh``. See CONVERSION.md.
     """
-    myosim = str(_files("myo_sim").joinpath("models")).replace("\\", "/")
+    human = myo_sim.build_spec("myotorso")
+    _strip_scene_decor(human)  # model-only env; also lets it export cleanly
+
+    probe = human.compile()  # read this build's torso world pose to place the suit
+    pd = mujoco.MjData(probe)
+    mujoco.mj_forward(probe, pd)
+    tid = mujoco.mj_name2id(probe, mujoco.mjtObj.mjOBJ_BODY, "torso")
+    p1 = np.asarray(pd.xpos[tid])
+    q1 = np.asarray(pd.xquat[tid])
+
+    # rigid map taking the authoring torso pose (p0, q0) to this build's torso pose:
+    p0 = np.asarray(_AUXIVO_AUTHOR_TORSO_POS)
+    q0i = np.zeros(4)
+    mujoco.mju_negQuat(q0i, np.asarray(_AUXIVO_AUTHOR_TORSO_QUAT))
+    map_quat = np.zeros(4)
+    mujoco.mju_mulQuat(map_quat, q1, q0i)  # R = q1 * conj(q0)
+    rp0 = np.zeros(3)
+    mujoco.mju_rotVecQuat(rp0, p0, map_quat)
+    map_pos = p1 - rp0  # t = p1 - R * p0
+
     with open(_AUXIVO_XML) as f:
-        xml = f.read().replace("__MYOSIM__", myosim).replace("__EXO__", _AUXIVO_MESH.replace("\\", "/"))
-    model = mujoco.MjModel.from_xml_string(xml)
+        exo = mujoco.MjSpec.from_string(f.read().replace("__EXO__", _AUXIVO_MESH.replace("\\", "/")))
+    frame = human.worldbody.add_frame()
+    frame.pos = map_pos.tolist()
+    frame.quat = map_quat.tolist()
+    human.attach(exo, prefix="", suffix="", frame=frame)
+
+    for body1, body2, anchor in _AUXIVO_WELDS:
+        eq = human.add_equality()
+        eq.type = mujoco.mjtEq.mjEQ_WELD
+        eq.objtype = mujoco.mjtObj.mjOBJ_BODY
+        eq.name1 = body1
+        eq.name2 = body2
+        eq.data[:3] = anchor  # relpose is left to auto-solve from the placed rest pose
+    return human
+
+
+def build_auxivo_liftsuit():
+    """Compile the Auxivo Liftsuit env. Returns ``(MjModel, MjData)``."""
+    model = build_auxivo_liftsuit_spec().compile()
     return model, mujoco.MjData(model)
+
+
+def export_upper_body_xml(spec: "mujoco.MjSpec", output_path: str) -> None:
+    """Serialize a composed upper-body ``MjSpec`` to a clean, standalone XML.
+
+    A composed model (myo_sim human + attached device) must NOT be serialized with a
+    raw ``spec.to_xml()``: the attached fragments' unnamed ``main`` defaults collapse
+    into anonymous ``<default>`` blocks and the myo_sim asset dirs are stripped, so the
+    output fails to reload ("empty class name" / "Error opening file"). Route it through
+    ``utils.export_combined_xml`` (the same path the lower-limb devices use), which
+    hoists/names those defaults and rewrites mesh paths absolute to the output. Use with
+    the ``build_*_spec`` builders, e.g.::
+
+        export_upper_body_xml(build_auxivo_liftsuit_spec(), "auxivo_liftsuit.xml")
+
+    Writes a model-only XML (no scene/lighting); a downstream scene or terrain supplies
+    those. The reloaded model reproduces the live build to float round-trip precision.
+    """
+    from .utils import export_combined_xml
+
+    spec.compile()  # ensure meshdir/asset state is resolved before serializing
+    models = _files("assist_sim").joinpath("models")
+    # Candidate (modelfiledir, meshdir) pairs, tried in order until each mesh resolves:
+    # this build's own dirs, the myo_sim anatomical meshes, then each device mesh dir.
+    mesh_dirs = [
+        (Path(spec.modelfiledir or "."), getattr(spec, "meshdir", "") or ""),
+        (Path(str(_files("myo_sim").joinpath("models"))), ""),
+    ]
+    for name in ("Wheelchair", "AuxivoLiftsuit", "MPL"):
+        for sub in ("mesh", "meshes"):
+            mesh_dirs.append((Path(str(models.joinpath(name))), sub))
+    export_combined_xml(spec, output_path, mesh_dirs=mesh_dirs)
