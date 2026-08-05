@@ -72,23 +72,28 @@ compatibility matrix.
 ## Upper-body / collaboration environments
 
 Separate from the registry devices above are the **collaboration
-environments**: single *composed models* (a `myo_sim` human + collaborator
-hardware) built by dedicated functions in `assist_sim/upper_body.py`, not by
-`load_combined`. They are **not modular** — each is one fixed environment, not
-an MSK × device pairing — and are **not registry devices**, so they are absent
-from `list` / `get_available_combinations` and the compatibility matrix.
+environments**: upper-body models built by dedicated functions in
+`assist_sim/upper_body.py`, not by `load_combined`. Three are *composed models*
+(a `myo_sim` human + collaborator hardware); MPL is a self-contained collaborator
+*robot* with no human, loaded directly. They are **not modular** — each is one
+fixed environment, not an MSK × device pairing — and are **not registry
+devices**, so they are absent from `list` / `get_available_combinations` and the
+compatibility matrix.
 
 | Environment | Description | Builder call | Conversion doc |
 |---|---|---|---|
-| `Wheelchair`     | Seated human propelling a manual wheelchair | `build_wheelchair(arms=..., torso=...)` | [`models/Wheelchair/CONVERSION.md`](../assist_sim/models/Wheelchair/CONVERSION.md) — **available** |
-| `MPL`            | Modular Prosthetic Limb — a robotic prosthetic arm/hand | `build_mpl(...)` | `models/MPL/CONVERSION.md` — *forthcoming* |
-| `AuxivoLiftsuit` | Passive torso back-exosuit | `build_auxivo_liftsuit(...)` | `models/AuxivoLiftsuit/CONVERSION.md` — *forthcoming* |
+| `Wheelchair`      | Seated human propelling a manual wheelchair | `build_wheelchair(arms=..., torso=...)` | [`models/Wheelchair/CONVERSION.md`](../assist_sim/models/Wheelchair/CONVERSION.md) — **available** |
+| `MPL`             | Standalone bimanual Modular Prosthetic Limb robot | `build_mpl()` | [`models/MPL/CONVERSION.md`](../assist_sim/models/MPL/CONVERSION.md) — **available** |
+| `AuxivoLiftsuit`  | Passive back-exosuit on the muscled `myotorso` | `build_auxivo_liftsuit()` | [`models/AuxivoLiftsuit/CONVERSION.md`](../assist_sim/models/AuxivoLiftsuit/CONVERSION.md) — **available** |
+| `bionic-bimanual` | MyoChallenge biological-arm + MPL-prosthesis manipulation task | `build_bionic_bimanual()` | [`models/MPL/CONVERSION.md`](../assist_sim/models/MPL/CONVERSION.md) (bionic section) — **available** |
 
-Only the Wheelchair is fully ported today; MPL and AuxivoLiftsuit are being
-added in parallel. See
-[collaboration-environments.md](collaboration-environments.md) for the build
-API, the mesh-sourcing policy, the keyframe / `CONVERSION.md` convention, and
-the Wheelchair worked example.
+All four are ported and available today. The three composed environments
+(`Wheelchair`, `AuxivoLiftsuit`, `bionic-bimanual`) also expose a
+`build_*_spec()` companion returning the uncompiled `MjSpec`, which
+`export_upper_body_xml(spec, path)` serializes to a standalone, reloadable XML.
+See [collaboration-environments.md](collaboration-environments.md) for the build
+API, the mesh-sourcing policy, the keyframe / `CONVERSION.md` convention, the
+export helper, and per-environment detail.
 
 ## Compatibility matrix
 
