@@ -16,7 +16,12 @@ from pathlib import Path
 import mujoco as mj
 import pytest
 
-from assist_sim.upper_body import (
+# ``assist_sim.upper_body`` imports ``myo_sim`` at module load; skip the whole module
+# cleanly (rather than erroring at collection) when myo_sim isn't installed -- matching
+# how the other myo_sim-dependent tests skip in CI.
+pytest.importorskip("myo_sim")
+
+from assist_sim.upper_body import (  # noqa: E402
     build_auxivo_liftsuit,
     build_auxivo_liftsuit_spec,
     build_bionic_bimanual,
@@ -26,7 +31,7 @@ from assist_sim.upper_body import (
     export_upper_body_xml,
 )
 
-from .conftest import needs_myo_sim
+from .conftest import needs_myo_sim  # noqa: E402
 
 # (filename stem, spec builder, compiled builder) -- one per composed upper-body env.
 CASES = [
