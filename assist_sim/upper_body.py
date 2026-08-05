@@ -27,6 +27,8 @@ from myo_sim.build.compose import (
 
 _WHEELCHAIR_XML = str(_files("assist_sim").joinpath("models", "Wheelchair", "wheelchair.xml"))
 _MPL_XML = str(_files("assist_sim").joinpath("models", "MPL", "scenes", "sally.xml"))
+_AUXIVO_XML = str(_files("assist_sim").joinpath("models", "AuxivoLiftsuit", "auxivo_liftsuit.xml"))
+_AUXIVO_MESH = str(_files("assist_sim").joinpath("models", "AuxivoLiftsuit", "mesh"))
 
 # Chair placement in the world seat frame (tuned so the pushing hand matches the original).
 _CHAIR_SEAT_OFFSET = (0.213, 0.357, 0.48)
@@ -318,4 +320,18 @@ def build_mpl():
     See ``models/MPL/CONVERSION.md``.
     """
     model = mujoco.MjModel.from_xml_path(_MPL_XML)
+    return model, mujoco.MjData(model)
+
+
+def build_auxivo_liftsuit():
+    """Load the Auxivo Liftsuit env: a myo_sim torso wearing the passive back-exosuit.
+
+    The torso/scene/head are pulled from the installed **myo_sim** package at load
+    (so no anatomical assets are housed here); only the three exosuit meshes live under
+    ``models/AuxivoLiftsuit/mesh``. Returns ``(MjModel, MjData)``. See the CONVERSION.md.
+    """
+    myosim = str(_files("myo_sim").joinpath("models")).replace("\\", "/")
+    with open(_AUXIVO_XML) as f:
+        xml = f.read().replace("__MYOSIM__", myosim).replace("__EXO__", _AUXIVO_MESH.replace("\\", "/"))
+    model = mujoco.MjModel.from_xml_string(xml)
     return model, mujoco.MjData(model)
