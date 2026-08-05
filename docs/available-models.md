@@ -64,6 +64,32 @@ Ten device directories under `models/`, contributing eleven device keys:
 `OSL_A` and `OSL_KA` are registered as aliases for the OSL keys (via the
 device YAML's `device.name`).
 
+`models/` also contains directories that are **not** registry devices —
+the upper-body collaboration environments below. They have no `*config.yaml`,
+so they are not autodiscovered as device keys and do not appear in the
+compatibility matrix.
+
+## Upper-body / collaboration environments
+
+Separate from the registry devices above are the **collaboration
+environments**: single *composed models* (a `myo_sim` human + collaborator
+hardware) built by dedicated functions in `assist_sim/upper_body.py`, not by
+`load_combined`. They are **not modular** — each is one fixed environment, not
+an MSK × device pairing — and are **not registry devices**, so they are absent
+from `list` / `get_available_combinations` and the compatibility matrix.
+
+| Environment | Description | Builder call | Conversion doc |
+|---|---|---|---|
+| `Wheelchair`     | Seated human propelling a manual wheelchair | `build_wheelchair(arms=..., torso=...)` | [`models/Wheelchair/CONVERSION.md`](../assist_sim/models/Wheelchair/CONVERSION.md) — **available** |
+| `MPL`            | Modular Prosthetic Limb — a robotic prosthetic arm/hand | `build_mpl(...)` | `models/MPL/CONVERSION.md` — *forthcoming* |
+| `AuxivoLiftsuit` | Passive torso back-exosuit | `build_auxivo_liftsuit(...)` | `models/AuxivoLiftsuit/CONVERSION.md` — *forthcoming* |
+
+Only the Wheelchair is fully ported today; MPL and AuxivoLiftsuit are being
+added in parallel. See
+[collaboration-environments.md](collaboration-environments.md) for the build
+API, the mesh-sourcing policy, the keyframe / `CONVERSION.md` convention, and
+the Wheelchair worked example.
+
 ## Compatibility matrix
 
 ✓ = tested (frozen smoke signatures). Every device works with every MSK model:
