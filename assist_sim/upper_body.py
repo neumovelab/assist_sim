@@ -14,6 +14,8 @@ which emits anonymous ``<default>`` blocks and dangling asset paths that fail to
 
 from __future__ import annotations
 
+import json
+import re
 from importlib.resources import files as _files
 from pathlib import Path
 
@@ -36,6 +38,24 @@ _WHEELCHAIR_XML = str(_files("assist_sim").joinpath("models", "Wheelchair", "whe
 _MPL_XML = str(_files("assist_sim").joinpath("models", "MPL", "scenes", "sally.xml"))
 _AUXIVO_XML = str(_files("assist_sim").joinpath("models", "AuxivoLiftsuit", "auxivo_liftsuit.xml"))
 _AUXIVO_MESH = str(_files("assist_sim").joinpath("models", "AuxivoLiftsuit", "mesh"))
+
+_BIONIC_SCENE_XML = str(_files("assist_sim").joinpath("models", "MPL", "scenes", "bionic_bimanual.xml"))
+_BIONIC_KEYFRAMES_JSON = str(_files("assist_sim").joinpath("models", "MPL", "scenes", "bionic_bimanual_keyframes.json"))
+_MPL_MESH_DIR = str(_files("assist_sim").joinpath("models", "MPL", "meshes"))
+_YCB_DIR = str(_files("assist_sim").joinpath("models", "YCB"))
+_MYOSIM_MODELS = str(_files("myo_sim").joinpath("models"))
+
+# The original MyoChallenge env fixes the biological right arm via `full_body` at
+# (-0.025, 0.1, 1.40); the current myo_sim right arm is registered to the same world
+# frame by aligning this build's `humerus_r` to the original's rest-pose humerus world
+# pose, so the arm meets the fixed-world prosthesis / object / pillars exactly.
+_BIONIC_HUMERUS_POS = (-0.16319397046550244, 0.09828382285253014, 1.392981079773622)
+_BIONIC_HUMERUS_QUAT = (0.5003981633553667, 0.49999984146591736, -0.49999984146591736, -0.49960183664463337)
+
+# Base pedestal (matches the original myosuite scene pedestal: radius 1.05, half-height
+# 0.205). The feet + start/goal pillars rest on the top cap surface, which sits this far
+# above the pedestal body center (half-height + the two 6 mm cap disks).
+_PED_TOP_FROM_CENTER = 0.205 + 2 * 0.006
 
 # The exosuit hardware was authored against the original env's `torso` world pose; the
 # suit is placed by the rigid map taking this pose to the current build's `torso` pose.
@@ -343,6 +363,189 @@ def build_mpl():
     See ``models/MPL/CONVERSION.md``.
     """
     model = mujoco.MjModel.from_xml_path(_MPL_XML)
+    return model, mujoco.MjData(model)
+
+
+def _q_mul(a, b):
+    r = np.zeros(4)
+    mujoco.mju_mulQuat(r, np.asarray(a, float), np.asarray(b, float))
+    return r
+
+
+def _q_conj(q):
+    r = np.zeros(4)
+    mujoco.mju_negQuat(r, np.asarray(q, float))
+    return r
+
+
+def _q_rot(q, v):
+    r = np.zeros(3)
+    mujoco.mju_rotVecQuat(r, np.asarray(v, float), np.asarray(q, float))
+    return r
+
+
+def _inline_includes(path: str, base_dir: str) -> str:
+    """Textually resolve ``<include>`` (MuJoCo semantics: every include is relative to
+    the MAIN model file, i.e. ``base_dir``) and strip the ``<mujocoinclude>`` wrappers,
+    so a scene of nested include fragments becomes one string loadable via
+    ``MjSpec.from_string`` after token replacement."""
+    text = Path(path).read_text(encoding="utf-8", errors="replace")
+    text = re.sub(r"<\?xml[^>]*\?>", "", text)
+    text = re.sub(r"</?mujocoinclude[^>]*>", "", text)
+    return re.sub(
+        r'<include\s+file="([^"]+)"\s*/>',
+        lambda m: _inline_includes(str(Path(base_dir) / m.group(1)), base_dir),
+        text,
+    )
+
+
+def _bionic_scene_spec() -> "mujoco.MjSpec":
+    """Load the static bionic-bimanual scene (MPL left prosthesis + YCB ``manip_object``
+    + start/goal mocap pillars + touch sensor) as an ``MjSpec``, inlining its includes
+    and replacing the ``__MPLMESH__`` / ``__YCB__`` / ``__MYOSIM__`` dir tokens with
+    absolute, forward-slashed paths."""
+    text = _inline_includes(_BIONIC_SCENE_XML, str(Path(_BIONIC_SCENE_XML).parent))
+    text = (
+        text.replace("__MPLMESH__", _MPL_MESH_DIR.replace("\\", "/"))
+        .replace("__YCB__", _YCB_DIR.replace("\\", "/"))
+        .replace("__MYOSIM__", _MYOSIM_MODELS.replace("\\", "/"))
+    )
+    return mujoco.MjSpec.from_string(text)
+
+
+def _align_bionic_arm(human: "mujoco.MjSpec") -> None:
+    """Reposition the fixed human root so ``humerus_r`` coincides with the original
+    MyoChallenge arm world pose. The whole arm (a faithful ``_r``-renamed copy of the
+    original) then registers to the fixed-world prosthesis/object/pillars exactly."""
+    probe = human.compile()
+    pd = mujoco.MjData(probe)
+    mujoco.mj_forward(probe, pd)
+    hid = mujoco.mj_name2id(probe, mujoco.mjtObj.mjOBJ_BODY, "humerus_r")
+    rid = mujoco.mj_name2id(probe, mujoco.mjtObj.mjOBJ_BODY, "Full Body")
+    hp, hq = np.array(pd.xpos[hid]), np.array(pd.xquat[hid])
+    rp, rq = np.array(pd.xpos[rid]), np.array(pd.xquat[rid])
+    # rigid map M taking the current humerus pose to the original's, applied to the root:
+    mq = _q_mul(_BIONIC_HUMERUS_QUAT, _q_conj(hq))  # R = q_target * conj(q_humerus)
+    mp = np.asarray(_BIONIC_HUMERUS_POS) - _q_rot(mq, hp)  # t = p_target - R * p_humerus
+    fb = human.body("Full Body")
+    fb.alt.type = mujoco.mjtOrientation.mjORIENTATION_QUAT
+    fb.pos = (mp + _q_rot(mq, rp)).tolist()
+    fb.quat = _q_mul(mq, rq).tolist()
+
+
+def _freeze_legs_standing(human: "mujoco.MjSpec") -> None:
+    """Attach both myo_sim legs muscle-less and freeze them rigid in the standing (qpos0)
+    pose. Leg actuators/tendons/sensors and every leg joint (+ its knee couplings) are
+    deleted, so the figure gains anatomical legs to stand on the base but NO leg DOF or
+    actuators -- as in the original, whose lower body was a decorative shell. Keeps the
+    exact nu / nq / nsensor match; adds only rigid leg bodies for grounding."""
+    legs = load_legs_spec()
+    for sensor in list(legs.sensors):  # the legs ship proprioceptive sensors; env has only touch
+        legs.delete(sensor)
+    for actuator in list(legs.actuators):
+        legs.delete(actuator)
+    for tendon in list(legs.tendons):
+        legs.delete(tendon)
+    frame = human.body("Full Body").add_frame()
+    frame.name = "legs_attach"
+    human.attach(legs, prefix="", suffix="", frame=frame)
+    # standing pose == qpos0 (authored frames); delete leg DOF -> rigid standing legs
+    for joint in list(human.joints):
+        if _is_leg_joint(joint.name):
+            human.delete(joint)
+    for eq in list(human.equalities):
+        if eq.type == mujoco.mjtEq.mjEQ_JOINT and _is_leg_joint(eq.name1 or ""):
+            human.delete(eq)
+
+
+def _lowest_geom_z(spec: "mujoco.MjSpec") -> float:
+    """World-z of the lowest point of any geom in a throwaway compile of ``spec``."""
+    m = spec.compile()
+    d = mujoco.MjData(m)
+    mujoco.mj_forward(m, d)
+    signs = np.array([[sx, sy, sz] for sx in (-1, 1) for sy in (-1, 1) for sz in (-1, 1)])
+    zmin = np.inf
+    for g in range(m.ngeom):
+        aabb = np.array(m.geom_aabb[g]).reshape(2, 3)
+        corners = aabb[0] + signs * aabb[1]
+        world = corners @ np.array(d.geom_xmat[g]).reshape(3, 3).T + np.array(d.geom_xpos[g])
+        zmin = min(zmin, float(world[:, 2].min()))
+    return zmin
+
+
+def _ground_bionic(human: "mujoco.MjSpec", feet_low: float) -> None:
+    """Seat the base pedestal so its top cap rests exactly under the feet, and trim the
+    start/goal pillars to run from the pedestal top up to their original top height (the
+    object rest height -- hence every keyframe -- is unchanged)."""
+    ped = human.body("pedestal")
+    ped.pos = [0.0, 0.0, feet_low - _PED_TOP_FROM_CENTER]
+    for name in ("start", "goal"):
+        body = human.body(name)
+        bz = float(body.pos[2])
+        for geom in body.geoms:  # each pillar body carries a single cylinder geom
+            top = bz + float(geom.pos[2]) + float(geom.size[1])  # current pillar top (world z)
+            geom.size = [float(geom.size[0]), (top - feet_low) / 2.0, float(geom.size[2])]
+            geom.pos = [float(geom.pos[0]), float(geom.pos[1]), (top + feet_low) / 2.0 - bz]
+
+
+def _add_bionic_keyframes(human: "mujoco.MjSpec") -> None:
+    """Add the 4 original keyframes by NAME: each ORIGINAL joint value is written onto
+    this build's qpos layout (human arm joints gain a ``_r`` suffix; ``prosthesis/*`` and
+    ``manip_object/freejoint`` match by exact name). See ``bionic_bimanual_keyframes.json``."""
+    model = human.compile()
+    jnames = [mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_JOINT, i) for i in range(model.njnt)]
+    adr = {jnames[i]: int(model.jnt_qposadr[i]) for i in range(model.njnt)}
+    keyframes = json.loads(Path(_BIONIC_KEYFRAMES_JSON).read_text(encoding="utf-8"))["keyframes"]
+    for kf in keyframes:
+        qmap = kf["qpos_by_joint"]
+        q = model.qpos0.copy()
+        for jname in jnames:
+            vals = qmap.get(jname)
+            if vals is None and jname.endswith("_r"):
+                vals = qmap.get(jname[:-2])  # original side-neutral name for this arm joint
+            if vals is None:
+                continue
+            q[adr[jname] : adr[jname] + len(vals)] = vals
+        key = human.add_key()
+        key.name = kf["name"]
+        key.qpos = q.tolist()
+
+
+def build_bionic_bimanual_spec() -> "mujoco.MjSpec":
+    """Compose the MyoChallenge "bionic bimanual" env; return the uncompiled ``MjSpec``.
+
+    A biological RIGHT arm (myo_sim, on a passive anatomical torso with rigid standing
+    legs) faces an MPL LEFT prosthetic arm across a YCB gelatin box (``manip_object``,
+    freejoint) between two ``start``/``goal`` mocap pillars, standing on a myosuite-sized
+    base pedestal, with a touch sensor on the object. The static half (prosthesis, object,
+    pillars, pedestal, sensor) is ``models/MPL/scenes/bionic_bimanual.xml``; the human is
+    composed here because the current myo_sim ``myoarm_r`` cannot self-assemble
+    (chest/thorax muscle origins moved to ``myotorso`` in 2026-06), so the original's
+    decorative body shell is replaced by a passive-torso + rigid-legs backdrop. The arm is
+    aligned to the original world pose and the 4 original keyframes are transcribed by
+    joint name, so object / prosthesis / hand poses reproduce the original to float
+    precision. See ``models/MPL/CONVERSION.md``.
+    """
+    human = _build_human("right", "passive")
+    _freeze_legs_standing(human)
+    _align_bionic_arm(human)
+    feet_low = _lowest_geom_z(human)  # human-only (no scene yet) -> the feet
+    frame = human.worldbody.add_frame()
+    frame.pos = [0.0, 0.0, 0.0]
+    frame.quat = [1.0, 0.0, 0.0, 0.0]
+    human.attach(_bionic_scene_spec(), prefix="", suffix="", frame=frame)
+    _ground_bionic(human, feet_low)
+    # The original enables multiccd (multi-point convex contacts) so the box rests stably
+    # on a pillar; MjSpec.attach drops the scene's <flag>, so re-assert it on the composite.
+    human.option.enableflags |= int(mujoco.mjtEnableBit.mjENBL_MULTICCD)
+    human.option.timestep = 0.002
+    _add_bionic_keyframes(human)
+    return human
+
+
+def build_bionic_bimanual():
+    """Compile the bionic-bimanual env. Returns ``(MjModel, MjData)``."""
+    model = build_bionic_bimanual_spec().compile()
     return model, mujoco.MjData(model)
 
 

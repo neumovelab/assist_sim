@@ -1,0 +1,829 @@
+{
+ "_comment": "Name-based keyframes for the bionic-bimanual env, transcribed from the original MyoChallenge env (compile_check baseline). Keys are ORIGINAL joint names (side-neutral for the human arm); build_bionic_bimanual() maps each onto this build's joints (human arm joints gain a '_r' suffix; prosthesis/* and manip_object/freejoint match by exact name) and writes the values onto the composed model's qpos layout.",
+ "keyframes": [
+  {
+   "name": "kf0",
+   "qpos_by_joint": {
+    "sternoclavicular_r2": [
+     0.0
+    ],
+    "sternoclavicular_r3": [
+     0.0
+    ],
+    "unrotscap_r3": [
+     0.0
+    ],
+    "unrotscap_r2": [
+     0.0
+    ],
+    "acromioclavicular_r2": [
+     0.0
+    ],
+    "acromioclavicular_r3": [
+     0.0
+    ],
+    "acromioclavicular_r1": [
+     0.0
+    ],
+    "unrothum_r1": [
+     0.0
+    ],
+    "unrothum_r3": [
+     0.0
+    ],
+    "unrothum_r2": [
+     0.0
+    ],
+    "elv_angle": [
+     0.0
+    ],
+    "shoulder_elv": [
+     0.0
+    ],
+    "shoulder1_r2": [
+     0.0
+    ],
+    "shoulder_rot": [
+     0.0
+    ],
+    "elbow_flexion": [
+     0.0
+    ],
+    "pro_sup": [
+     0.0
+    ],
+    "deviation": [
+     0.0
+    ],
+    "flexion": [
+     0.0
+    ],
+    "cmc_abduction": [
+     0.0
+    ],
+    "cmc_flexion": [
+     0.0
+    ],
+    "mp_flexion": [
+     0.0
+    ],
+    "ip_flexion": [
+     0.0
+    ],
+    "mcp2_flexion": [
+     0.0
+    ],
+    "mcp2_abduction": [
+     0.0
+    ],
+    "pm2_flexion": [
+     0.0
+    ],
+    "md2_flexion": [
+     0.0
+    ],
+    "mcp3_flexion": [
+     0.0
+    ],
+    "mcp3_abduction": [
+     0.0
+    ],
+    "pm3_flexion": [
+     0.0
+    ],
+    "md3_flexion": [
+     0.0
+    ],
+    "mcp4_flexion": [
+     0.0
+    ],
+    "mcp4_abduction": [
+     0.0
+    ],
+    "pm4_flexion": [
+     0.0
+    ],
+    "md4_flexion": [
+     0.0
+    ],
+    "mcp5_flexion": [
+     0.0
+    ],
+    "mcp5_abduction": [
+     0.0
+    ],
+    "pm5_flexion": [
+     0.0
+    ],
+    "md5_flexion": [
+     0.0
+    ],
+    "prosthesis/Lshoulder_fe": [
+     0.494975
+    ],
+    "prosthesis/Lshoulder_abad": [
+     -0.23732
+    ],
+    "prosthesis/Lhumeral_rot": [
+     0.55978
+    ],
+    "prosthesis/Lelbow": [
+     1.26065
+    ],
+    "prosthesis/wrist_PRO": [
+     -0.2355
+    ],
+    "prosthesis/wrist_UDEV": [
+     0.20447
+    ],
+    "prosthesis/wrist_FLEX": [
+     -0.1456
+    ],
+    "prosthesis/thumb_ABD": [
+     0.5175
+    ],
+    "prosthesis/thumb_MCP": [
+     0.2987
+    ],
+    "prosthesis/thumb_PIP": [
+     0.5356
+    ],
+    "prosthesis/thumb_DIP": [
+     0.27248
+    ],
+    "prosthesis/index_ABD": [
+     0.13455
+    ],
+    "prosthesis/index_MCP": [
+     0.333625
+    ],
+    "prosthesis/index_PIP": [
+     0.4472
+    ],
+    "prosthesis/index_DIP": [
+     0.2415
+    ],
+    "prosthesis/middle_MCP": [
+     0.757525
+    ],
+    "prosthesis/middle_PIP": [
+     0.8304
+    ],
+    "prosthesis/middle_DIP": [
+     0.4209
+    ],
+    "prosthesis/ring_ABD": [
+     0.08625
+    ],
+    "prosthesis/ring_MCP": [
+     0.357175
+    ],
+    "prosthesis/ring_PIP": [
+     0.559
+    ],
+    "prosthesis/ring_DIP": [
+     0.759
+    ],
+    "prosthesis/pinky_ABD": [
+     0.14835
+    ],
+    "prosthesis/pinky_MCP": [
+     0.74575
+    ],
+    "prosthesis/pinky_PIP": [
+     0.0
+    ],
+    "prosthesis/pinky_DIP": [
+     0.7314
+    ],
+    "manip_object/freejoint": [
+     -0.412997,
+     -0.232224,
+     1.10552,
+     0.0007963267475100357,
+     1.110219647984549e-16,
+     2.775559119958202e-16,
+     0.9999996829318054
+    ]
+   }
+  },
+  {
+   "name": "kf1",
+   "qpos_by_joint": {
+    "sternoclavicular_r2": [
+     0.0
+    ],
+    "sternoclavicular_r3": [
+     0.0
+    ],
+    "unrotscap_r3": [
+     0.0
+    ],
+    "unrotscap_r2": [
+     0.0
+    ],
+    "acromioclavicular_r2": [
+     0.0
+    ],
+    "acromioclavicular_r3": [
+     0.0
+    ],
+    "acromioclavicular_r1": [
+     0.0
+    ],
+    "unrothum_r1": [
+     0.0
+    ],
+    "unrothum_r3": [
+     0.0
+    ],
+    "unrothum_r2": [
+     0.0
+    ],
+    "elv_angle": [
+     0.0
+    ],
+    "shoulder_elv": [
+     0.0
+    ],
+    "shoulder1_r2": [
+     0.0
+    ],
+    "shoulder_rot": [
+     0.0
+    ],
+    "elbow_flexion": [
+     0.0
+    ],
+    "pro_sup": [
+     0.0
+    ],
+    "deviation": [
+     0.0
+    ],
+    "flexion": [
+     0.0
+    ],
+    "cmc_abduction": [
+     0.0
+    ],
+    "cmc_flexion": [
+     0.0
+    ],
+    "mp_flexion": [
+     0.0
+    ],
+    "ip_flexion": [
+     0.0
+    ],
+    "mcp2_flexion": [
+     0.0
+    ],
+    "mcp2_abduction": [
+     0.0
+    ],
+    "pm2_flexion": [
+     0.0
+    ],
+    "md2_flexion": [
+     0.0
+    ],
+    "mcp3_flexion": [
+     0.0
+    ],
+    "mcp3_abduction": [
+     0.0
+    ],
+    "pm3_flexion": [
+     0.0
+    ],
+    "md3_flexion": [
+     0.0
+    ],
+    "mcp4_flexion": [
+     0.0
+    ],
+    "mcp4_abduction": [
+     0.0
+    ],
+    "pm4_flexion": [
+     0.0
+    ],
+    "md4_flexion": [
+     0.0
+    ],
+    "mcp5_flexion": [
+     0.0
+    ],
+    "mcp5_abduction": [
+     0.0
+    ],
+    "pm5_flexion": [
+     0.0
+    ],
+    "md5_flexion": [
+     0.0
+    ],
+    "prosthesis/Lshoulder_fe": [
+     0.494975
+    ],
+    "prosthesis/Lshoulder_abad": [
+     -1.07492
+    ],
+    "prosthesis/Lhumeral_rot": [
+     0.55978
+    ],
+    "prosthesis/Lelbow": [
+     1.26065
+    ],
+    "prosthesis/wrist_PRO": [
+     -0.2355
+    ],
+    "prosthesis/wrist_UDEV": [
+     -0.08841
+    ],
+    "prosthesis/wrist_FLEX": [
+     -0.208
+    ],
+    "prosthesis/thumb_ABD": [
+     0.5589
+    ],
+    "prosthesis/thumb_MCP": [
+     0.2987
+    ],
+    "prosthesis/thumb_PIP": [
+     0.5356
+    ],
+    "prosthesis/thumb_DIP": [
+     0.27248
+    ],
+    "prosthesis/index_ABD": [
+     0.276
+    ],
+    "prosthesis/index_MCP": [
+     0.4396
+    ],
+    "prosthesis/index_PIP": [
+     0.688
+    ],
+    "prosthesis/index_DIP": [
+     0.2415
+    ],
+    "prosthesis/middle_MCP": [
+     0.22765
+    ],
+    "prosthesis/middle_PIP": [
+     0.8304
+    ],
+    "prosthesis/middle_DIP": [
+     0.4209
+    ],
+    "prosthesis/ring_ABD": [
+     0.08625
+    ],
+    "prosthesis/ring_MCP": [
+     0.357175
+    ],
+    "prosthesis/ring_PIP": [
+     0.559
+    ],
+    "prosthesis/ring_DIP": [
+     0.0
+    ],
+    "prosthesis/pinky_ABD": [
+     0.239775
+    ],
+    "prosthesis/pinky_MCP": [
+     0.286525
+    ],
+    "prosthesis/pinky_PIP": [
+     0.0
+    ],
+    "prosthesis/pinky_DIP": [
+     0.0345
+    ],
+    "manip_object/freejoint": [
+     -0.412997,
+     -0.232224,
+     1.10552,
+     0.0007963267475100357,
+     1.110219647984549e-16,
+     2.775559119958202e-16,
+     0.9999996829318054
+    ]
+   }
+  },
+  {
+   "name": "kf2",
+   "qpos_by_joint": {
+    "sternoclavicular_r2": [
+     -0.27804
+    ],
+    "sternoclavicular_r3": [
+     0.11771
+    ],
+    "unrotscap_r3": [
+     -0.11772
+    ],
+    "unrotscap_r2": [
+     0.278047
+    ],
+    "acromioclavicular_r2": [
+     -0.0564319
+    ],
+    "acromioclavicular_r3": [
+     0.455158
+    ],
+    "acromioclavicular_r1": [
+     0.204836
+    ],
+    "unrothum_r1": [
+     -0.204794
+    ],
+    "unrothum_r3": [
+     -0.455214
+    ],
+    "unrothum_r2": [
+     0.0564719
+    ],
+    "elv_angle": [
+     0.255888
+    ],
+    "shoulder_elv": [
+     1.14817
+    ],
+    "shoulder1_r2": [
+     -0.255887
+    ],
+    "shoulder_rot": [
+     0.279129
+    ],
+    "elbow_flexion": [
+     0.844823
+    ],
+    "pro_sup": [
+     -0.0998497
+    ],
+    "deviation": [
+     0.248825
+    ],
+    "flexion": [
+     0.0328147
+    ],
+    "cmc_abduction": [
+     -0.31963
+    ],
+    "cmc_flexion": [
+     0.178287
+    ],
+    "mp_flexion": [
+     0.122586
+    ],
+    "ip_flexion": [
+     0.113854
+    ],
+    "mcp2_flexion": [
+     0.156447
+    ],
+    "mcp2_abduction": [
+     0.171211
+    ],
+    "pm2_flexion": [
+     0.0772555
+    ],
+    "md2_flexion": [
+     0.0316704
+    ],
+    "mcp3_flexion": [
+     0.14087
+    ],
+    "mcp3_abduction": [
+     0.164449
+    ],
+    "pm3_flexion": [
+     0.0772084
+    ],
+    "md3_flexion": [
+     0.0308998
+    ],
+    "mcp4_flexion": [
+     0.126385
+    ],
+    "mcp4_abduction": [
+     0.138577
+    ],
+    "pm4_flexion": [
+     0.0653656
+    ],
+    "md4_flexion": [
+     0.0228821
+    ],
+    "mcp5_flexion": [
+     0.117182
+    ],
+    "mcp5_abduction": [
+     0.0890675
+    ],
+    "pm5_flexion": [
+     0.0301141
+    ],
+    "md5_flexion": [
+     0.0205077
+    ],
+    "prosthesis/Lshoulder_fe": [
+     0.494975
+    ],
+    "prosthesis/Lshoulder_abad": [
+     -1.07492
+    ],
+    "prosthesis/Lhumeral_rot": [
+     0.55978
+    ],
+    "prosthesis/Lelbow": [
+     1.26065
+    ],
+    "prosthesis/wrist_PRO": [
+     -0.2355
+    ],
+    "prosthesis/wrist_UDEV": [
+     -0.08841
+    ],
+    "prosthesis/wrist_FLEX": [
+     -0.208
+    ],
+    "prosthesis/thumb_ABD": [
+     0.5589
+    ],
+    "prosthesis/thumb_MCP": [
+     0.2987
+    ],
+    "prosthesis/thumb_PIP": [
+     0.5356
+    ],
+    "prosthesis/thumb_DIP": [
+     0.27248
+    ],
+    "prosthesis/index_ABD": [
+     0.276
+    ],
+    "prosthesis/index_MCP": [
+     0.4396
+    ],
+    "prosthesis/index_PIP": [
+     0.688
+    ],
+    "prosthesis/index_DIP": [
+     0.2415
+    ],
+    "prosthesis/middle_MCP": [
+     0.22765
+    ],
+    "prosthesis/middle_PIP": [
+     0.8304
+    ],
+    "prosthesis/middle_DIP": [
+     0.4209
+    ],
+    "prosthesis/ring_ABD": [
+     0.08625
+    ],
+    "prosthesis/ring_MCP": [
+     0.357175
+    ],
+    "prosthesis/ring_PIP": [
+     0.559
+    ],
+    "prosthesis/ring_DIP": [
+     0.0
+    ],
+    "prosthesis/pinky_ABD": [
+     0.239775
+    ],
+    "prosthesis/pinky_MCP": [
+     0.286525
+    ],
+    "prosthesis/pinky_PIP": [
+     0.0
+    ],
+    "prosthesis/pinky_DIP": [
+     0.0345
+    ],
+    "manip_object/freejoint": [
+     -0.400023,
+     -0.200065,
+     1.154,
+     0.0004776907416276068,
+     -0.00048442673798425486,
+     -0.7071066175416162,
+     0.7071066175416162
+    ]
+   }
+  },
+  {
+   "name": "kf3",
+   "qpos_by_joint": {
+    "sternoclavicular_r2": [
+     -0.27804
+    ],
+    "sternoclavicular_r3": [
+     0.11771
+    ],
+    "unrotscap_r3": [
+     -0.11772
+    ],
+    "unrotscap_r2": [
+     0.278047
+    ],
+    "acromioclavicular_r2": [
+     -0.0564319
+    ],
+    "acromioclavicular_r3": [
+     0.455158
+    ],
+    "acromioclavicular_r1": [
+     0.204836
+    ],
+    "unrothum_r1": [
+     -0.204794
+    ],
+    "unrothum_r3": [
+     -0.455214
+    ],
+    "unrothum_r2": [
+     0.0564719
+    ],
+    "elv_angle": [
+     0.255888
+    ],
+    "shoulder_elv": [
+     1.14817
+    ],
+    "shoulder1_r2": [
+     -0.255887
+    ],
+    "shoulder_rot": [
+     0.279129
+    ],
+    "elbow_flexion": [
+     0.844823
+    ],
+    "pro_sup": [
+     -0.0998497
+    ],
+    "deviation": [
+     0.248825
+    ],
+    "flexion": [
+     0.0328147
+    ],
+    "cmc_abduction": [
+     -0.31963
+    ],
+    "cmc_flexion": [
+     0.178287
+    ],
+    "mp_flexion": [
+     0.122586
+    ],
+    "ip_flexion": [
+     0.113854
+    ],
+    "mcp2_flexion": [
+     0.156447
+    ],
+    "mcp2_abduction": [
+     0.171211
+    ],
+    "pm2_flexion": [
+     0.0772555
+    ],
+    "md2_flexion": [
+     0.0316704
+    ],
+    "mcp3_flexion": [
+     0.14087
+    ],
+    "mcp3_abduction": [
+     0.164449
+    ],
+    "pm3_flexion": [
+     0.0772084
+    ],
+    "md3_flexion": [
+     0.0308998
+    ],
+    "mcp4_flexion": [
+     0.126385
+    ],
+    "mcp4_abduction": [
+     0.138577
+    ],
+    "pm4_flexion": [
+     0.0653656
+    ],
+    "md4_flexion": [
+     0.0228821
+    ],
+    "mcp5_flexion": [
+     0.117182
+    ],
+    "mcp5_abduction": [
+     0.0890675
+    ],
+    "pm5_flexion": [
+     0.0301141
+    ],
+    "md5_flexion": [
+     0.0205077
+    ],
+    "prosthesis/Lshoulder_fe": [
+     0.494975
+    ],
+    "prosthesis/Lshoulder_abad": [
+     0.0
+    ],
+    "prosthesis/Lhumeral_rot": [
+     0.23866
+    ],
+    "prosthesis/Lelbow": [
+     1.65267
+    ],
+    "prosthesis/wrist_PRO": [
+     1.57
+    ],
+    "prosthesis/wrist_UDEV": [
+     0.11556
+    ],
+    "prosthesis/wrist_FLEX": [
+     -0.4368
+    ],
+    "prosthesis/thumb_ABD": [
+     0.5589
+    ],
+    "prosthesis/thumb_MCP": [
+     0.25235
+    ],
+    "prosthesis/thumb_PIP": [
+     0.5356
+    ],
+    "prosthesis/thumb_DIP": [
+     0.27248
+    ],
+    "prosthesis/index_ABD": [
+     0.276
+    ],
+    "prosthesis/index_MCP": [
+     0.4396
+    ],
+    "prosthesis/index_PIP": [
+     0.688
+    ],
+    "prosthesis/index_DIP": [
+     0.2415
+    ],
+    "prosthesis/middle_MCP": [
+     0.22765
+    ],
+    "prosthesis/middle_PIP": [
+     0.8304
+    ],
+    "prosthesis/middle_DIP": [
+     0.4209
+    ],
+    "prosthesis/ring_ABD": [
+     0.08625
+    ],
+    "prosthesis/ring_MCP": [
+     0.357175
+    ],
+    "prosthesis/ring_PIP": [
+     0.559
+    ],
+    "prosthesis/ring_DIP": [
+     0.0
+    ],
+    "prosthesis/pinky_ABD": [
+     0.239775
+    ],
+    "prosthesis/pinky_MCP": [
+     0.286525
+    ],
+    "prosthesis/pinky_PIP": [
+     0.0
+    ],
+    "prosthesis/pinky_DIP": [
+     0.0345
+    ],
+    "manip_object/freejoint": [
+     -0.400023,
+     -0.200065,
+     1.184,
+     0.0004776907416276068,
+     -0.00048442673798425486,
+     -0.7071066175416162,
+     0.7071066175416162
+    ]
+   }
+  }
+ ]
+}

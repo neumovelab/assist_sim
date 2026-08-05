@@ -67,6 +67,7 @@ def export_combined_xml(
     if terrain_paths:
         _strip_terrain(root, terrain_paths)
     _strip_orphan_scene_assets(root)
+    _reassert_named_geom_contacts(root, spec)
     _strip_scene_visual(root)
     _ensure_minimal_visual(root)
 
@@ -414,6 +415,38 @@ def _name_nested_defaults(root: ET.Element) -> None:
         _name(top, is_top=True)
 
 
+def _reassert_named_geom_contacts(root: ET.Element, spec: mj.MjSpec) -> None:
+    """Re-assert contact attributes on named geoms from the compiled model.
+
+    ``spec.to_xml`` omits ``contype``/``conaffinity`` when they equal MuJoCo's global
+    geom default (1/1). In a composed model whose root ``main`` default overrides those
+    to 0 (the myo_sim / MPL convention), such geoms then reload with **no** collision --
+    e.g. the bionic-bimanual gelatin box + start/goal pillars fall through instead of
+    resting. Writing the compiled ``contype``/``conaffinity``/``condim`` back explicitly
+    on every *named* geom makes the standalone export reproduce the live contact model.
+    Named geoms are matched unambiguously; unnamed geoms with non-default contact attrs
+    (0, or the MPL's 2) already serialize correctly and are left untouched.
+    """
+    try:
+        model = spec.compile()
+    except Exception:
+        return
+    live: dict[str, tuple[int, int, int]] = {}
+    for g in range(model.ngeom):
+        name = mj.mj_id2name(model, mj.mjtObj.mjOBJ_GEOM, g)
+        if name:
+            live[name] = (int(model.geom_contype[g]), int(model.geom_conaffinity[g]), int(model.geom_condim[g]))
+    default_geom_ids = {id(g) for d in root.iter("default") for g in d.iter("geom")}
+    for geom in root.iter("geom"):
+        if id(geom) in default_geom_ids:
+            continue
+        vals = live.get(geom.get("name"))
+        if vals is not None:
+            geom.set("contype", str(vals[0]))
+            geom.set("conaffinity", str(vals[1]))
+            geom.set("condim", str(vals[2]))
+
+
 def _strip_orphan_scene_assets(root: ET.Element) -> None:
     """Drop scene textures/materials orphaned by the model-only scene strip.
 
@@ -431,10 +464,15 @@ def _strip_orphan_scene_assets(root: ET.Element) -> None:
         return
 
     referenced_materials: set[str] = {g.get("material") for g in root.iter("geom") if g.get("material")}
+    # Sites can carry materials too (e.g. the MPL prosthesis palm/finger touch sites
+    # bind prosthesis/MatTouch via the "MPL"/"IMU" geom-less default classes); count
+    # those so a site-only material is not mistaken for scene residue.
+    referenced_materials |= {s.get("material") for s in root.iter("site") if s.get("material")}
     for default in root.iter("default"):
-        for geom in default.findall("geom"):
-            if geom.get("material"):
-                referenced_materials.add(geom.get("material"))
+        for tag in ("geom", "site"):
+            for elem in default.findall(tag):
+                if elem.get("material"):
+                    referenced_materials.add(elem.get("material"))
 
     referenced_textures: set[str] = {
         m.get("texture") for m in asset.findall("material") if m.get("name") in referenced_materials and m.get("texture")
