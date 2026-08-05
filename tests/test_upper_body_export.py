@@ -33,17 +33,14 @@ CASES = [
     ("wheelchair_both", lambda: build_wheelchair_spec("both"), lambda: build_wheelchair("both")),
     ("wheelchair_right", lambda: build_wheelchair_spec("right"), lambda: build_wheelchair("right")),
     ("wheelchair_left", lambda: build_wheelchair_spec("left"), lambda: build_wheelchair("left")),
-    ("wheelchair_muscled", lambda: build_wheelchair_spec("both", "muscled"),
-     lambda: build_wheelchair("both", "muscled")),
+    ("wheelchair_muscled", lambda: build_wheelchair_spec("both", "muscled"), lambda: build_wheelchair("both", "muscled")),
     ("auxivo_liftsuit", build_auxivo_liftsuit_spec, build_auxivo_liftsuit),
     ("bionic_bimanual", build_bionic_bimanual_spec, build_bionic_bimanual),
 ]
 
 # Faithfulness baseline: the fully-inlined standalone of the original MyoChallenge
 # "bionic bimanual" env. Lives outside the package; override via env var, skip if absent.
-_BIONIC_BASELINE = Path(
-    os.environ.get("BIONIC_BASELINE_XML", r"C:\Users\calde\Work\compile_check\bionic_bimanual.xml")
-)
+_BIONIC_BASELINE = Path(os.environ.get("BIONIC_BASELINE_XML", r"C:\Users\calde\Work\compile_check\bionic_bimanual.xml"))
 
 
 def _nameset(model: "mj.MjModel", obj: "mj.mjtObj", n: int) -> set[str]:
@@ -128,8 +125,12 @@ def test_bionic_bimanual_matches_baseline():
 
     # Behavior: object / prosthesis palm / distal hand poses match the baseline per keyframe.
     bd = mj.MjData(bm)
-    pairs = [("manip_object", "manip_object"), ("prosthesis/palm", "prosthesis/palm"),
-             ("distph2", "distph2_r"), ("distph5", "distph5_r")]
+    pairs = [
+        ("manip_object", "manip_object"),
+        ("prosthesis/palm", "prosthesis/palm"),
+        ("distph2", "distph2_r"),
+        ("distph5", "distph5_r"),
+    ]
     for k in range(m.nkey):
         mj.mj_resetDataKeyframe(bm, bd, k)
         mj.mj_forward(bm, bd)
