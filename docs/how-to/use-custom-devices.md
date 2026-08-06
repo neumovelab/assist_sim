@@ -1,8 +1,8 @@
 # How To: Use Custom Devices
 
-`assist_sim` ships with eleven bundled devices (Anatomics, Dephy, HMEDI,
-Hippo, Humotech, KFoot, OpenExo, UTAnkleExo, Tutorial, and the two OSL
-variants). If you're authoring your
+`assist_sim` ships with thirteen bundled devices (Anatomics, Dephy, HMEDI,
+Hippo, Humotech, KFoot, NEUankle, OpenExo, STRIDE, UTAnkleExo, Tutorial, and the
+two OSL variants). If you're authoring your
 own device -- for a new exoskeleton, a different prosthetic geometry, an
 internal lab project -- this guide covers where it lives and how to use it.
 

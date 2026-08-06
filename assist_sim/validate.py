@@ -31,6 +31,17 @@ class _Names:
     meshes: Set[str] = field(default_factory=set)
 
 
+# Sensor target kind -> the _Names attribute holding that kind's names.
+_SENSOR_KIND_ATTR = {
+    "site": "sites",
+    "joint": "joints",
+    "actuator": "actuators",
+    "tendon": "tendons",
+    "body": "bodies",
+    "geom": "geoms",
+}
+
+
 def _section_names(root: ET.Element, section: str) -> Set[str]:
     elem = root.find(section)
     if elem is None:
@@ -114,6 +125,38 @@ def validate_config(human_xml: str, config: DeviceConfig) -> List[str]:
 
     for jo in config.joint_overrides:
         add(_check(jo.name, human.joints, "joint", "joint_overrides"))
+
+    # Sections that may name either a human element (bare) or a device element
+    # (prefixed once attached), matching combine's bare-then-prefixed resolution.
+    def either(attr: str) -> Set[str]:
+        d = getattr(device, attr)
+        return getattr(human, attr) | d | {prefix + n for n in d}
+
+    for bo in config.body_overrides:
+        add(_check(bo.name, either("bodies"), "body", "body_overrides"))
+
+    for eq in config.equalities:
+        if eq.type == "joint":
+            add(_check(eq.joint1, either("joints"), "joint", "equality.joint1"))
+            if eq.joint2:
+                add(_check(eq.joint2, either("joints"), "joint", "equality.joint2"))
+        else:
+            add(_check(eq.parent_body, human.bodies, "body", "equality.parent_body"))
+            add(_check(eq.device_body, device.bodies, "device body", "equality.device_body"))
+
+    for exc in config.contact_excludes:
+        add(_check(exc.body1, either("bodies"), "body", "contact.excludes"))
+        add(_check(exc.body2, either("bodies"), "body", "contact.excludes"))
+    for pair in config.contact_pairs:
+        add(_check(pair.geom1, either("geoms"), "geom", "contact.pairs"))
+        add(_check(pair.geom2, either("geoms"), "geom", "contact.pairs"))
+
+    # sensor_removals targets the human model's own sensors, which _collect_names
+    # does not gather -- resolved best-effort at combine time, so nothing static
+    # to check. The additions do resolve statically.
+    for sensor in config.sensors:
+        attr = _SENSOR_KIND_ATTR[sensor.target_kind]
+        add(_check(sensor.target, either(attr), sensor.target_kind, f"sensors[{sensor.name}]"))
 
     valid_act_joints = human.joints | device_joints_prefixed | device.joints
     for act in config.actuators:

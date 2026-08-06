@@ -28,6 +28,10 @@ actuator_removals: ...
 tendon_removals: ...
 tendon_modifications: ...
 geom_removals: ...
+body_overrides: ...
+contact: ...
+sensors: ...
+sensor_removals: ...
 ```
 
 Only `device` and `attachments` are required. Every other section defaults
@@ -135,9 +139,11 @@ equality:
 
 | Field | Type | Required | Meaning |
 |---|---|---|---|
-| `type` | `connect` \| `weld` | yes | `connect` = point-to-point; `weld` = full pose lock. |
-| `device_body` | string | yes | Device body (namespaced with the device prefix at combine time). |
-| `parent_body` | string | yes | MSK body (left bare). |
+| `type` | `connect` \| `weld` \| `joint` | yes | `connect` = point-to-point; `weld` = full pose lock; `joint` = scalar joint coupling. |
+| `device_body` | string | connect/weld | Device body (namespaced with the device prefix at combine time). |
+| `parent_body` | string | connect/weld | MSK body (left bare). |
+| `joint1` / `joint2` | string | joint | Coupled joints, each resolved bare-first then prefixed. |
+| `polycoef` | up to 5 floats | no (joint) | Quartic coefficients; unspecified trailing terms are zero. |
 | `anchor` | `[x, y, z]` | connect | Connection point in the device body's local frame. |
 | `relpose` | `[x, y, z, qw, qx, qy, qz]` | no (weld) | Relative pose; defaults to identity. |
 | `torquescale` | float | no (weld) | Weld torque scale; defaults to 1.0. |
@@ -150,6 +156,52 @@ Supports the per-MSK `default:` + `<msk_key>:` form, like `attachments`.
 > introduces *no* initial violation regardless of placement -- it pins the two
 > bodies at their qpos0 relative pose. Getting the exo to sit correctly is
 > therefore about the *attachment* `pos`/`quat`, not the anchor.
+
+### `type: joint` -- closing a kinematic loop
+
+MuJoCo's body graph is strictly a tree, so a closed linkage cannot be expressed
+by nesting alone. A joint equality couples two scalar joints by a quartic:
+
+```
+y - y0 = a0 + a1*(x - x0) + a2*(x - x0)^2 + a3*(x - x0)^3 + a4*(x - x0)^4
+```
+
+with `y` = `joint1`, `x` = `joint2`, and `x0`/`y0` their reference (qpos0)
+values. Omitting `joint2` pins `joint1` to the constant in `polycoef[0]`.
+
+```yaml
+equality:
+  # device joint <-> device joint: closes the loop
+  - type: joint
+    joint1: "shank_r__link_bcd_r"
+    joint2: "shank_r__link_ag_r"
+    polycoef: [3.2455e-05, 1.1296e+00, -2.3405e-02, -2.0102e-02, 8.6030e-02]
+    solimp: [0.9999, 0.9999, 0.001, 0.5, 2]
+    solref: [0.002, 1]
+  # device joint <-> MSK joint: ties the linkage to the joint it spans
+  - type: joint
+    joint1: "shank_r__link_ag_r"
+    joint2: "ankle_angle_r"
+    polycoef: [2.0673e-02, -8.7548e-01, 6.1119e-02, 3.4395e-02, 1.0843e-01]
+```
+
+`STRIDE_L2` is the worked example: five couplings per side, four closing the
+six-bar and one tying its master hinge to `ankle_angle`.
+
+> **Prefer a joint coupling over `connect` for a loop.** A `connect` imposes
+> three constraints where two suffice, and the redundancy shows up as drift.
+> Measured on STRIDE: 3.7 mm of link separation with `connect` versus 0.020 mm
+> with joint couplings.
+
+> **Loops want stiff solver settings.** With MuJoCo's defaults the links visibly
+> drift through the range of motion. `solimp: [0.9999, 0.9999, 0.001, 0.5, 2]`
+> with `solref: [0.002, 1]` holds the STRIDE loop to single-digit microradians.
+
+> **Restrict the driven joint to the fit window.** A quartic fitted over a
+> mechanism's travel extrapolates wildly outside it, and the extrapolated target
+> then fights the linkage joints' own limits. Clamp the MSK joint with a
+> `joint_overrides` range -- intersected with the range the MSK already declares,
+> so the device never *widens* an anatomical limit.
 
 ## `joint_overrides`
 
@@ -375,6 +427,140 @@ cascades into contact pair cleanup.
 
 Per-MSK supported.
 
+## `body_overrides`
+
+Override the inertial properties of a body in the combined model. Targets an MSK
+body (bare name) or a device body (resolved with the device prefix). Only the
+fields given change.
+
+```yaml
+body_overrides:
+  - name: "tibia_r"
+    mass: 1.85375
+    diaginertia: [0.0125, 0.0125, 0.00225]
+    ipos: [0, -0.125, 0]
+    iquat: [0.5, 0.5, -0.5, 0.5]
+```
+
+| Field | Type | Required | Meaning |
+|---|---|---|---|
+| `name` | string | yes | Body to modify (bare MSK name, or device name resolved with the prefix). |
+| `mass` | float | no | New mass, kg. |
+| `diaginertia` | `[Ixx, Iyy, Izz]` | no | Principal moments, in the frame set by `iquat`. Mutually exclusive with `fullinertia`. |
+| `fullinertia` | `[Ixx, Iyy, Izz, Ixy, Ixz, Iyz]` | no | Full tensor. Mutually exclusive with `diaginertia`. |
+| `ipos` | `[x, y, z]` | no | Inertial-frame origin, in the body frame. |
+| `iquat` | `[qw, qx, qy, qz]` | no | Inertial-frame orientation. |
+
+Supports the per-MSK `default:` + `<msk_key>:` form.
+
+This is the mass-side counterpart to `mesh_replacements`. Amputation is the
+motivating case: `spec.delete` removes the distal subtree, but the surviving
+parent body still carries the *whole* intact segment's mass -- MuJoCo has no
+notion that the segment was transected. All three transtibial devices
+(`KFoot_L1`, `OpenSourceLeg_A_L1`, `NEUankle_L1`) reduce `tibia_r` this way;
+without it the prosthetic side carries roughly 1.85 kg of phantom mass.
+
+> **Setting `mass` alone on a compiler-derived-inertia body raises.** MuJoCo
+> derives a body's inertia from its geoms unless the body is `explicitinertial`.
+> Marking it explicit while supplying only a mass would silently leave the inertia
+> at zero, so that combination is rejected -- supply an inertia too.
+
+## `contact`
+
+Add MuJoCo `<contact>` entries to the combined model. Emitted after attachment,
+so device geoms and bodies exist to reference; every name resolves bare-first
+then prefixed.
+
+```yaml
+contact:
+  pairs:
+    - {geom1: "shank_r_main_geom", geom2: "femur_r_geom_1"}
+  excludes:
+    - ["foot_r", "calcn_r"]          # two-item list form
+    - {body1: "link_gcf_l", body2: "calcn_l"}   # or explicit keys
+```
+
+`pairs` fields: `geom1`, `geom2` (required), plus optional `condim`, `margin`,
+`gap`, `friction`, `solref`, `solimp`. `excludes` take two body names.
+
+Both sub-sections support the per-MSK `default:` + `<msk_key>:` form -- which
+matters, because geom names differ between lineages (the 80-muscle models call
+the femur mesh geom `femur_r`, the 26-muscle ones `femur_r_geom_1`) and some
+bodies only exist on some MSKs.
+
+Needed because `attach_body` copies a body subtree, not top-level sections, so a
+device XML's own `<contact>` block never migrates.
+
+> **Reach for `contype`/`conaffinity` before reaching for excludes.** MuJoCo
+> already skips geoms in the same weld group and in parent-child body pairs, so a
+> device whose bodies are welded onto the MSK (no joints of its own) needs no
+> excludes at all. A device with joints does: its links are separate weld groups,
+> and grandparent/sibling pairs are live candidates. Rather than one exclude per
+> pair, give every device geom `contype="2" conaffinity="1"` -- device-vs-device
+> tests `2 & 1 = 0` both ways and never collides, while bone and ground
+> (`contype=1`) still do. That replaced ~30 excludes per side on `STRIDE_L2`.
+> The cost: device parts no longer collide with each other at all, including
+> left-vs-right.
+
+> **An `exclude` silently cancels a `pair`.** Excludes act at body level and win.
+> If a forced pair stops generating contacts, check whether something excluded its
+> owning bodies.
+
+> **A welded device body inherits its host's weld group.** So a shank-mounted
+> part is auto-excluded from the *femur* (its weld group's parent) and will
+> interpenetrate the thigh with no contact generated. That needs an explicit
+> `pair`, which bypasses `contype`/`conaffinity` filtering entirely.
+
+## `sensors` / `sensor_removals`
+
+Add sensors to, and remove sensors from, the combined model.
+
+```yaml
+sensor_removals: ["r_foot", "r_toes"]
+
+sensors:
+  - {name: "r_foot", type: touch, site: "r_sole_touch"}
+  - {name: "r_ankle_sensor", type: jointlimitfrc, joint: "neuankle_ankle_angle_r"}
+```
+
+Each sensor names exactly one target, and the key used selects the target kind:
+`site`, `joint`, `actuator`, `tendon`, `body` or `geom`. Optional `cutoff` and
+`noise` pass through. Supported `type` values: `touch`, `force`, `torque`,
+`jointpos`, `jointvel`, `jointlimitpos`, `jointlimitvel`, `jointlimitfrc`,
+`jointactuatorfrc`, `actuatorpos`, `actuatorvel`, `actuatorfrc`, `tendonpos`,
+`tendonvel`, `framepos`, `framequat`, `framelinvel`, `frameangvel`. A type that
+does not accept the target kind you gave raises.
+
+Both sections support the per-MSK `default:` + `<msk_key>:` form. That matters
+more than it looks: `myolegs26` and `myolegs22` ship twelve sensors including
+`jointlimitfrc` on every leg joint, while `myolegs` and `myofullbody` ship only
+the four leg touch sensors. Restoring a `jointlimitfrc` on the latter would make
+it the only sensor of its kind in the model.
+
+Two distinct uses:
+
+- **Restoring what surgery cascaded away.** Deleting `talus_r` also deletes
+  `r_foot`/`r_toes` (touch sensors on the removed sites) and
+  `r_ankle_sensor`/`r_mtp_sensor`, dropping the baseline's twelve sensors to
+  eight and leaving nothing reading the prosthetic side while the intact side
+  keeps all four counterparts.
+- **Re-pointing a sensor**, via removal plus re-addition under the same name.
+  A shod device moves ground contact from the bare foot onto the sole, and the
+  baseline touch site is a *box*: `r_foot_touch` spans y in [-0.022, 0.018] on
+  `calcn_r` while a shoe sole's contact surface sits at y = -0.058, 35 mm below
+  the bottom of the box. A touch sensor left on the baseline site reads exactly
+  zero for the whole stance phase.
+
+> **Sensors are appended, not inserted.** The combined model's `sensordata`
+> ordering therefore differs from the baseline's. Index by name, never position.
+
+> **Name a device site distinctly if the MSK still has one by that name.**
+> Targets resolve bare-first, so a device site called `r_foot_touch` is silently
+> shadowed by the surviving MSK site of the same name and the sensor keeps reading
+> the bare foot. `STRIDE_L2` names its sole sites `r_sole_touch` /
+> `r_forefoot_touch` for exactly this reason, while keeping the *sensor* named
+> `r_foot` so downstream consumers are unaffected.
+
 ## Per-MSK overrides -- summary
 
 Sections that support the `default:` + `<msk_key>:` dispatch:
@@ -383,7 +569,7 @@ Sections that support the `default:` + `<msk_key>:` dispatch:
 |---|---|
 | `attachments` | ✓ |
 | `equality` | ✓ |
-| `joint_overrides` | (planned; currently default form only) |
+| `joint_overrides` | ✓ |
 | `actuators` | (planned; currently default form only) |
 | `keyframe_overrides` | ✓ |
 | `body_removals` | (planned; currently default form only) |
@@ -392,6 +578,10 @@ Sections that support the `default:` + `<msk_key>:` dispatch:
 | `tendon_removals` | ✓ |
 | `tendon_modifications` | ✓ |
 | `geom_removals` | ✓ |
+| `body_overrides` | ✓ |
+| `contact` (`pairs` + `excludes`) | ✓ |
+| `sensors` | ✓ |
+| `sensor_removals` | ✓ |
 
 Sections marked "planned" use the flat list form for now; per-MSK support
 is incremental as configs need it.

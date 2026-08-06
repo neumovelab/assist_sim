@@ -1,13 +1,9 @@
 device:
-  name: "KFoot_L1"
+  name: "NEUankle_L1"
   model_xml: "L1model.xml"
   compatible_msk: [myolegs22, myolegs26, myolegs, myofullbody]
 
 # --- Prosthetic: right transtibial (below-knee) amputation ---
-# The device is a passive powered-foot: a
-# socket -> pylon -> ankle -> foot -> shell chain whose ankle is a passive
-# spring (df_/pf_ankle_angle_r, stiffness+damping baked into the device
-# model).
 
 # --- Remove biological lower leg below the amputation ---
 body_removals:
@@ -43,9 +39,25 @@ geom_removals:
 
 # --- Attach the prosthetic chain to the residual tibia ---
 attachments:
-  - device_body: "kap_generic_socket"
+  - device_body: "neuankle_generic_socket"
     parent_body: "tibia_r"
 
+# --- Powered ankle ---
+# 50 Nm continuous, expressed directly as joint torque. The 122 Nm instantaneous
+# rating is thermal headroom, and MuJoCo carries no thermal state, so peak torque
+# belongs in a torque-squared penalty in the objective rather than in the model.
+# Reflected motor inertia is deliberately unmodelled, matching OSL_A; it would go
+# in armature on neuankle_ankle_angle_r.
+actuators:
+  - name: "neuankle_ankle_torque_actuator"
+    type: "motor"
+    joint: "neuankle_ankle_angle_r"
+    gainprm: [50]
+    ctrlrange: [-1, 1]
+    ctrllimited: true
+    gear: [1.0]
+
+# --- Restore the sensors the amputation cascaded away ---
 sensors:
   default:
     - &r_foot_touch
@@ -56,11 +68,9 @@ sensors:
       name: "r_toes"
       type: touch
       site: "r_toes_touch"
-    # The ankle is a spring pair (df_ + pf_); the dorsiflexion half carries
-    # the limit that matters for a hard stop.
     - name: "r_ankle_sensor"
       type: jointlimitfrc
-      joint: "df_ankle_angle_r"
+      joint: "neuankle_ankle_angle_r"
   # myolegs and myofullbody ship only the four leg touch sensors and no
   # jointlimitfrc at all, so restoring one here would make it the only sensor of
   # its kind in the model.

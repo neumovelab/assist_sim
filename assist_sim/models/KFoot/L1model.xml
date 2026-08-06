@@ -35,17 +35,17 @@
   </asset>
   <worldbody>
     <body name="kap_generic_socket" pos="-0.0045 -0.28 0.006">
-      <inertial pos="-0.0025 0.105 0.0035" quat="0 0.5 0.5 0" mass="0.5" diaginertia="0.001 0.0015 0.0015" />
+      <inertial pos="0.000000 0.102749 0.005560" quat="0.202485 -0.677495 0.677495 -0.202485" mass="0.2" diaginertia="0.00027383 0.00039542 0.00039543" />
       <geom name="generic_socket" type="mesh" rgba="0.2 0.2 0.2 0.35" mesh="generic_socket" condim="3" contype="1" />
       <body name="kap_tibial_pylon" pos="-0.001 0.0065 -0.0135">
-        <inertial pos="0 -0.01 -0.0015" mass="0.2" diaginertia="0.0001 0.0001 0.0001" />
+        <inertial pos="0.002186 0.001254 0.019585" quat="0.697203 0.044129 0.043309 0.714203" mass="0.2" diaginertia="0.00004074 0.00007610 0.00007844" />
         <geom name="pyramid_adapter_geom" type="mesh" rgba="0.6 0.6 0.6 1" mesh="pyramid_adapter_geom" condim="3" contype="1" />
         <body name="k_foot_ankle_assembly" pos="-0.0082 -0.075 -0.017">
-          <inertial pos="0 -0.0025 0.0375" quat="0.5 0 0 0" mass="0.567" diaginertia="0.001 0.001 0.001" />
+          <inertial pos="0.003734 0.002409 0.036493" quat="0.600029 0.601050 0.373211 0.373387" mass="0.567" diaginertia="0.00033740 0.00059149 0.00063283" />
           <geom name="k_foot_ankle_assem_geom" type="mesh" rgba="0.706 0.043 0.043 1" mesh="k_foot_ankle_assem_geom" condim="3" contype="1" />
           <site name="r_k_foot_load_force" type="box" pos="0.015 0.045 0.0375" size="0.02 0.03 0.02" euler="0 0 0" group="5" rgba="1 0.5 0.0 0.5" />
           <body name="k_foot_foot_assem" pos="0.051 -0.05 0.0025">
-            <inertial pos="-0.005 -0.01 0.035" quat="0 0 0.5 0" mass="0.455" diaginertia="0.0005 0.0025 0.0025" />
+            <inertial pos="0.004387 -0.023685 0.034379" quat="0.999523 0.003367 -0.000270 -0.030691" mass="0.455" diaginertia="0.00030859 0.00118067 0.00122435" />
             <joint name="df_ankle_angle_r" pos="-0.04 0.038 0.0" axis="0 0 1" range="0 0.5236" stiffness="500" damping="5" />
             <joint name="pf_ankle_angle_r" pos="-0.04 0.038 0.0" axis="0 0 1" range="-0.5236 0" stiffness="50" damping="5" />
             <geom name="k_foot_foot_assem_geom" type="mesh" rgba="0.3 0.3 0.3 1" mesh="k_foot_foot_assem_geom" />
@@ -53,7 +53,7 @@
             <site name="r_heel_btm" type="sphere" pos="-0.075 -0.05 0.035" size="0.01" group="4" rgba="0 1 0 0.4" />
             <site name="r_toe_btm" type="sphere" pos="0.1 -0.055 0.035" size="0.01" group="4" rgba="0 1 0 0.4" />
             <body name="k_foot_shell" pos="0.0235 -0.033 -0.013">
-              <inertial pos="0 0 0.05" quat="0.5 0 0 0.5" mass="0.1" diaginertia="0.0005 0.00012 0.0005" />
+              <inertial pos="-0.002849 -0.007693 0.047919" quat="0.758229 -0.651121 0.027635 -0.019157" mass="0.1" diaginertia="0.00007830 0.00045819 0.00048573" />
               <geom name="k_foot_shell_geom" type="mesh" rgba="0.835 0.667 0.533 0.35" mesh="k_foot_shell_geom" condim="3" contype="1" />
               <site name="r_toes_touch" type="box" pos="0.05 -0.02 0.05" size=".05 .025 .085" euler="0 -1.64 0" class="myo_leg_touch" />
             </body>

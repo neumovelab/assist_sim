@@ -1,7 +1,7 @@
 <!-- =================================================
     Copyright 2026 NeuMove Laboratory, Northeastern University
     Model   :: Open Source Leg - Knee + Ankle (Transfemoral)
-    Author  :: Calder Robbins (robbins.cal@northeastern.edu)
+    Author  :: Chun Kwang Tan, Calder Robbins (robbins.cal@northeastern.edu)
     License :: Apache License, Version 2.0
 ====================================================== -->
 <mujoco model="OSL_KneeAnkle">

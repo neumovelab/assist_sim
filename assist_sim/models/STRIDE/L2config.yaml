@@ -1,0 +1,188 @@
+device:
+  name: "STRIDE_L2"
+  model_xml: "L2model.xml"
+  compatible_msk: [myolegs22, myolegs26, myolegs, myofullbody]
+
+# --- Bilateral cable-driven ankle exoskeleton (Level 2) ---
+# A shank-mounted actuator drives a six-bar linkage. Level 2 because the device is a
+# closed kinematic chain rather than welded-on hardware: five hinges per side,
+# one net DOF, and the loop closed by constraints (see `equality` below).
+
+# --- Attachment ---
+# The exo shank rides tibia; the split shoe rides calcn (aft) and toes (fore).
+# The foot plate is NOT attached to the shoe -- the linkage's only tie to the
+# human is the shank__link_ag <-> ankle_angle coupling. Welding the plate to the
+# sole would over-constrain the chain and fight that coupling.
+
+attachments:
+  default:
+    - &shoe_r_aft_sole {device_body: "r_aft_sole", parent_body: "calcn_r"}
+    - &shoe_r_aft_upper {device_body: "r_aft_upper", parent_body: "calcn_r"}
+    - &shoe_r_fore_sole {device_body: "r_fore_sole", parent_body: "toes_r"}
+    - &shoe_r_fore_upper {device_body: "r_fore_upper", parent_body: "toes_r"}
+    - &shoe_l_aft_sole {device_body: "l_aft_sole", parent_body: "calcn_l"}
+    - &shoe_l_aft_upper {device_body: "l_aft_upper", parent_body: "calcn_l"}
+    - &shoe_l_fore_sole {device_body: "l_fore_sole", parent_body: "toes_l"}
+    - &shoe_l_fore_upper {device_body: "l_fore_upper", parent_body: "toes_l"}
+    - &shank_r_mount {device_body: "shank_r", parent_body: "tibia_r"}
+    - &shank_l_mount {device_body: "shank_l", parent_body: "tibia_l"}
+
+  myolegs: &attach_80
+    - *shoe_r_aft_sole
+    - *shoe_r_aft_upper
+    - *shoe_r_fore_sole
+    - *shoe_r_fore_upper
+    - *shoe_l_aft_sole
+    - *shoe_l_aft_upper
+    - *shoe_l_fore_sole
+    - *shoe_l_fore_upper
+    - *shank_r_mount
+    - *shank_l_mount
+  myofullbody: *attach_80
+
+equality:
+  - &eq_bcd
+    type: joint
+    joint1: "shank_r__link_bcd_r"
+    joint2: "shank_r__link_ag_r"
+    polycoef: [3.24554488e-05, 1.12958661e+00, -2.34045106e-02, -2.01019565e-02, 8.60299503e-02]
+    solimp: [0.9999, 0.9999, 0.001, 0.5, 2]
+    solref: [0.002, 1]
+  - type: joint
+    joint1: "link_ag_r__link_gcf_r"
+    joint2: "shank_r__link_ag_r"
+    polycoef: [-5.54206730e-05, -7.95143663e-01, -1.29857805e-01, 1.30052004e-01, -2.08304297e-01]
+    solimp: [0.9999, 0.9999, 0.001, 0.5, 2]
+    solref: [0.002, 1]
+  - type: joint
+    joint1: "link_bcd_r__link_de_r"
+    joint2: "shank_r__link_ag_r"
+    polycoef: [-4.43707369e-05, -7.75739561e-01, -9.82875335e-02, 1.14068059e-01, -1.66046221e-01]
+    solimp: [0.9999, 0.9999, 0.001, 0.5, 2]
+    solref: [0.002, 1]
+  - type: joint
+    joint1: "link_gcf_r__foot_r"
+    joint2: "shank_r__link_ag_r"
+    polycoef: [2.39048948e-05, 9.44849648e-01, 1.92238275e-02, -7.68532585e-02, 1.08527030e-01]
+    solimp: [0.9999, 0.9999, 0.001, 0.5, 2]
+    solref: [0.002, 1]
+  # The exo-to-leg tie. joint1 is a device joint (resolved with the device
+  # prefix); joint2 is the human ankle (resolved bare).
+  - type: joint
+    joint1: "shank_r__link_ag_r"
+    joint2: "ankle_angle_r"
+    polycoef: [2.06729283e-02, -8.75475095e-01, 6.11187224e-02, 3.43951230e-02, 1.08428608e-01]
+    solimp: [0.9999, 0.9999, 0.001, 0.5, 2]
+    solref: [0.002, 1]
+
+  - type: joint
+    joint1: "shank_l__link_bcd_l"
+    joint2: "shank_l__link_ag_l"
+    polycoef: [3.24554488e-05, 1.12958661e+00, -2.34045106e-02, -2.01019565e-02, 8.60299503e-02]
+    solimp: [0.9999, 0.9999, 0.001, 0.5, 2]
+    solref: [0.002, 1]
+  - type: joint
+    joint1: "link_ag_l__link_gcf_l"
+    joint2: "shank_l__link_ag_l"
+    polycoef: [-5.54206730e-05, -7.95143663e-01, -1.29857805e-01, 1.30052004e-01, -2.08304297e-01]
+    solimp: [0.9999, 0.9999, 0.001, 0.5, 2]
+    solref: [0.002, 1]
+  - type: joint
+    joint1: "link_bcd_l__link_de_l"
+    joint2: "shank_l__link_ag_l"
+    polycoef: [-4.43707369e-05, -7.75739561e-01, -9.82875335e-02, 1.14068059e-01, -1.66046221e-01]
+    solimp: [0.9999, 0.9999, 0.001, 0.5, 2]
+    solref: [0.002, 1]
+  - type: joint
+    joint1: "link_gcf_l__foot_l"
+    joint2: "shank_l__link_ag_l"
+    polycoef: [2.39048948e-05, 9.44849648e-01, 1.92238275e-02, -7.68532585e-02, 1.08527030e-01]
+    solimp: [0.9999, 0.9999, 0.001, 0.5, 2]
+    solref: [0.002, 1]
+  - type: joint
+    joint1: "shank_l__link_ag_l"
+    joint2: "ankle_angle_l"
+    polycoef: [2.06729283e-02, -8.75475095e-01, 6.11187224e-02, 3.43951230e-02, 1.08428608e-01]
+    solimp: [0.9999, 0.9999, 0.001, 0.5, 2]
+    solref: [0.002, 1]
+
+# --- Ranges the device imposes on the leg ---
+joint_overrides:
+  default:
+    - &ankle_r_fit {name: "ankle_angle_r", range: [-0.888851, 0.349]}
+    - &ankle_l_fit {name: "ankle_angle_l", range: [-0.888851, 0.349]}
+    - &mtp_r_shoe {name: "mtp_angle_r", range: [0.2, 0.5]}
+    - &mtp_l_shoe {name: "mtp_angle_l", range: [0.2, 0.5]}
+
+  myolegs: &joints_80
+    - {name: "ankle_angle_r", axis: [0, 0, 1], pos: [0, -0.4, 0], range: [-0.698132, 0.349]}
+    - {name: "ankle_angle_l", axis: [0, 0, 1], pos: [0, -0.4, 0], range: [-0.698132, 0.349]}
+    - *mtp_r_shoe
+    - *mtp_l_shoe
+  myofullbody: *joints_80
+
+contact:
+  pairs:
+    default:
+      - {geom1: "shank_r_main_geom", geom2: "femur_r_geom_1"}
+      - {geom1: "shank_l_main_geom", geom2: "femur_l_geom_1"}
+    # The 80-muscle lineage names the femur mesh geom `femur_r`, not `femur_r_geom_1`.
+    myolegs: &pairs_80
+      - {geom1: "shank_r_main_geom", geom2: "femur_r"}
+      - {geom1: "shank_l_main_geom", geom2: "femur_l"}
+    myofullbody: *pairs_80
+  excludes:
+    default:
+      - &exc_plate_r ["foot_r", "calcn_r"]
+      - &exc_plate_l ["foot_l", "calcn_l"]
+      - &exc_gcf_r ["link_gcf_r", "calcn_r"]
+      - &exc_gcf_l ["link_gcf_l", "calcn_l"]
+    myolegs: &exc_80
+      - *exc_plate_r
+      - *exc_plate_l
+      - *exc_gcf_r
+      - *exc_gcf_l
+      - ["r_aft_upper", "tibia_r"]
+      - ["l_aft_upper", "tibia_l"]
+      # foot_col4 is another heel capsule this lineage adds; the BCD link passes
+      # over it by design, same as the GCF link above.
+      - ["link_bcd_r", "calcn_r"]
+      - ["link_bcd_l", "calcn_l"]
+    myofullbody: *exc_80
+
+sensor_removals:
+  - "r_foot"
+  - "r_toes"
+  - "l_foot"
+  - "l_toes"
+
+sensors:
+  - {name: "r_foot", type: touch, site: "r_sole_touch"}
+  - {name: "r_toes", type: touch, site: "r_forefoot_touch"}
+  - {name: "l_foot", type: touch, site: "l_sole_touch"}
+  - {name: "l_toes", type: touch, site: "l_forefoot_touch"}
+
+keyframe_overrides:
+  stand:
+    pelvis_ty: 0.96075
+    mtp_angle_r: 0.2
+    mtp_angle_l: 0.2
+  walk_left:
+    pelvis_ty: 0.9335
+    mtp_angle_r: 0.2
+    mtp_angle_l: 0.2
+  walk_right:
+    pelvis_ty: 0.9335
+    mtp_angle_r: 0.2
+    mtp_angle_l: 0.2
+  squat:
+    pelvis_ty: 0.78
+    mtp_angle_r: 0.325
+    mtp_angle_l: 0.325
+  lunge:
+    pelvis_ty: 0.725
+    pelvis_tilt: -0.55
+    mtp_angle_r: 0.4
+    knee_angle_l: -1.09
+    ankle_angle_l: 0.045
+    mtp_angle_l: 0.26

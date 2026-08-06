@@ -6,12 +6,15 @@ device:
 body_removals:
   - "talus_r"   # cascades to calcn_r, toes_r
 
+# --- Prosthetic: reduce the residual limb ---
+body_overrides:
+  - name: "tibia_r"
+    mass: 1.85375
+    diaginertia: [0.0125, 0.0125, 0.00225]
+    ipos: [0, -0.125, 0]
+    iquat: [0.5, 0.5, -0.5, 0.5]
+
 # --- Prosthetic: replace tibia mesh with residual-limb version ---
-# The residual stump mesh (osl_tibia_fibula_trans_r) covers BOTH tibia and
-# fibula. The mesh_replacements below only swap the tibia geom; the separate
-# fibula geom on the same body must be removed (geom_removals) so it doesn't
-# clip through the residual stump. Mirrors legacy 22 OSL_A, which has a single
-# combined-mesh geom on tibia_r.
 mesh_replacements:
   default:
     - geom: "tibia_r_geom_1"
@@ -28,12 +31,35 @@ geom_removals:
     - "tibia_r_geom_2"
   myolegs: &r80_geom
     - "fibula_r"
+    - "tibia2_col_r"
   myofullbody: *r80_geom
 
 # --- Attach prosthetic chain to the residual tibia ---
 attachments:
   - device_body: "osl_generic_socket"
     parent_body: "tibia_r"
+
+# --- Restore the sensors the amputation cascaded away ---
+sensors:
+  default:
+    - &r_foot_touch
+      name: "r_foot"
+      type: touch
+      site: "r_foot_touch"
+    - &r_toes_touch
+      name: "r_toes"
+      type: touch
+      site: "r_toes_touch"
+    - name: "r_ankle_sensor"
+      type: jointlimitfrc
+      joint: "osl_ankle_angle_r"
+  # myolegs and myofullbody ship only the four leg touch sensors and no
+  # jointlimitfrc at all, so restoring one here would make it the only sensor of
+  # its kind in the model.
+  myolegs: &touch_only
+    - *r_foot_touch
+    - *r_toes_touch
+  myofullbody: *touch_only
 
 # --- Remove muscles that crossed the removed ankle/foot ---
 actuator_removals:

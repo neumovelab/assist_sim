@@ -46,23 +46,27 @@ python examples/quickstart.py myolegs26 DephyExoBoot_L1
 
 ## Available Combinations
 
-MSK keys mirror the myo_sim model names. `myolegs26` (26-muscle, passive torso) and
-`myolegs` (80-muscle, passive torso) are both wired and tested. `myolegs22` (a
-planned 26→22 reduction) has no source yet and resolves to a clear error.
+MSK keys mirror the myo_sim model names. All four are wired and tested:
+`myolegs22` (planar 22-muscle, a runtime 26→22 reduction), `myolegs26`
+(26-muscle, passive torso), `myolegs` (80-muscle, passive torso) and
+`myofullbody` (full body). Every device works with every MSK — all four carry the
+passive torso scaffold — and each pairing has a frozen smoke signature.
 
-| Device key            | myolegs26 | myolegs | myolegs22 |
-|-----------------------|:-:|:-:|:-:|
-| `DephyExoBoot_L1`     | ✓ | ✓ | — |
-| `OpenSourceLeg_A_L1`  | ✓ | ✓ | — |
-| `OpenSourceLeg_KA_L1` | ✓ | ✓ | — |
-| `Humotech_L1`         | ✓ | ✓ | — |
-| `OpenExo_L1`          | ✓ | ✓ | — |
-| `Tutorial_L1`         | ✓ | ✓ | — |
-| `HMEDI_L1`            | n/a (needs torso) | ✓ | — |
-| `Anatomics_L1`        | ✓ | ✓ | — |
-| `Hippo_L1`            | ✓ | ✓ | — |
-| `KFoot_L1`            | ✓ | ✓ | — |
-| `UTAnkleExo_L2`       | ✓ | ✓ | — |
+| Device key            | myolegs22 | myolegs26 | myolegs | myofullbody |
+|-----------------------|:-:|:-:|:-:|:-:|
+| `Anatomics_L1`        | ✓ | ✓ | ✓ | ✓ |
+| `DephyExoBoot_L1`     | ✓ | ✓ | ✓ | ✓ |
+| `HMEDI_L1`            | ✓ | ✓ | ✓ | ✓ |
+| `Hippo_L1`            | ✓ | ✓ | ✓ | ✓ |
+| `Humotech_L1`         | ✓ | ✓ | ✓ | ✓ |
+| `KFoot_L1`            | ✓ | ✓ | ✓ | ✓ |
+| `NEUankle_L1`         | ✓ | ✓ | ✓ | ✓ |
+| `OpenExo_L1`          | ✓ | ✓ | ✓ | ✓ |
+| `OpenSourceLeg_A_L1`  | ✓ | ✓ | ✓ | ✓ |
+| `OpenSourceLeg_KA_L1` | ✓ | ✓ | ✓ | ✓ |
+| `STRIDE_L2`           | ✓ | ✓ | ✓ | ✓ |
+| `Tutorial_L1`         | ✓ | ✓ | ✓ | ✓ |
+| `UTAnkleExo_L2`       | ✓ | ✓ | ✓ | ✓ |
 
 See [docs/available-models.md](docs/available-models.md) for descriptions of
 each device + tested combinations.
