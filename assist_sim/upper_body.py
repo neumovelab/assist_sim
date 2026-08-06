@@ -215,6 +215,8 @@ def _freeze_legs_seated(human: "mujoco.MjSpec") -> None:
     """Attach both legs muscle-less, bake ``_SEATED_LEGS`` into the leg geometry, and
     delete every leg joint -- rigid seated legs with no leg DOF (as in the original)."""
     legs = load_legs_spec()
+    for sensor in list(legs.sensors):  # no leg DOF here -> drop the legs' proprioceptive/touch sensors
+        legs.delete(sensor)
     for actuator in list(legs.actuators):
         legs.delete(actuator)
     for tendon in list(legs.tendons):
@@ -308,11 +310,10 @@ def _add_ground(human: "mujoco.MjSpec") -> None:
     """Add a ground plane at the resting wheel height + a light, and set the 1 ms
     timestep. Terrain composition replaces this ground later."""
     human.option.timestep = 0.001
-    tmp = human.compile()
-    td = mujoco.MjData(tmp)
-    mujoco.mj_resetData(tmp, td)
-    mujoco.mj_forward(tmp, td)
-    floor_z = float(td.geom_xpos[:, 2].min()) if tmp.ngeom else 0.0
+    # Seat the floor at the lowest COLLISION-geom surface (AABB corner), not the geom
+    # center (too high -> interpenetration) nor the lowest of all geoms (a low visual
+    # geom would drag it too low), so the wheels rest on the plane.
+    floor_z = _lowest_geom_z(human, collision_only=True)
 
     light = human.worldbody.add_light()
     light.pos = [0, -2, 4]
@@ -458,14 +459,19 @@ def _freeze_legs_standing(human: "mujoco.MjSpec") -> None:
             human.delete(eq)
 
 
-def _lowest_geom_z(spec: "mujoco.MjSpec") -> float:
-    """World-z of the lowest point of any geom in a throwaway compile of ``spec``."""
+def _lowest_geom_z(spec: "mujoco.MjSpec", collision_only: bool = False) -> float:
+    """World-z of the lowest surface point (AABB corner) of any geom in a throwaway
+    compile of ``spec``. ``collision_only`` restricts to geoms that can contact
+    (``contype``/``conaffinity`` set) -- use it to seat a ground plane under the lowest
+    *colliding* geom, ignoring purely visual geoms that would drag the plane too low."""
     m = spec.compile()
     d = mujoco.MjData(m)
     mujoco.mj_forward(m, d)
     signs = np.array([[sx, sy, sz] for sx in (-1, 1) for sy in (-1, 1) for sz in (-1, 1)])
     zmin = np.inf
     for g in range(m.ngeom):
+        if collision_only and m.geom_contype[g] == 0 and m.geom_conaffinity[g] == 0:
+            continue
         aabb = np.array(m.geom_aabb[g]).reshape(2, 3)
         corners = aabb[0] + signs * aabb[1]
         world = corners @ np.array(d.geom_xmat[g]).reshape(3, 3).T + np.array(d.geom_xpos[g])
