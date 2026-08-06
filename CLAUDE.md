@@ -30,10 +30,18 @@ Single-phase, fully in-memory pipeline (requires `mujoco>=3.3.4` for `MjSpec.del
    bundled myosuite scene (`utils.strip_myosuite_scene_spec`), returning a live human `MjSpec`.
    The composed model is never serialized (torso-composed models don't round-trip through
    `to_xml`), so everything downstream edits the spec directly.
-2. **Combine** (`combine.py`, MjSpec): surgery via `spec.delete` (body/geom/actuator/tendon
+2. **Combine** (`combine.py`, MjSpec): surgery via `spec.delete` (body/geom/actuator/tendon/sensor
    removals — cascades subtrees + referencing elements; manual scrub of contact `<pair>`s), then
-   attach device bodies, edit attributes, add actuators, and rebuild keyframes (decomposed by
-   joint name before surgery, restored after the final compile).
+   attach device bodies, edit attributes (mesh swaps, inertial + joint overrides), add actuators,
+   import the device's tendons, emit equalities/contacts/sensors, and rebuild keyframes (decomposed
+   by joint name before surgery, restored after the final compile).
+
+`attach_body` copies a body subtree plus the assets it references; **every top-level MJCF section
+stays behind**. Tendons and tendon-driven actuators are read back out of the device XML;
+`<equality>`, `<contact>` and `<sensor>` are authored in YAML against the *combined* model, where
+device names carry the prefix and MSK names are bare. Names in those sections resolve **bare-first,
+then prefixed** — so a device element deliberately sharing a surviving MSK element's name is
+silently shadowed by the MSK one (see `STRIDE_L2`'s `r_sole_touch`).
 
 `registry.py` resolves MSK keys (composed by `myo_sim`) and auto-discovers device configs by
 scanning `assist_sim/models/*/L1config.yaml`. `config.py` holds the `DeviceConfig` dataclass +

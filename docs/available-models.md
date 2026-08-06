@@ -45,11 +45,12 @@ Resolving an unknown key raises a clear error (never a silent fallback).
 
 ## Device models
 
-Ten device directories under `models/`, contributing eleven device keys:
+Twelve device directories under `models/`, contributing thirteen device keys:
 
 | Device key | Config | Type | Notes |
 |---|---|---|---|
 | `Anatomics_L1`        | `models/Anatomics/L1config.yaml` | Ankle exoskeleton | Bilateral instrumented soles + right shank/foot frame; passive (welded, no actuators) |
+| `STRIDE_L2`           | `models/STRIDE/L2config.yaml` | Cable-driven ankle exo (closed linkage) | **S**lack-**T**ensioning via **R**eel-**I**n **D**ifferential **E**lasticity Ankle Exoskeleton. Bilateral **Level 2**; Watt six-bar behind each ankle (5 hinges/side, 1 net DOF) closed by `equality: joint` quartics; bundles the split shoe; 400 N Bowden cables `cable_r`/`_l`; intra-device contact filtered by `contype=2`; ankle ROM clamped to the coupling fit window |
 | `DephyExoBoot_L1`     | `models/DephyExoBoot/L1config.yaml` | Ankle exoskeleton | Bilateral; battery + Raspberry Pi + boot strapping; ankle ROM override |
 | `HMEDI_L1`            | `models/HMEDI/L1config.yaml` | Hip-flexion cable exo | Bilateral; spatial-tendon cables driven by `Exo_R`/`Exo_L`; torso piece attached to `pelvis` on the torso'd leg models |
 | `Hippo_L1`            | `models/Hippo/L1config.yaml` | Hip-flexion exoskeleton | Bilateral; pelvis backplate + hip shell + waistband + AK10-9 housing, thigh braces/cuffs on each femur (welded, visual); ideal fixed-gain hip actuators `Exo_R`/`Exo_L` on `hip_flexion_r`/`_l`; mounts on pelvis + femurs (no torso needed) |
@@ -57,7 +58,8 @@ Ten device directories under `models/`, contributing eleven device keys:
 | `OpenExo_L1`          | `models/OpenExo/L1config.yaml` | Ankle exo | Bilateral |
 | `UTAnkleExo_L2`       | `models/UTAnkleExo/L2config.yaml` | Ankle exoskeleton (parallel linkage) | Bilateral; **free-rooted** (non-rigid), clamped to calcn/talus/tibia via `<connect>` equalities; spring + cable-actuated (`part2part3act_dx`/`_sx`) |
 | `Tutorial_L1`         | `models/Tutorial/L1config.yaml` | Teaching device | Stripped-down exo for onboarding |
-| `KFoot_L1`            | `models/KFoot/L1config.yaml` | Transtibial prosthetic | Removes talus + below on the right side; residual stump tibia mesh; passive spring-damper ankle (`df_`/`pf_ankle_angle_r`) |
+| `KFoot_L1`            | `models/KFoot/L1config.yaml` | Transtibial prosthetic | Removes talus + below on the right side; residual stump tibia mesh + residuum mass; passive spring-damper ankle (`df_`/`pf_ankle_angle_r`); right-side sensors restored |
+| `NEUankle_L1`         | `models/NEUankle/L1config.yaml` | Powered transtibial prosthetic | Same biological scope as KFoot/OSL_A, but the ankle is *actively driven*: one hinge `neuankle_ankle_angle_r` with a 50 Nm joint-torque actuator; right-side sensors restored |
 | `OpenSourceLeg_A_L1`  | `models/OpenSourceLeg/A_L1config.yaml` | Transtibial prosthetic | Removes talus + below on the right side; replaces tibia mesh with residual stump |
 | `OpenSourceLeg_KA_L1` | `models/OpenSourceLeg/KA_L1config.yaml` | Transfemoral prosthetic | Removes tibia + below on the right side; replaces femur mesh with residual stump |
 
@@ -98,16 +100,19 @@ export helper, and per-environment detail.
 ## Compatibility matrix
 
 ✓ = tested (frozen smoke signatures). Every device works with every MSK model:
-all four share the passive torso scaffold, so no device pins its
-`compatible_msk`.
+all four share the passive torso scaffold. The devices that do pin
+`compatible_msk` (`KFoot_L1`, `NEUankle_L1`, `STRIDE_L2`) list all four, so
+nothing is excluded.
 
 | Device | myolegs22 | myolegs26 | myolegs | myofullbody |
 |---|:-:|:-:|:-:|:-:|
 | `Anatomics_L1`        | ✓ | ✓ | ✓ | ✓ |
+| `NEUankle_L1`         | ✓ | ✓ | ✓ | ✓ |
 | `DephyExoBoot_L1`     | ✓ | ✓ | ✓ | ✓ |
 | `KFoot_L1`            | ✓ | ✓ | ✓ | ✓ |
 | `OpenSourceLeg_A_L1`  | ✓ | ✓ | ✓ | ✓ |
 | `OpenSourceLeg_KA_L1` | ✓ | ✓ | ✓ | ✓ |
+| `STRIDE_L2`           | ✓ | ✓ | ✓ | ✓ |
 | `Humotech_L1`         | ✓ | ✓ | ✓ | ✓ |
 | `OpenExo_L1`          | ✓ | ✓ | ✓ | ✓ |
 | `UTAnkleExo_L2`       | ✓ | ✓ | ✓ | ✓ |
