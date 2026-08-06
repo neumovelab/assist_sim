@@ -20,19 +20,11 @@ from importlib.resources import files as _files
 from pathlib import Path
 
 import mujoco
-import myo_sim
 import numpy as np
-from myo_sim.build.compose import (
-    LEFT_ARM_ATTACH_SITE,
-    MODEL_REGISTRY,
-    RIGHT_ARM_ATTACH_SITE,
-    find_site,
-    load_legs_spec,
-    load_mirrored_left_arm_spec,
-    load_passive_torso_spec,
-    load_right_arm_spec,
-    load_torso_spec,
-)
+
+# ``myo_sim`` is imported lazily inside the composed builders below (never at module top),
+# so ``import assist_sim.upper_body`` and ``build_mpl()`` (which needs no myo_sim human) work
+# without myo_sim installed -- matching the library convention (``loading.py`` does the same).
 
 _WHEELCHAIR_XML = str(_files("assist_sim").joinpath("models", "Wheelchair", "wheelchair.xml"))
 _MPL_XML = str(_files("assist_sim").joinpath("models", "MPL", "scenes", "sally.xml"))
@@ -43,7 +35,6 @@ _BIONIC_SCENE_XML = str(_files("assist_sim").joinpath("models", "MPL", "scenes",
 _BIONIC_KEYFRAMES_JSON = str(_files("assist_sim").joinpath("models", "MPL", "scenes", "bionic_bimanual_keyframes.json"))
 _MPL_MESH_DIR = str(_files("assist_sim").joinpath("models", "MPL", "meshes"))
 _YCB_DIR = str(_files("assist_sim").joinpath("models", "YCB"))
-_MYOSIM_MODELS = str(_files("myo_sim").joinpath("models"))
 
 # The original MyoChallenge env fixes the biological right arm via `full_body` at
 # (-0.025, 0.1, 1.40); the current myo_sim right arm is registered to the same world
@@ -194,6 +185,17 @@ def _strip_scene_decor(human: "mujoco.MjSpec") -> None:
 def _build_human(arms: str, torso: str = "passive") -> "mujoco.MjSpec":
     """Torso + the selected muscled arm(s). ``torso="passive"`` is a locked muscle-less
     scaffold (default); ``"muscled"`` keeps the active ``myotorso`` (spine joints + muscles)."""
+    from myo_sim.build.compose import (
+        LEFT_ARM_ATTACH_SITE,
+        MODEL_REGISTRY,
+        RIGHT_ARM_ATTACH_SITE,
+        find_site,
+        load_mirrored_left_arm_spec,
+        load_passive_torso_spec,
+        load_right_arm_spec,
+        load_torso_spec,
+    )
+
     reg = MODEL_REGISTRY["myoarms"]
     human = load_passive_torso_spec(reg) if torso == "passive" else load_torso_spec(reg)
     _strip_scene_decor(human)
@@ -214,6 +216,8 @@ def _build_human(arms: str, torso: str = "passive") -> "mujoco.MjSpec":
 def _freeze_legs_seated(human: "mujoco.MjSpec") -> None:
     """Attach both legs muscle-less, bake ``_SEATED_LEGS`` into the leg geometry, and
     delete every leg joint -- rigid seated legs with no leg DOF (as in the original)."""
+    from myo_sim.build.compose import load_legs_spec
+
     legs = load_legs_spec()
     for sensor in list(legs.sensors):  # no leg DOF here -> drop the legs' proprioceptive/touch sensors
         legs.delete(sensor)
@@ -409,7 +413,7 @@ def _bionic_scene_spec() -> "mujoco.MjSpec":
     text = (
         text.replace("__MPLMESH__", _MPL_MESH_DIR.replace("\\", "/"))
         .replace("__YCB__", _YCB_DIR.replace("\\", "/"))
-        .replace("__MYOSIM__", _MYOSIM_MODELS.replace("\\", "/"))
+        .replace("__MYOSIM__", str(_files("myo_sim").joinpath("models")).replace("\\", "/"))
     )
     return mujoco.MjSpec.from_string(text)
 
@@ -440,6 +444,8 @@ def _freeze_legs_standing(human: "mujoco.MjSpec") -> None:
     deleted, so the figure gains anatomical legs to stand on the base but NO leg DOF or
     actuators -- as in the original, whose lower body was a decorative shell. Keeps the
     exact nu / nq / nsensor match; adds only rigid leg bodies for grounding."""
+    from myo_sim.build.compose import load_legs_spec
+
     legs = load_legs_spec()
     for sensor in list(legs.sensors):  # the legs ship proprioceptive sensors; env has only touch
         legs.delete(sensor)
@@ -565,6 +571,8 @@ def build_auxivo_liftsuit_spec() -> "mujoco.MjSpec":
     anatomical assets are housed here -- the human comes from the myo_sim import; only
     the three exosuit meshes live under ``models/AuxivoLiftsuit/mesh``. See CONVERSION.md.
     """
+    import myo_sim
+
     human = myo_sim.build_spec("myotorso")
     _strip_scene_decor(human)  # model-only env; also lets it export cleanly
 
