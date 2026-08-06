@@ -171,15 +171,16 @@ def _arm_joint(orig_name: str, side: str, jointset: set) -> str | None:
 
 
 def _strip_scene_decor(human: "mujoco.MjSpec") -> None:
-    """Drop the myo_sim scene decor (worldbody floor/skybox geoms + lights).
+    """Drop the myo_sim scene decor so the env is model-only (a downstream scene/terrain
+    supplies the ground + lighting) and exports cleanly.
 
-    assist_sim emits model-only envs (a downstream scene/terrain supplies the
-    ground + lighting). Removing these geoms also un-references the scene
-    textures/materials so the model exports cleanly via ``export_combined_xml``."""
-    for geom in list(human.worldbody.geoms):
-        human.delete(geom)
-    for light in list(human.worldbody.lights):
-        human.delete(light)
+    Delegates to the shared ``utils.strip_myosuite_scene_spec``, which removes worldbody
+    geoms + lights + **cameras** and prunes now-orphaned backdrop/logo meshes -- more
+    thorough than a geoms+lights-only strip (which left scene cameras + meshes in the
+    Auxivo export)."""
+    from .utils import strip_myosuite_scene_spec
+
+    strip_myosuite_scene_spec(human)
 
 
 def _build_human(arms: str, torso: str = "passive") -> "mujoco.MjSpec":

@@ -43,9 +43,10 @@ CASES = [
     ("bionic_bimanual", build_bionic_bimanual_spec, build_bionic_bimanual),
 ]
 
-# Faithfulness baseline: the fully-inlined standalone of the original MyoChallenge
-# "bionic bimanual" env. Lives outside the package; override via env var, skip if absent.
-_BIONIC_BASELINE = Path(os.environ.get("BIONIC_BASELINE_XML", r"C:\Users\calde\Work\compile_check\bionic_bimanual.xml"))
+# Faithfulness baseline: the fully-inlined standalone of the original MyoChallenge "bionic
+# bimanual" env. It lives outside the package, so it is opt-in via BIONIC_BASELINE_XML; the
+# full name-set/keyframe diff runs only when that env var points at an existing file.
+_BIONIC_BASELINE = os.environ.get("BIONIC_BASELINE_XML")
 
 
 def _nameset(model: "mj.MjModel", obj: "mj.mjtObj", n: int) -> set[str]:
@@ -73,6 +74,27 @@ def test_upper_body_export_reloads_matching_live(stem, mkspec, mkbuild, tmp_path
         live.neq,
         live.nbody,
     )
+
+
+@needs_myo_sim
+def test_bionic_reload_holds_object(tmp_path):
+    """The *reloaded* bionic export must still collide: step the reloaded model from the start
+    keyframe and confirm the manip object rests on the pillar rather than falling through.
+
+    This exercises the contract ``_reassert_named_geom_contacts`` guards (contype/conaffinity
+    dropped by ``to_xml``) and that ``multiccd`` survives serialization -- which the counts-only
+    reload test above does not cover, so a contact regression on reload would otherwise pass CI.
+    """
+    out = tmp_path / "bionic_bimanual.xml"
+    export_upper_body_xml(build_bionic_bimanual_spec(), str(out))
+    m = mj.MjModel.from_xml_path(str(out))
+    d = mj.MjData(m)
+    assert bool(m.opt.enableflags & mj.mjtEnableBit.mjENBL_MULTICCD)
+    mj.mj_resetDataKeyframe(m, d, 0)
+    for _ in range(600):
+        mj.mj_step(m, d)
+    oid = mj.mj_name2id(m, mj.mjtObj.mjOBJ_BODY, "manip_object")
+    assert d.xpos[oid][2] > 1.0  # rests near the pillar top (~1.09), not fallen through
 
 
 @needs_myo_sim
@@ -109,10 +131,10 @@ def test_bionic_bimanual_matches_baseline():
     oid = mj.mj_name2id(m, mj.mjtObj.mjOBJ_BODY, "manip_object")
     assert d.xpos[oid][2] > 1.0  # rests near the pillar top (~1.09), not fallen through
 
-    if not _BIONIC_BASELINE.exists():
-        pytest.skip(f"baseline {_BIONIC_BASELINE} absent; skipped full name-set/keyframe check")
+    if not _BIONIC_BASELINE or not Path(_BIONIC_BASELINE).exists():
+        pytest.skip("set BIONIC_BASELINE_XML to the fork baseline to run the full name-set/keyframe check")
 
-    bm = mj.MjModel.from_xml_path(str(_BIONIC_BASELINE))
+    bm = mj.MjModel.from_xml_path(_BIONIC_BASELINE)
     b_acts = _nameset(bm, mj.mjtObj.mjOBJ_ACTUATOR, bm.nu)
     b_joints = _nameset(bm, mj.mjtObj.mjOBJ_JOINT, bm.njnt)
     b_bodies = _nameset(bm, mj.mjtObj.mjOBJ_BODY, bm.nbody)
