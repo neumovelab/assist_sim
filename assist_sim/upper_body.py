@@ -20,19 +20,11 @@ from importlib.resources import files as _files
 from pathlib import Path
 
 import mujoco
-import myo_sim
 import numpy as np
-from myo_sim.build.compose import (
-    LEFT_ARM_ATTACH_SITE,
-    MODEL_REGISTRY,
-    RIGHT_ARM_ATTACH_SITE,
-    find_site,
-    load_legs_spec,
-    load_mirrored_left_arm_spec,
-    load_passive_torso_spec,
-    load_right_arm_spec,
-    load_torso_spec,
-)
+
+# ``myo_sim`` is imported lazily inside the composed builders below (never at module top),
+# so ``import assist_sim.upper_body`` and ``build_mpl()`` (which needs no myo_sim human) work
+# without myo_sim installed -- matching the library convention (``loading.py`` does the same).
 
 _WHEELCHAIR_XML = str(_files("assist_sim").joinpath("models", "Wheelchair", "wheelchair.xml"))
 _MPL_XML = str(_files("assist_sim").joinpath("models", "MPL", "scenes", "sally.xml"))
@@ -43,7 +35,6 @@ _BIONIC_SCENE_XML = str(_files("assist_sim").joinpath("models", "MPL", "scenes",
 _BIONIC_KEYFRAMES_JSON = str(_files("assist_sim").joinpath("models", "MPL", "scenes", "bionic_bimanual_keyframes.json"))
 _MPL_MESH_DIR = str(_files("assist_sim").joinpath("models", "MPL", "meshes"))
 _YCB_DIR = str(_files("assist_sim").joinpath("models", "YCB"))
-_MYOSIM_MODELS = str(_files("myo_sim").joinpath("models"))
 
 # The original MyoChallenge env fixes the biological right arm via `full_body` at
 # (-0.025, 0.1, 1.40); the current myo_sim right arm is registered to the same world
@@ -180,20 +171,32 @@ def _arm_joint(orig_name: str, side: str, jointset: set) -> str | None:
 
 
 def _strip_scene_decor(human: "mujoco.MjSpec") -> None:
-    """Drop the myo_sim scene decor (worldbody floor/skybox geoms + lights).
+    """Drop the myo_sim scene decor so the env is model-only (a downstream scene/terrain
+    supplies the ground + lighting) and exports cleanly.
 
-    assist_sim emits model-only envs (a downstream scene/terrain supplies the
-    ground + lighting). Removing these geoms also un-references the scene
-    textures/materials so the model exports cleanly via ``export_combined_xml``."""
-    for geom in list(human.worldbody.geoms):
-        human.delete(geom)
-    for light in list(human.worldbody.lights):
-        human.delete(light)
+    Delegates to the shared ``utils.strip_myosuite_scene_spec``, which removes worldbody
+    geoms + lights + **cameras** and prunes now-orphaned backdrop/logo meshes -- more
+    thorough than a geoms+lights-only strip (which left scene cameras + meshes in the
+    Auxivo export)."""
+    from .utils import strip_myosuite_scene_spec
+
+    strip_myosuite_scene_spec(human)
 
 
 def _build_human(arms: str, torso: str = "passive") -> "mujoco.MjSpec":
     """Torso + the selected muscled arm(s). ``torso="passive"`` is a locked muscle-less
     scaffold (default); ``"muscled"`` keeps the active ``myotorso`` (spine joints + muscles)."""
+    from myo_sim.build.compose import (
+        LEFT_ARM_ATTACH_SITE,
+        MODEL_REGISTRY,
+        RIGHT_ARM_ATTACH_SITE,
+        find_site,
+        load_mirrored_left_arm_spec,
+        load_passive_torso_spec,
+        load_right_arm_spec,
+        load_torso_spec,
+    )
+
     reg = MODEL_REGISTRY["myoarms"]
     human = load_passive_torso_spec(reg) if torso == "passive" else load_torso_spec(reg)
     _strip_scene_decor(human)
@@ -214,7 +217,11 @@ def _build_human(arms: str, torso: str = "passive") -> "mujoco.MjSpec":
 def _freeze_legs_seated(human: "mujoco.MjSpec") -> None:
     """Attach both legs muscle-less, bake ``_SEATED_LEGS`` into the leg geometry, and
     delete every leg joint -- rigid seated legs with no leg DOF (as in the original)."""
+    from myo_sim.build.compose import load_legs_spec
+
     legs = load_legs_spec()
+    for sensor in list(legs.sensors):  # no leg DOF here -> drop the legs' proprioceptive/touch sensors
+        legs.delete(sensor)
     for actuator in list(legs.actuators):
         legs.delete(actuator)
     for tendon in list(legs.tendons):
@@ -308,11 +315,10 @@ def _add_ground(human: "mujoco.MjSpec") -> None:
     """Add a ground plane at the resting wheel height + a light, and set the 1 ms
     timestep. Terrain composition replaces this ground later."""
     human.option.timestep = 0.001
-    tmp = human.compile()
-    td = mujoco.MjData(tmp)
-    mujoco.mj_resetData(tmp, td)
-    mujoco.mj_forward(tmp, td)
-    floor_z = float(td.geom_xpos[:, 2].min()) if tmp.ngeom else 0.0
+    # Seat the floor at the lowest COLLISION-geom surface (AABB corner), not the geom
+    # center (too high -> interpenetration) nor the lowest of all geoms (a low visual
+    # geom would drag it too low), so the wheels rest on the plane.
+    floor_z = _lowest_geom_z(human, collision_only=True)
 
     light = human.worldbody.add_light()
     light.pos = [0, -2, 4]
@@ -408,7 +414,7 @@ def _bionic_scene_spec() -> "mujoco.MjSpec":
     text = (
         text.replace("__MPLMESH__", _MPL_MESH_DIR.replace("\\", "/"))
         .replace("__YCB__", _YCB_DIR.replace("\\", "/"))
-        .replace("__MYOSIM__", _MYOSIM_MODELS.replace("\\", "/"))
+        .replace("__MYOSIM__", str(_files("myo_sim").joinpath("models")).replace("\\", "/"))
     )
     return mujoco.MjSpec.from_string(text)
 
@@ -439,6 +445,8 @@ def _freeze_legs_standing(human: "mujoco.MjSpec") -> None:
     deleted, so the figure gains anatomical legs to stand on the base but NO leg DOF or
     actuators -- as in the original, whose lower body was a decorative shell. Keeps the
     exact nu / nq / nsensor match; adds only rigid leg bodies for grounding."""
+    from myo_sim.build.compose import load_legs_spec
+
     legs = load_legs_spec()
     for sensor in list(legs.sensors):  # the legs ship proprioceptive sensors; env has only touch
         legs.delete(sensor)
@@ -458,14 +466,19 @@ def _freeze_legs_standing(human: "mujoco.MjSpec") -> None:
             human.delete(eq)
 
 
-def _lowest_geom_z(spec: "mujoco.MjSpec") -> float:
-    """World-z of the lowest point of any geom in a throwaway compile of ``spec``."""
+def _lowest_geom_z(spec: "mujoco.MjSpec", collision_only: bool = False) -> float:
+    """World-z of the lowest surface point (AABB corner) of any geom in a throwaway
+    compile of ``spec``. ``collision_only`` restricts to geoms that can contact
+    (``contype``/``conaffinity`` set) -- use it to seat a ground plane under the lowest
+    *colliding* geom, ignoring purely visual geoms that would drag the plane too low."""
     m = spec.compile()
     d = mujoco.MjData(m)
     mujoco.mj_forward(m, d)
     signs = np.array([[sx, sy, sz] for sx in (-1, 1) for sy in (-1, 1) for sz in (-1, 1)])
     zmin = np.inf
     for g in range(m.ngeom):
+        if collision_only and m.geom_contype[g] == 0 and m.geom_conaffinity[g] == 0:
+            continue
         aabb = np.array(m.geom_aabb[g]).reshape(2, 3)
         corners = aabb[0] + signs * aabb[1]
         world = corners @ np.array(d.geom_xmat[g]).reshape(3, 3).T + np.array(d.geom_xpos[g])
@@ -559,6 +572,8 @@ def build_auxivo_liftsuit_spec() -> "mujoco.MjSpec":
     anatomical assets are housed here -- the human comes from the myo_sim import; only
     the three exosuit meshes live under ``models/AuxivoLiftsuit/mesh``. See CONVERSION.md.
     """
+    import myo_sim
+
     human = myo_sim.build_spec("myotorso")
     _strip_scene_decor(human)  # model-only env; also lets it export cleanly
 

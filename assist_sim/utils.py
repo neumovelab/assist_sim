@@ -1,6 +1,7 @@
 """Utility functions for XML export, mesh deduplication, and post-processing."""
 
 import os
+import warnings
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
@@ -429,7 +430,12 @@ def _reassert_named_geom_contacts(root: ET.Element, spec: mj.MjSpec) -> None:
     """
     try:
         model = spec.compile()
-    except Exception:
+    except Exception as exc:
+        warnings.warn(
+            f"_reassert_named_geom_contacts: spec.compile() failed ({exc}); exported geoms keep "
+            "their to_xml contact attrs and may reload without collisions.",
+            stacklevel=2,
+        )
         return
     live: dict[str, tuple[int, int, int]] = {}
     for g in range(model.ngeom):
