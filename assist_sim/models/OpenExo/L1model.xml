@@ -11,27 +11,27 @@
     </asset>
     <worldbody>
         <body name="exo_shaft_r" pos="-0.025 -0.215 0.05">
-            <inertial diaginertia="0.00465 0.00065 0.00501" mass="0.732" pos="0 0 0.025" quat="1 0 0 0" />
+            <inertial pos="0.000006 0.060559 0.018817" quat="0.481653 0.514952 0.516078 0.486312" mass="1.661494" diaginertia="2.408430e-03 5.780867e-02 5.823998e-02" />
             <geom name="exo_shaft_r_geom" mesh="exo_shaft_r_geom" type="mesh" rgba="0.4 0.4 0.4 1" />
         </body>
         <body name="exo_cuff_r" pos="-0.05 -0.13 -0.065">
-            <inertial diaginertia="0.00002 0.00011 0.00009" mass="0.04872" pos="0.025 0 0.05" quat="1 0 0 0" />
+            <inertial pos="-0.009112 -0.000008 0.059001" quat="0.499986 0.500016 -0.499984 0.500014" mass="0.121033" diaginertia="1.738032e-04 3.286705e-04 3.387058e-04" />
             <geom name="exo_cuff_r_geom" mesh="exo_cuff_r_geom" type="mesh" rgba="0.3 0.3 0.3 1" />
         </body>
         <body name="exo_blade_r" pos="0.1 0.055 -0.0575" euler="0 -0.15 0">
-            <inertial diaginertia="0.00002 0.00011 0.00009" mass="0.04872" pos="0 -0.06 0.05" quat="1 0 0 0" />
+            <inertial pos="-0.034220 -0.023634 0.091575" quat="0.901810 0.244005 0.133586 -0.330688" mass="0.167473" diaginertia="2.815486e-04 7.374308e-04 9.349158e-04" />
             <geom name="exo_blade_r_geom" mesh="exo_blade_r_geom" type="mesh" rgba="0.3 0.3 0.3 1" />
         </body>
         <body name="exo_shaft_l" pos="-0.025 -0.215 -0.095">
-            <inertial diaginertia="0.00465 0.00065 0.00501" mass="0.732" pos="0 0 0.025" quat="1 0 0 0" />
+            <inertial pos="-0.000311 0.058463 0.025805" quat="0.533871 -0.463637 -0.460606 0.536530" mass="1.656847" diaginertia="2.493617e-03 6.200112e-02 6.251906e-02" />
             <geom name="exo_shaft_l_geom" mesh="exo_shaft_l_geom" type="mesh" rgba="0.4 0.4 0.4 1" />
         </body>
         <body name="exo_cuff_l" pos="-0.05 -0.13 -0.055">
-            <inertial diaginertia="0.00002 0.00011 0.00009" mass="0.04872" pos="0.025 0 0.05" quat="1 0 0 0" />
+            <inertial pos="-0.009117 0.000000 0.059007" quat="0.499961 0.499931 0.500069 -0.500039" mass="0.121005" diaginertia="1.737490e-04 3.285824e-04 3.386005e-04" />
             <geom name="exo_cuff_l_geom" mesh="exo_cuff_l_geom" type="mesh" rgba="0.3 0.3 0.3 1" />
         </body>
         <body name="exo_blade_l" pos="0.075 0.055 -0.0775" euler="0 0.15 0">
-            <inertial diaginertia="0.00002 0.00011 0.00009" mass="0.04872" pos="0 -0.06 0.09" quat="1 0 0 0" />
+            <inertial pos="-0.032964 -0.025515 0.046872" quat="0.901954 -0.247801 -0.130919 -0.328532" mass="0.172148" diaginertia="2.876000e-04 7.625684e-04 9.648392e-04" />
             <geom name="exo_blade_l_geom" mesh="exo_blade_l_geom" type="mesh" rgba="0.3 0.3 0.3 1" />
         </body>
     </worldbody>

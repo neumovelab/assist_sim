@@ -7,6 +7,108 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.1] — lower-limb mass/inertia re-tare (STRIDE, Anatomics, Hippo, Humotech)
+
+Measured masses replacing placeholder inertials. No `(nq, nu, nbody, nmesh)`
+signature changes anywhere.
+
+Three different corrections, in increasing order of fidelity:
+
+- **STRIDE / Anatomics shoe** — mass re-tared, `diaginertia` scaled by the mass
+  ratio (uniform-density correction, `I_new = I_old × m_new/m_old`), `pos`,
+  `quat` and `euler` untouched. The tensors were placeholders to begin with, so
+  this fixes the mass without fixing the distribution; see the note below.
+- **Hippo** — every tensor recomputed from mesh geometry at the density that
+  reproduces the assigned mass, per `modeling-tools/AGENTS.md`.
+- **Humotech** — mass and principal moments taken from supplied SolidWorks CAD.
+
+### Changed
+
+- **Hippo re-tared to 4.900 kg**, 79.1% of it at the pelvis. Was ~6 g of total
+  model mass: all eight bodies sat at `mass=0.001` with
+  `diaginertia="1e-9 1e-9 1e-9"` and a copy-pasted `pos`/`quat`. The two AK10-9
+  hip actuators are 960 g each (catalog); the remaining 2.98 kg is spread over
+  the printed structure at one uniform density. Every tensor is now computed
+  from the compiled mesh geometry — note MuJoCo recentres and reorients mesh
+  assets onto their principal axes and pushes the correction into
+  `geom_pos`/`geom_quat`, so raw STL coordinates are *not* the body frame.
+- **Humotech hardware re-tared to 2194.05 g/side** from CAD: shank assembly
+  602.82 g, foot assembly 1591.23 g. SolidWorks prints off-diagonals as products
+  of inertia rather than tensor components, so they are negated before use —
+  verified by reproducing its own printed principal moments and by the
+  parallel-axis transform to the origin. Only mass and the principal moments are
+  transferable: the STLs were exported in per-part local frames (both groups
+  start at `z=0`, while the CAD COMs are at `z=+183.20` and `z=-58.54`), so the
+  CAD COM and tensor orientation cannot be mapped. Principal moments are
+  rotational invariants and survive; `pos` is left as authored and `quat` comes
+  from each body's own mesh axes.
+- **HMEDI re-tared to 4.500 kg**: 4.2 kg on `hmedi_torso`, 300 g over the nine
+  fabric/attachment bodies by mesh volume, every tensor recomputed from geometry.
+  Nine of the ten bodies were previously `mass="0.001"` (or `0.00001`) with
+  `diaginertia="1e-9 1e-9 1e-9"`; the tenth carried 233 g, a value that also
+  appears three times in `DephyExoBoot`, so it was a copied default rather than a
+  measurement. Torso lands at 2524 kg/m^3 and the fabric at 1077.
+- **OpenExo re-tared to 1.950 kg/side.** `exo_shaft` + `exo_cuff` weld to `tibia`
+  and `exo_blade` welds to `calcn`, so only the shank-vs-foot split is
+  dynamically meaningful; the split within the shank group is not. Comparing each
+  mesh volume against what the part physically is shows only the shaft is a stub
+  — a carbon foot plate really is ~100 cm^3 and a curved shank shell ~75-90, so
+  `exo_blade` (104.67) and `exo_cuff` (86.45) are faithful, while 34.54 cm^3
+  cannot be an actuator assembly. The two shells therefore take geometry-based
+  masses at material density (carbon 1600, shell 1400) and `exo_shaft` takes the
+  remainder, 1.66 kg, which also absorbs off-board mass the 1.95 kg figure covers
+  but the model does not represent.
+- **OpenExo shaft inertia envelope-corrected.** The mesh-derived tensor
+  understates inertia because the geometry is too small, so with mass held fixed
+  and a real assembly density assumed, `V_true = m/rho`, `s = (V_true/V_mesh)^(1/3)`,
+  `I_true = I_mesh * s^2` — the `AGENTS.md` "compute from the mesh and scale it"
+  rule anchored on density rather than a known moment. At rho = 2500 kg/m^3 that
+  is x7.18 (R) and x7.38 (L). It assumes the real part is a uniform scale-up of
+  the stub. `spread` stays 1.00, so only magnitude changes, not shape.
+- **Humotech weld groups collapsed onto their primary bodies.** `shin_cuff`,
+  `heel_connector` and `sole_attachment` carry geometry at `mass="0"`, with the
+  group total on `shin_main` / `heel_ring`. Each CAD assembly maps onto exactly
+  one weld group (`shin_*` → `tibia`, `heel_*`/`sole_attachment` → `calcn`), and
+  welded bodies sum into the parent's composite inertia, so this reproduces the
+  CAD composite exactly. The zeros are exact, not placeholders.
+
+- **Split shoe re-tared to 330 g/side** (was 1.79232 kg) in `STRIDE_L2` and
+  `Anatomics_L1`, which share the geometry: 60 % to the soles and 40 % to the
+  uppers, split evenly fore/aft — `aft_sole` and `fore_sole` 99 g each,
+  `aft_upper` and `fore_upper` 66 g each. The old distribution was heel-biased
+  (`aft_sole` alone was 924.5 g, over half the per-side total).
+- **`STRIDE_L2` exo re-tared to 770 g/side** (was 849.65 g): the `shank`
+  segment carrying the actuator is 590 g, and the 180 g distal budget — four
+  linkage bodies plus the carbon plate, which is folded into `foot` — keeps its
+  CAD-derived relative distribution (every sub-shank mass × 180/127.44).
+- **`STRIDE_L2` per-leg total is now 1.100 kg**, down from 2.642 kg.
+- **`Humotech_L1` shoe** re-tared to the same 330 g/side, so all three models
+  sharing this mesh set now agree.
+
+### Known-outstanding
+
+> The shoe `diaginertia` values in all three models are still the original
+> placeholders scaled by mass. Their implied densities disagree by 7.8x for what
+> is one material (`aft_sole` 98, `fore_sole` 186, `aft_upper` 393,
+> `fore_upper` 766 kg/m^3), and `mt-check-inertia` puts them at 0.74-0.76x the
+> geometry. Masses are right; distributions are not. They want the same
+> mesh-based recompute Hippo received.
+
+> `OpenExo_L1`'s `exo_shaft` sits at ~48000-50000 kg/m^3 against its own mesh.
+> That number is expected and is the honest record of a stub carrying both the
+> actuator and unmodelled off-board mass; the envelope correction above is what
+> makes the *inertia* approximately right despite it. Note `mt-check-inertia`
+> reports 0 flagged here — a tensor computed from a mesh is self-consistent with
+> that mesh however wrong the mesh is, so `rho` is the only column that reveals
+> the problem. Supplied meshes are as-received from the OpenExo project.
+
+> `mt-check-inertia` flags `heel_ring_r`/`_l` as REACH: radius of gyration
+> 0.1138 m against a mesh reach of 0.0934 m. This is correct behaviour and the
+> tensor is right — the Humotech foot meshes cover only 5.7% of the real CAD
+> assembly (75.3 cm^3 against 1309.97 cm^3), so the geometry on disk cannot
+> corroborate an inertia measured on the real hardware. Resolving the flag needs
+> better meshes, not different numbers.
+
 ## [0.6.0] — NEU environments (NEUankle, STRIDE) + four new config sections
 
 Adds two Northeastern device environments and the config surface they needed.

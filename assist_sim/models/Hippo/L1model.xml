@@ -22,17 +22,17 @@
     <worldbody>
         <!-- Pelvis-mounted backplate + hip shell + waistband + actuator housing -->
         <body name="hippo_backplate" pos="-0.2 0.15 -0.1225">
-            <inertial diaginertia="0.000000001 0.000000001 0.000000001" mass="0.001" pos="-0.065 0.0 0.15" quat="1 1 0 0" />
+            <inertial pos="0.011455 -0.007843 0.136530" quat="0.015506 0.742451 0.002291 -0.669717" mass="0.929764" diaginertia="1.096709e-03 2.764456e-03 3.656918e-03" />
             <geom name="hippo_backplate_geom" mesh="hippo_backplate_geom" type="mesh" rgba="0.5 0.5 0.5 1" />
             <body name="hippo_hipshell_lr" pos="0.1 -0.12 -0.06">
-                <inertial diaginertia="0.000000001 0.000000001 0.000000001" mass="0.001" pos="-0.065 0.0 0.15" quat="1 1 0 0" />
+                <inertial pos="-0.000131 0.042051 0.180608" quat="-0.497538 0.495552 0.503749 0.503111" mass="0.744376" diaginertia="2.243494e-03 1.539752e-02 1.602067e-02" />
                 <geom name="hippo_hipshell_geom" mesh="hippo_hipshell_geom" type="mesh" rgba="0.486 0.424 0.82 1" />
                 <body name="hippo_waist_bands" pos="0.03 0.117 0.036">
-                    <inertial diaginertia="0.000000001 0.000000001 0.000000001" mass="0.00001" pos="0 0 0" quat="1 1 0 0" />
+                    <inertial pos="0.034421 0.005235 0.145134" quat="0.620090 0.349041 -0.611918 0.345275" mass="0.283131" diaginertia="2.454558e-03 2.714786e-03 4.119022e-03" />
                     <geom name="hippo_waist_bands_geom" mesh="hippo_waist_bands_geom" type="mesh" rgba="0.5 0.5 0.5 0.5" />
                 </body>
                 <body name="hippo_ak10_9" pos="0.0 -0.05 -0.04">
-                    <inertial diaginertia="0.000000001 0.000000001 0.000000001" mass="0.00001" pos="0 0 0" quat="1 1 0 0" />
+                    <inertial pos="-0.000033 0.000982 0.219924" quat="-0.210140 0.674789 0.204905 0.677137" mass="1.920000" diaginertia="1.396387e-03 7.257161e-02 7.257428e-02" />
                     <geom name="hippo_ak10_9_lr_geom" mesh="hippo_ak10_9_lr_geom" type="mesh" rgba="0.5 0.5 0.5 1" />
                 </body>
             </body>
@@ -40,20 +40,20 @@
 
         <!-- Right thigh brace + cuff -->
         <body name="hippo_thigh_r" pos="0.01 -0.065 -0.05" euler="0 0 0.15">
-            <inertial diaginertia="0.000000001 0.000000001 0.000000001" mass="0.001" pos="-0.065 0.0 0.15" quat="1 1 0 0" />
+            <inertial pos="0.005559 -0.015836 0.105363" quat="0.715784 -0.390541 0.425916 -0.392080" mass="0.347605" diaginertia="2.692459e-04 3.450847e-03 3.570638e-03" />
             <geom name="hippo_thigh_r_geom" mesh="hippo_thigh_r_geom" type="mesh" rgba="0.486 0.424 0.82 1" />
             <body name="hippo_thigh_cuff_r" pos="-0.025 -0.11 -0.014">
-                <inertial diaginertia="0.000000001 0.000000001 0.000000001" mass="0.001" pos="-0.065 0.0 0.15" quat="1 1 0 0" />
+                <inertial pos="-0.011141 0.000001 0.071061" quat="0.495223 0.495208 0.504755 -0.504724" mass="0.163742" diaginertia="2.281900e-04 5.054323e-04 6.726043e-04" />
                 <geom name="hippo_thigh_cuff_r_geom" mesh="hippo_thigh_cuff_r_geom" type="mesh" rgba="0.5 0.5 0.5 0.5" />
             </body>
         </body>
 
         <!-- Left thigh brace + cuff -->
         <body name="hippo_thigh_l" pos="0.01 -0.065 -0.0975" euler="0 0 0.15">
-            <inertial diaginertia="0.000000001 0.000000001 0.000000001" mass="0.001" pos="-0.065 0.0 0.15" quat="1 1 0 0" />
+            <inertial pos="0.005552 -0.015804 0.038271" quat="0.425884 0.392146 0.715784 0.390509" mass="0.347640" diaginertia="2.692519e-04 3.452489e-03 3.572286e-03" />
             <geom name="hippo_thigh_l_geom" mesh="hippo_thigh_l_geom" type="mesh" rgba="0.486 0.424 0.82 1" />
             <body name="hippo_thigh_cuff_l" pos="-0.025 -0.11 0.015">
-                <inertial diaginertia="0.000000001 0.000000001 0.000000001" mass="0.001" pos="-0.065 0.0 0.15" quat="1 1 0 0" />
+                <inertial pos="-0.011141 0.000001 0.071288" quat="-0.495223 0.495208 0.504755 0.504724" mass="0.163742" diaginertia="2.281899e-04 5.054322e-04 6.726042e-04" />
                 <geom name="hippo_thigh_cuff_l_geom" mesh="hippo_thigh_cuff_l_geom" type="mesh" rgba="0.5 0.5 0.5 0.5" />
             </body>
         </body>

@@ -28,7 +28,7 @@
     </default>
     <default class="STRIDE_link">
       <joint type="hinge" damping="0.01" armature="1e-5" limited="true" />
-      <geom type="mesh" group="1" contype="2" conaffinity="1" rgba="0.337 0.478 1 1" />
+      <geom type="mesh" group="1" contype="2" conaffinity="1" rgba="1 0.733 0.016 1" />
     </default>
     <default class="STRIDE_frame">
       <geom type="mesh" group="1" contype="2" conaffinity="1" rgba="0.62 0.64 0.66 1" />
@@ -63,111 +63,111 @@
   </asset>
   <worldbody>
     <body name="shank_r" pos="-0.040474 -0.373671 -0.000000" quat="0.707107 0.000000 0.707107 0.000000">
-      <inertial pos="0.001443 0.213092 -0.047855" quat="0.241329 0.677861 -0.230503 -0.655082" mass="0.722206" diaginertia="3.2028e-03 4.1903e-03 5.9964e-03" />
+      <inertial pos="0.001443 0.213092 -0.047855" quat="0.241329 0.677861 -0.230503 -0.655082" mass="0.59" diaginertia="2.6165e-03 3.4232e-03 4.8987e-03" />
       <geom name="shank_r_actuator_geom" mesh="shank_r_actuator" class="STRIDE_link" />
       <geom name="shank_r_main_geom" mesh="shank_r_main" class="STRIDE_frame" />
       <site name="cable_actuator_r" pos="0.002023 0.246554 -0.084093" class="cable_site" />
       <site name="cable_guide_r" pos="0.004800 0.081209 -0.085149" class="cable_site" />
       <body name="link_ag_r" pos="-0.002672 0.008782 -0.008869">
         <joint name="shank_r__link_ag_r" class="STRIDE_link" pos="0 0 0" axis="1.000000 -0.000000 0.000000" range="-0.895000 0.895000" />
-        <inertial pos="0.004440 -0.036025 -0.052527" quat="0.660381 0.250403 -0.255560 0.660216" mass="0.021291" diaginertia="1.8846e-05 2.2360e-05 4.0713e-05" />
+        <inertial pos="0.004440 -0.036025 -0.052527" quat="0.660381 0.250403 -0.255560 0.660216" mass="0.030072" diaginertia="2.6619e-05 3.1582e-05 5.7504e-05" />
         <geom name="link_ag_r_main_geom" mesh="link_ag_r_main" class="STRIDE_link" />
         <site name="cable_link_ag_r" pos="0.005000 -0.066620 -0.084210" class="cable_site" />
         <body name="link_gcf_r" pos="0.032198 -0.058708 -0.058644">
           <joint name="link_ag_r__link_gcf_r" class="STRIDE_link" pos="0 0 0" axis="1.000000 -0.000000 0.000000" range="-0.861561 0.550468" />
-          <inertial pos="-0.025697 -0.021093 0.024035" quat="0.876684 -0.447063 -0.096037 -0.149457" mass="0.018179" diaginertia="7.7656e-06 1.1254e-05 1.7763e-05" />
+          <inertial pos="-0.025697 -0.021093 0.024035" quat="0.876684 -0.447063 -0.096037 -0.149457" mass="0.025677" diaginertia="1.0968e-05 1.5895e-05 2.5089e-05" />
           <geom name="link_gcf_r_main_geom" mesh="link_gcf_r_main" class="STRIDE_link" />
           <body name="foot_r" pos="-0.016704 -0.034184 0.061166">
             <joint name="link_gcf_r__foot_r" class="STRIDE_link" pos="0 0 0" axis="1.000000 -0.000000 0.000000" range="-0.795480 0.878812" />
-            <inertial pos="-0.011699 -0.025772 -0.003190" quat="0.858030 -0.513585 -0.002079 -0.003413" mass="0.050381" diaginertia="2.8397e-05 8.4723e-05 9.6161e-05" />
+            <inertial pos="-0.011699 -0.025772 -0.003190" quat="0.858030 -0.513585 -0.002079 -0.003413" mass="0.07116" diaginertia="4.0109e-05 1.1967e-04 1.3582e-04" />
             <geom name="foot_r_main_geom" mesh="foot_r_main" class="STRIDE_frame" />
           </body>
         </body>
       </body>
       <body name="link_bcd_r" pos="-0.002441 -0.008782 0.008869">
         <joint name="shank_r__link_bcd_r" class="STRIDE_link" pos="0 0 0" axis="1.000000 -0.000000 0.000000" range="-1.047047 1.035583" />
-        <inertial pos="0.003986 -0.039396 -0.046725" quat="0.937932 0.346801 -0.003157 -0.001488" mass="0.023041" diaginertia="2.1648e-05 2.2783e-05 4.3285e-05" />
+        <inertial pos="0.003986 -0.039396 -0.046725" quat="0.937932 0.346801 -0.003157 -0.001488" mass="0.032544" diaginertia="3.0576e-05 3.2179e-05 6.1137e-05" />
         <geom name="link_bcd_r_main_geom" mesh="link_bcd_r_main" class="STRIDE_link" />
         <site name="cable_link_bcd_r" pos="0.004712 -0.072865 -0.086916" class="cable_site" />
         <body name="link_de_r" pos="0.034069 -0.072247 -0.066853">
           <joint name="link_bcd_r__link_de_r" class="STRIDE_link" pos="0 0 0" axis="1.000000 -0.000000 0.000000" range="-0.802372 0.569686" />
-          <inertial pos="-0.027254 -0.012471 0.010008" quat="0.846262 -0.529538 -0.031693 -0.049251" mass="0.014548" diaginertia="2.4491e-06 1.0035e-05 1.1935e-05" />
+          <inertial pos="-0.027254 -0.012471 0.010008" quat="0.846262 -0.529538 -0.031693 -0.049251" mass="0.020548" diaginertia="3.4592e-06 1.4174e-05 1.6857e-05" />
           <geom name="link_de_r_main_geom" mesh="link_de_r_main" class="STRIDE_link" />
         </body>
       </body>
     </body>
 
     <body name="shank_l" pos="-0.040474 -0.373671 0.000000" quat="0.707107 0.000000 -0.707107 0.000000">
-      <inertial pos="0.001443 0.213092 0.047855" quat="-0.241329 0.677861 -0.230503 0.655082" mass="0.722206" diaginertia="3.2028e-03 4.1903e-03 5.9964e-03" />
+      <inertial pos="0.001443 0.213092 0.047855" quat="-0.241329 0.677861 -0.230503 0.655082" mass="0.59" diaginertia="2.6165e-03 3.4232e-03 4.8987e-03" />
       <geom name="shank_l_actuator_geom" mesh="shank_l_actuator" class="STRIDE_link" />
       <geom name="shank_l_main_geom" mesh="shank_l_main" class="STRIDE_frame" />
       <site name="cable_actuator_l" pos="0.002023 0.246554 0.084093" class="cable_site" />
       <site name="cable_guide_l" pos="0.004800 0.081209 0.085149" class="cable_site" />
       <body name="link_ag_l" pos="-0.002672 0.008782 0.008869">
         <joint name="shank_l__link_ag_l" class="STRIDE_link" pos="0 0 0" axis="-1.000000 0.000000 0.000000" range="-0.895000 0.895000" />
-        <inertial pos="0.004440 -0.036025 0.052527" quat="0.660381 -0.250403 0.255560 0.660216" mass="0.021291" diaginertia="1.8846e-05 2.2360e-05 4.0713e-05" />
+        <inertial pos="0.004440 -0.036025 0.052527" quat="0.660381 -0.250403 0.255560 0.660216" mass="0.030072" diaginertia="2.6619e-05 3.1582e-05 5.7504e-05" />
         <geom name="link_ag_l_main_geom" mesh="link_ag_l_main" class="STRIDE_link" />
         <site name="cable_link_ag_l" pos="0.005000 -0.066620 0.084210" class="cable_site" />
         <body name="link_gcf_l" pos="0.032198 -0.058708 0.058644">
           <joint name="link_ag_l__link_gcf_l" class="STRIDE_link" pos="0 0 0" axis="-1.000000 0.000000 0.000000" range="-0.861561 0.550468" />
-          <inertial pos="-0.025697 -0.021093 -0.024035" quat="0.876684 0.447063 0.096037 -0.149457" mass="0.018179" diaginertia="7.7656e-06 1.1254e-05 1.7763e-05" />
+          <inertial pos="-0.025697 -0.021093 -0.024035" quat="0.876684 0.447063 0.096037 -0.149457" mass="0.025677" diaginertia="1.0968e-05 1.5895e-05 2.5089e-05" />
           <geom name="link_gcf_l_main_geom" mesh="link_gcf_l_main" class="STRIDE_link" />
           <body name="foot_l" pos="-0.016704 -0.034184 -0.061166">
             <joint name="link_gcf_l__foot_l" class="STRIDE_link" pos="0 0 0" axis="-1.000000 0.000000 0.000000" range="-0.795480 0.878812" />
-            <inertial pos="-0.011699 -0.025772 0.003190" quat="0.858030 0.513585 0.002079 -0.003413" mass="0.050381" diaginertia="2.8397e-05 8.4723e-05 9.6161e-05" />
+            <inertial pos="-0.011699 -0.025772 0.003190" quat="0.858030 0.513585 0.002079 -0.003413" mass="0.07116" diaginertia="4.0109e-05 1.1967e-04 1.3582e-04" />
             <geom name="foot_l_main_geom" mesh="foot_l_main" class="STRIDE_frame" />
           </body>
         </body>
       </body>
       <body name="link_bcd_l" pos="-0.002441 -0.008782 -0.008869">
         <joint name="shank_l__link_bcd_l" class="STRIDE_link" pos="0 0 0" axis="-1.000000 0.000000 0.000000" range="-1.047047 1.035583" />
-        <inertial pos="0.003986 -0.039396 0.046725" quat="0.937932 -0.346801 0.003157 -0.001488" mass="0.023041" diaginertia="2.1648e-05 2.2783e-05 4.3285e-05" />
+        <inertial pos="0.003986 -0.039396 0.046725" quat="0.937932 -0.346801 0.003157 -0.001488" mass="0.032544" diaginertia="3.0576e-05 3.2179e-05 6.1137e-05" />
         <geom name="link_bcd_l_main_geom" mesh="link_bcd_l_main" class="STRIDE_link" />
         <site name="cable_link_bcd_l" pos="0.003712 -0.072865 0.086916" class="cable_site" />
         <body name="link_de_l" pos="0.034069 -0.072247 0.066853">
           <joint name="link_bcd_l__link_de_l" class="STRIDE_link" pos="0 0 0" axis="-1.000000 0.000000 0.000000" range="-0.802372 0.569686" />
-          <inertial pos="-0.027254 -0.012471 -0.010008" quat="0.846262 0.529538 0.031693 -0.049251" mass="0.014548" diaginertia="2.4491e-06 1.0035e-05 1.1935e-05" />
+          <inertial pos="-0.027254 -0.012471 -0.010008" quat="0.846262 0.529538 0.031693 -0.049251" mass="0.020548" diaginertia="3.4592e-06 1.4174e-05 1.6857e-05" />
           <geom name="link_de_l_main_geom" mesh="link_de_l_main" class="STRIDE_link" />
         </body>
       </body>
     </body>
 
     <body name="r_aft_sole" pos="0.075 -0.025 -0.055" euler="0 -0.1 0">
-      <inertial mass="0.92450" pos="-0.01 0 0.05" diaginertia="0.00067 0.00264 0.00247" />
-      <geom name="r_aft_sole_geom" mesh="r_aft_sole" type="mesh" rgba="0.2 0.2 0.2 1" />
+      <inertial mass="0.099" pos="-0.01 0 0.05" diaginertia="7.1747e-05 2.8270e-04 2.6450e-04" />
+      <geom name="r_aft_sole_geom" mesh="r_aft_sole" type="mesh" rgba="0.859 0.859 0.859 1" />
       <site name="r_sole_touch" type="box" pos="-0.05 -0.005 0.05" size=".06 .03 .05" euler="0 0 0" class="myo_leg_touch" />
     </body>
     <body name="r_aft_upper" pos="0.0815 0.036 -0.0465" euler="0 -0.1 0">
-      <inertial mass="0.14956" pos="-0.01 0.02 0.045" diaginertia="0.00019 0.00046 0.00049" />
-      <geom name="r_aft_upper_geom" mesh="r_aft_upper" type="mesh" rgba="0.06 0.06 0.06 0.35" />
+      <inertial mass="0.066" pos="-0.01 0.02 0.045" diaginertia="8.3846e-05 2.0300e-04 2.1623e-04" />
+      <geom name="r_aft_upper_geom" mesh="r_aft_upper" type="mesh" rgba="0.502 0.494 0.482 0.35" />
     </body>
     <body name="r_fore_sole" pos="0.035 -0.0277 -0.048" euler="-0.02 -0.1 -0.2">
-      <inertial mass="0.61424" pos="0 -0.01 0.06" diaginertia="0.00061 0.00125 0.00085" />
-      <geom name="r_fore_sole_geom" mesh="r_fore_sole" type="mesh" rgba="0.2 0.2 0.2 1" />
+      <inertial mass="0.099" pos="0 -0.01 0.06" diaginertia="9.8317e-05 2.0147e-04 1.3700e-04" />
+      <geom name="r_fore_sole_geom" mesh="r_fore_sole" type="mesh" rgba="0.859 0.859 0.859 1" />
       <site name="r_forefoot_touch" type="box" pos="0.0 -0.0075 0.06" size=".075 .03 .065" euler="0 0 0" class="myo_leg_touch" />
     </body>
     <body name="r_fore_upper" pos="0.038 0.0175 -0.0395" euler="0 -0.1 -0.2">
-      <inertial mass="0.10402" pos="0 0.01 0.05" diaginertia="0.00012 0.0002 0.00015" euler="0 0 -0.2" />
-      <geom name="r_fore_upper_geom" mesh="r_fore_upper" type="mesh" rgba="0.06 0.06 0.06 0.35" />
+      <inertial mass="0.066" pos="0 0.01 0.05" diaginertia="7.6139e-05 1.2690e-04 9.5174e-05" euler="0 0 -0.2" />
+      <geom name="r_fore_upper_geom" mesh="r_fore_upper" type="mesh" rgba="0.502 0.494 0.482 0.35" />
     </body>
 
     <body name="l_aft_sole" pos="0.07 -0.025 -0.055" euler="0 0.1 0">
-      <inertial mass="0.92450" pos="-0.01 0 0.065" diaginertia="0.00067 0.00264 0.00247" />
-      <geom name="l_aft_sole_geom" mesh="l_aft_sole" type="mesh" rgba="0.2 0.2 0.2 1" />
+      <inertial mass="0.099" pos="-0.01 0 0.065" diaginertia="7.1747e-05 2.8270e-04 2.6450e-04" />
+      <geom name="l_aft_sole_geom" mesh="l_aft_sole" type="mesh" rgba="0.859 0.859 0.859 1" />
       <site name="l_sole_touch" type="box" pos="-0.05 -0.005 0.0615" size=".06 .03 .05" euler="0 0 0" class="myo_leg_touch" />
     </body>
     <body name="l_aft_upper" pos="0.0815 0.036 -0.0465" euler="0 0.1 0">
-      <inertial mass="0.14956" pos="-0.01 0.02 0.05" diaginertia="0.00019 0.00046 0.00049" />
-      <geom name="l_aft_upper_geom" mesh="l_aft_upper" type="mesh" rgba="0.06 0.06 0.06 0.35" />
+      <inertial mass="0.066" pos="-0.01 0.02 0.05" diaginertia="8.3846e-05 2.0300e-04 2.1623e-04" />
+      <geom name="l_aft_upper_geom" mesh="l_aft_upper" type="mesh" rgba="0.502 0.494 0.482 0.35" />
     </body>
     <body name="l_fore_sole" pos="0.028 -0.0265 -0.075" euler="0.02 0.1 -0.2">
-      <inertial mass="0.61424" pos="0 -0.01 0.065" diaginertia="0.00061 0.00125 0.00085" />
-      <geom name="l_fore_sole_geom" mesh="l_fore_sole" type="mesh" rgba="0.2 0.2 0.2 1" />
+      <inertial mass="0.099" pos="0 -0.01 0.065" diaginertia="9.8317e-05 2.0147e-04 1.3700e-04" />
+      <geom name="l_fore_sole_geom" mesh="l_fore_sole" type="mesh" rgba="0.859 0.859 0.859 1" />
       <site name="l_forefoot_touch" type="box" pos="0.0 -0.0075 0.0625" size=".075 .03 .065" euler="0 0 0" class="myo_leg_touch" />
     </body>
     <body name="l_fore_upper" pos="0.038 0.0175 -0.0615" euler="0 0.1 -0.2">
-      <inertial mass="0.10402" pos="0 0.01 0.055" diaginertia="0.00012 0.0002 0.00015" euler="0 0 -0.2" />
-      <geom name="l_fore_upper_geom" mesh="l_fore_upper" type="mesh" rgba="0.06 0.06 0.06 0.35" />
+      <inertial mass="0.066" pos="0 0.01 0.055" diaginertia="7.6139e-05 1.2690e-04 9.5174e-05" euler="0 0 -0.2" />
+      <geom name="l_fore_upper_geom" mesh="l_fore_upper" type="mesh" rgba="0.502 0.494 0.482 0.35" />
     </body>
   </worldbody>
 
