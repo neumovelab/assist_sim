@@ -68,14 +68,14 @@ actuator_removals:
     - "tibant_r"
     - "edl_r"
     - "fdl_r"
+  # gaslat_r / gasmed_r cross the surviving knee and are re-anchored below.
+  # bfsh_r runs femur_r -> tibia_r, both surviving: no doomed wrap point, so
+  # deleting it was never justified.
   myolegs: &r80_act
     - "soleus_r"
     - "tibant_r"
     - "edl_r"
     - "fdl_r"
-    - "gaslat_r"
-    - "gasmed_r"
-    - "bfsh_r"
     - "ehl_r"
     - "tibpost_r"
     - "perlong_r"
@@ -95,9 +95,6 @@ tendon_removals:
     - "tibant_r_tendon"
     - "edl_r_tendon"
     - "fdl_r_tendon"
-    - "gaslat_r_tendon"
-    - "gasmed_r_tendon"
-    - "bfsh_r_tendon"
     - "ehl_r_tendon"
     - "tibpost_r_tendon"
     - "perlong_r_tendon"
@@ -105,23 +102,32 @@ tendon_removals:
     - "perbrev_r_tendon"
   myofullbody: *r80_ten
 
-# --- Tendon waypoint truncation ---
-
-# Surviving r-side tendons on OSL_A (transtibial) that may want tuning:
-#   - gastroc_r_tendon  (P3 auto-pruned; P2 now terminal on wrap-site body)
-#   - bifemsh_r_tendon  (knee-crossing; insertion was on tibia_r)
-
-# tendon_modifications:
-#   # `default` is used for the 22/26-muscle MSKs which share tendon naming
-#   # (gastroc_r_tendon, etc.). The 80-muscle MSK uses different tendon names
-#   # (gasmed_r / gaslat_r split, no shared gastroc), so we explicitly empty the
-#   # myolegs override and add 80-specific entries here as needed.
-#   default:
-#     - name: "gastroc_r_tendon"
-#       wraps:
-#         - reposition_site: "gastroc_r_med_gas_r-P2"
-#           pos: [0.0, 0.0, 0.0]
-#   myolegs: []
+# --- Surgical re-anchoring ---
+# Runs BEFORE the removals, or the cascade destroys gastroc first. It spans knee
+# and ankle; the ankle is gone but the knee survives, so it re-attaches to the
+# residual tibia (cut plane y = -0.218900) as a knee flexor. Only the calcaneal
+# insertion moves -- the proximal points sit on femur_r and survive.
+tendon_modifications:
+  default:
+    - name: "gastroc_r_tendon"
+      wraps:
+        - replace_site: "gastroc_r_med_gas_r-P3"
+          new_body: "tibia_r"
+          pos: [-0.02631, -0.21890, 0.02034]
+  # 80-muscle splits gastroc into medial/lateral heads, co-located at the same
+  # calcaneal point in the source. myofullbody's leg is identical to myolegs's.
+  myolegs: &r80_reanchor
+    - name: "gasmed_r_tendon"
+      wraps:
+        - replace_site: "gasmed-P2_r"
+          new_body: "tibia_r"
+          pos: [-0.02631, -0.21890, 0.02034]
+    - name: "gaslat_r_tendon"
+      wraps:
+        - replace_site: "gaslat-P2_r"
+          new_body: "tibia_r"
+          pos: [-0.02631, -0.21890, 0.02034]
+  myofullbody: *r80_reanchor
 
 # --- Add prosthetic actuator ---
 actuators:
@@ -149,3 +155,19 @@ keyframe_overrides:
   myolegs:
     squat:
       osl_ankle_angle_r: 0.385
+
+# --- Re-derived operating range for the re-anchored gastrocnemius ---
+# The compiler keeps authored lengthranges (LRopt.useexisting=1). Re-anchoring
+# drops the ankle from gastroc's path, so [0.362, 0.490] is far too long: it now
+# operates over [0.203, 0.229] as a knee-only muscle. Kinematic joint sweep,
+# +1% span margin. Untouched muscles keep their authored values.
+actuator_overrides:
+  default:
+    - name: "gastroc_r"
+      lengthrange: [0.202513, 0.229413]
+  myolegs: &r80_lengthrange
+    - name: "gasmed_r"
+      lengthrange: [0.233136, 0.277399]
+    - name: "gaslat_r"
+      lengthrange: [0.218863, 0.260048]
+  myofullbody: *r80_lengthrange
