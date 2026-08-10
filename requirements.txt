@@ -2,8 +2,7 @@
 # Pinned for reproducibility; pyproject.toml declares the project's
 # install_requires range.
 
-# >=3.3.4 for MjSpec.delete (in-memory model surgery); the dev env uses the
-# lowest compatible version to stay close to myoassist's mujoco==3.3.3.
+# >=3.3.4 for MjSpec.delete (in-memory model surgery)
 mujoco==3.3.4
 PyYAML>=6.0.2
 numpy>=1.24
