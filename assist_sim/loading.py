@@ -102,6 +102,81 @@ def load_combined(
     return model, data
 
 
+def load_msk(
+    msk_key: str,
+    export_xml: Optional[str] = None,
+    cache_dir: Optional[Union[str, Path]] = None,
+) -> Tuple[mj.MjModel, mj.MjData]:
+    """Resolve ``msk_key`` alone and return the baseline model, with no device.
+
+    The device-less counterpart to :func:`load_combined`, for handing a bare MSK
+    to a downstream consumer.  Almost all of the combine pipeline is device work
+    -- surgery, attachment, actuators, tendons, equalities, contacts, sensors --
+    so this skips straight from the resolved spec to a compile.  Keyframes need
+    none of the decompose/rebuild that :meth:`ModelCombiner.combine` performs,
+    because with no surgery the qpos/dof layout never changes.
+
+    The export is model-only in the same sense the combined path is: terrain
+    (ground plane, hfield, floor material) is stripped, on the convention that
+    downstream consumers layer the scene on top.  Note this does *not* strip the
+    default skybox that ships with the composed MSK -- combined exports keep it
+    too, so a caller wanting a specific backdrop must replace it either way.
+
+    Args:
+        msk_key: MSK registry key, e.g. ``"myolegs26"``.
+        export_xml: If provided, save the compiled model XML to this path.
+        cache_dir: Optional directory enabling local caching, as per
+            :func:`load_combined`.
+
+    Returns:
+        Tuple of (MjModel, MjData) ready for simulation.
+    """
+    spec = registry._resolve_msk(msk_key)
+
+    def _build(target_xml: Optional[str]) -> Tuple[mj.MjModel, mj.MjData]:
+        model = spec.compile()
+        if target_xml:
+            from .utils import export_combined_xml
+
+            mesh_dirs = [(Path(spec.modelfiledir), getattr(spec, "meshdir", "") or "")]
+            export_combined_xml(spec, target_xml, mesh_dirs=mesh_dirs)
+        return model, mj.MjData(model)
+
+    if cache_dir is None:
+        return _build(export_xml)
+
+    from . import __version__
+    from . import cache as _cache
+
+    cache_dir = Path(cache_dir)
+    version = f"{__version__}+myosim-{_myosim_token()}"
+    key = _cache.compute_key(_cache.input_paths_msk(), version, msk_key)
+
+    hit = _cache.try_load(cache_dir, key)
+    if hit is not None:
+        if export_xml:
+            shutil.copyfile(_cache.cached_xml_path(cache_dir, key), export_xml)
+        return hit
+
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    cached_xml = str(_cache.cached_xml_path(cache_dir, key))
+    model, data = _build(cached_xml)
+    _cache.write_meta(
+        cache_dir,
+        key,
+        {
+            "assist_sim_version": __version__,
+            "msk_key": msk_key,
+            "device_key": None,
+            "myo_sim": _myosim_token(),
+            "inputs": [],
+        },
+    )
+    if export_xml and export_xml != cached_xml:
+        shutil.copyfile(cached_xml, export_xml)
+    return model, data
+
+
 def get_available_combinations() -> Dict[str, List[str]]:
     """Return ``{msk_key: [device_key, ...]}`` of discoverable combinations."""
     return registry.get_available_combinations()

@@ -31,13 +31,14 @@ from .config import DeviceConfig
 from .loading import (  # noqa: F401
     get_available_combinations,
     load_combined,
+    load_msk,
     resolve_model_path,
     validate_combination,
 )
 
 # Bump whenever a pipeline change affects compiled-model output; the cache
 # key includes this so stale cached XMLs are invalidated automatically.
-__version__ = "0.6.1"
+__version__ = "0.7.0"
 
 # Keep the public surface small: load_combined_model is the documented path.
 # ModelCombiner stays importable from assist_sim.combine for advanced callers
@@ -46,6 +47,7 @@ __all__ = [
     "load_combined_model",
     "DeviceConfig",
     "load_combined",
+    "load_msk",
     "resolve_model_path",
     "get_available_combinations",
     "validate_combination",

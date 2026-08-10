@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`load_msk(msk_key, export_xml=..., cache_dir=...)`** — the device-less
+  counterpart to `load_combined`, for handing a bare MSK to a downstream
+  consumer. Almost all of `ModelCombiner.combine` is device work, so this goes
+  straight from the resolved spec to a compile; with no surgery the qpos/dof
+  layout never changes, so the keyframe decompose/rebuild is unnecessary too.
+  Exposed on the CLI as `python -m assist_sim msk MSK [-o OUT] [--cache-dir DIR]`.
+  Caching mirrors `load_combined`: a composed MSK has no source file on disk and
+  no device, so its identity is `(msk_key, assist_sim version, myo_sim token)`.
+
+> The MSK-only export is model-only in the same sense the combined path is —
+> terrain (ground plane, hfield, floor material) is stripped. It does **not**
+> strip the default gradient skybox the composed MSK ships with; combined
+> exports keep that too, so a caller wanting a specific backdrop must replace it
+> either way.
+
 ## [0.6.1] — lower-limb mass/inertia re-tare (STRIDE, Anatomics, Hippo, Humotech)
 
 Measured masses replacing placeholder inertials. No `(nq, nu, nbody, nmesh)`

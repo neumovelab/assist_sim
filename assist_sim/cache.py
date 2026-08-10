@@ -61,6 +61,18 @@ def input_paths_composed(device_config_path: str, device_model_xml: str) -> List
     return sorted(paths, key=str)
 
 
+def input_paths_msk() -> List[Path]:
+    """Collect cache-invalidating input files for a device-less MSK: none.
+
+    A myo_sim-composed MSK has no source file on disk and no device is involved,
+    so its identity is entirely ``(msk_key, assist_sim version, myo_sim token)``
+    -- all three of which :func:`compute_key` already folds in via its
+    ``version`` and ``msk_key`` arguments.  This exists so the MSK-only caller
+    reads the same way as the combined ones rather than passing a bare ``[]``.
+    """
+    return []
+
+
 def compute_key(paths: List[Path], version: str, msk_key: Optional[str] = None) -> str:
     """Hash input paths + their mtimes + pipeline version into a cache key."""
     h = hashlib.sha1()

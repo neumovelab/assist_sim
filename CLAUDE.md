@@ -16,6 +16,7 @@ pytest                              # 51 pass with myo_sim installed
 ruff check . && ruff format --check .
 
 python -m assist_sim list           # discoverable combinations (also: validate, combine)
+python -m assist_sim msk myolegs26 -o out.xml   # baseline MSK, no device
 python examples/quickstart.py myolegs26 DephyExoBoot_L1   # visual inspection
 ```
 

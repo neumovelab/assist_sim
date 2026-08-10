@@ -3,6 +3,7 @@
     python -m assist_sim list                      # show discoverable combinations
     python -m assist_sim validate MSK DEVICE       # check a pair resolves
     python -m assist_sim combine MSK DEVICE [-o OUT.xml] [--cache-dir DIR]
+    python -m assist_sim msk MSK [-o OUT.xml] [--cache-dir DIR]   # no device
 
 Also available as the ``assist-sim`` script after install.
 """
@@ -17,6 +18,7 @@ from . import (
     __version__,
     get_available_combinations,
     load_combined,
+    load_msk,
     resolve_model_path,
     validate_combination,
 )
@@ -79,6 +81,14 @@ def _cmd_combine(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_msk(args: argparse.Namespace) -> int:
+    model, _ = load_msk(args.msk, export_xml=args.output, cache_dir=args.cache_dir)
+    print(f"MSK {args.msk}: nq={model.nq} nu={model.nu} nbody={model.nbody} nmesh={model.nmesh}")
+    if args.output:
+        print(f"Exported to {Path(args.output).resolve()}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="assist-sim", description=__doc__)
     parser.add_argument("--version", action="version", version=f"assist-sim {__version__}")
@@ -98,6 +108,12 @@ def build_parser() -> argparse.ArgumentParser:
     p_comb.add_argument("-o", "--output", help="export the combined XML here")
     p_comb.add_argument("--cache-dir", help="enable caching in this directory")
     p_comb.set_defaults(func=_cmd_combine)
+
+    p_msk = sub.add_parser("msk", help="build a baseline MSK with no device")
+    p_msk.add_argument("msk")
+    p_msk.add_argument("-o", "--output", help="export the MSK-only XML here")
+    p_msk.add_argument("--cache-dir", help="enable caching in this directory")
+    p_msk.set_defaults(func=_cmd_msk)
 
     return parser
 
