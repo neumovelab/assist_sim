@@ -27,11 +27,11 @@
 
     <worldbody>
         <body name="osl_generic_socket" pos="0 -0.3 0.006">
-            <inertial pos="0 0 0" mass="0.0629248" diaginertia="0.001 0.001 0.001"/>
+            <inertial pos="0.000000 0.102749 0.005560" quat="0.202485 -0.677495 0.677495 -0.202485" mass="0.200000" diaginertia="2.738312e-04 3.954221e-04 3.954282e-04"/>
             <geom name="osl_generic_socket" type="mesh" rgba="0.2 0.2 0.2 0.35" mesh="osl_generic_socket" condim="3" contype="1"/>
 
             <body name="osl_tibial_pylon" pos="0 0.05 0.006">
-                <inertial pos="0 0 0" mass="0.0629248" diaginertia="0.001 0.001 0.001"/>
+                <inertial pos="-0.000000 -0.027500 0.000000" quat="0.707107 0.000072 0.000072 -0.707107" mass="0.062925" diaginertia="4.517666e-06 1.064881e-05 1.064881e-05"/>
                 <geom name="osl_tibial_pylon_geom_1" type="cylinder" size="0.012 0.02" pos="0 -0.0275 0" quat="0.707035 0.707179 0 0" rgba="0.2 0.2 0.2 1" condim="3" contype="1"/>
 
                 <body name="osl_ankle_assembly" pos="0 -0.14 -0.006">
@@ -40,7 +40,7 @@
                     <site name="r_osl_load_force" type="box" pos="0 0.105 0.005" size="0.02 0.003 0.02" euler="0 0 0" group="3" rgba="0.8 0.2 .2 1"/>
 
                     <body name="osl_foot_assembly">
-                        <inertial pos="0.064562 -0.048401 0.004732" quat="0.482413 0.245831 0.66522 0.514127" mass="0.291" diaginertia="0.00145886 0.00139898 0.001"/>
+                        <inertial pos="0.053351 -0.043813 0.004023" quat="0.785462 -0.614042 0.037439 -0.067822" mass="0.291000" diaginertia="2.408834e-04 1.372087e-03 1.410955e-03"/>
                         <joint name="osl_ankle_angle_r" pos="0 0 0" axis="0 0 1" range="-0.5236 0.5236"/>
                         <geom name="osl_foot_assembly_geom_1" type="mesh" rgba="0.2 0.2 0.2 1" mesh="osl_foot_assembly_geom_1_osl_custom_foot_v2"/>
 
