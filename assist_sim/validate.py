@@ -1,7 +1,7 @@
 """Standalone config validator (test-only).
 
 ``validate_config`` statically resolves every name reference in a
-:class:`~pipeline.config.DeviceConfig` against the human MSK XML and the
+:class:`~assist_sim.config.DeviceConfig` against the human MSK XML and the
 device XML, returning a list of human-readable issues (empty = clean).  It
 does not compile anything and is never called from ``combine()`` -- it exists
 so test fixtures can fail fast when a config drifts from the models it targets.
@@ -105,15 +105,14 @@ def validate_config(human_xml: str, config: DeviceConfig) -> List[str]:
     for mod in config.tendon_modifications:
         add(_check(mod.name, human.tendons, "tendon", "tendon_modifications"))
         for edit in mod.wraps:
-            if edit.op == "replace_site" and edit.new_body:
-                add(
-                    _check(
-                        edit.new_body,
-                        human.bodies,
-                        "body",
-                        f"tendon_modifications[{mod.name}].replace_site.new_body",
-                    )
-                )
+            section = f"tendon_modifications[{mod.name}].{edit.op}"
+            pool = human.geoms if edit.kind == "geom" else human.sites
+            add(_check(edit.target, pool, edit.kind, section))
+            if edit.new_body:
+                add(_check(edit.new_body, human.bodies, "body", f"{section}.new_body"))
+
+    for ao in config.actuator_overrides:
+        add(_check(ao.name, human.actuators, "actuator", "actuator_overrides"))
 
     for mr in config.mesh_replacements:
         add(_check(mr.geom, human.geoms, "geom", "mesh_replacements"))

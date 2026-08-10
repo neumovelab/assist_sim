@@ -29,11 +29,15 @@ tendon_modifications:
   default:
     - name: "calf_tendon"
       wraps:
-        - drop_site: "foot_site"
+        - replace_site: "foot_site"
+          new_body: "shank"
+          pos: [0.0, -0.2, 0.0]
   myolegs:
     - name: "calf80_tendon"
       wraps:
-        - drop_site: "foot80_site"
+        - replace_geom: "calf80_wrap"
+          new_body: "shank"
+          pos: [0.0, -0.2, 0.0]
 
 keyframe_overrides:
   default:

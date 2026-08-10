@@ -59,9 +59,11 @@ def _cmd_list(_: argparse.Namespace) -> int:
 def _cmd_validate(args: argparse.Namespace) -> int:
     ok = validate_combination(args.msk, args.device)
     if ok:
-        human, config = resolve_model_path(args.msk, args.device)
+        human_spec, config = resolve_model_path(args.msk, args.device)
         print(f"OK: {args.msk} x {args.device}")
-        print(f"    human:  {human}")
+        # The human model is a live MjSpec composed in memory, never a path --
+        # report what it is rather than printing an object repr.
+        print(f"    human:  {args.msk} (composed MjSpec, {len(human_spec.bodies)} bodies)")
         print(f"    config: {config}")
         return 0
     print(f"INVALID: {args.msk} x {args.device}", file=sys.stderr)

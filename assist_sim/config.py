@@ -6,7 +6,19 @@ from typing import Dict, List, Optional
 
 import yaml
 
-_WRAP_OPS = ("drop_site", "reposition_site", "replace_site")
+# Wrap edits re-anchor a muscle onto the residual limb.  A wrap resolves its
+# site/geom by name at compile, so moving the element moves the wrap.
+_WRAP_OPS = ("reposition_site", "replace_site", "reposition_geom", "replace_geom")
+
+# ``drop_site`` needs an editable wrap list, which MjsTendon does not expose.
+# Fail loudly rather than skip a surgical edit the author believed was applied.
+_RETIRED_WRAP_OPS = {
+    "drop_site": (
+        "dropping a wrap needs an editable wrap list, which MjSpec does not expose. "
+        "Re-anchor the wrap with 'replace_site' / 'replace_geom', or remove the whole "
+        "muscle with 'actuator_removals'"
+    ),
+}
 
 
 def _parse_per_msk_list(raw_value, parse_item):
@@ -54,18 +66,21 @@ def _parse_keyframe_overrides(raw_value):
 
 def _parse_wrap_edit(raw: dict) -> "WrapEdit":
     """Parse one wrap-edit dict; exactly one op key selects the operation."""
+    for op, reason in _RETIRED_WRAP_OPS.items():
+        if op in raw:
+            raise ValueError(f"wrap edit op '{op}' is no longer supported: {reason}")
     ops_present = [op for op in _WRAP_OPS if op in raw]
     if len(ops_present) != 1:
         raise ValueError(f"each wrap edit must have exactly one of {_WRAP_OPS}; got {raw}")
     op = ops_present[0]
-    site = raw[op]
+    target = raw[op]
     new_body = raw.get("new_body")
     pos = raw.get("pos")
-    if op == "replace_site" and not new_body:
-        raise ValueError(f"replace_site '{site}' requires 'new_body'")
-    if op in ("reposition_site", "replace_site") and pos is None:
-        raise ValueError(f"{op} '{site}' requires 'pos'")
-    return WrapEdit(op=op, site=site, new_body=new_body, pos=pos)
+    if op.startswith("replace_") and not new_body:
+        raise ValueError(f"{op} '{target}' requires 'new_body'")
+    if pos is None:
+        raise ValueError(f"{op} '{target}' requires 'pos'")
+    return WrapEdit(op=op, target=target, new_body=new_body, pos=pos)
 
 
 _EQUALITY_TYPES = ("connect", "weld", "joint")
@@ -173,6 +188,19 @@ def _parse_sensor(raw: dict) -> "SensorDef":
         cutoff=raw.get("cutoff"),
         noise=raw.get("noise"),
     )
+
+
+def _parse_actuator_override(raw: dict) -> "ActuatorOverride":
+    """Parse one actuator-override dict from the ``actuator_overrides:`` section."""
+    name = raw.get("name")
+    if not name:
+        raise ValueError(f"each actuator override must have 'name'; got {raw}")
+    lengthrange = raw.get("lengthrange")
+    if lengthrange is None:
+        raise ValueError(f"actuator override '{name}' sets nothing; give 'lengthrange'")
+    if len(lengthrange) != 2 or lengthrange[0] >= lengthrange[1]:
+        raise ValueError(f"actuator override '{name}' needs 'lengthrange: [lo, hi]' with lo < hi; got {lengthrange}")
+    return ActuatorOverride(name=name, lengthrange=[float(v) for v in lengthrange])
 
 
 def _parse_body_override(raw: dict) -> "BodyOverride":
@@ -422,31 +450,36 @@ class MeshReplacement:
 
 @dataclass
 class WrapEdit:
-    """A single edit to one wrap-site on a spatial tendon.
+    """A single edit to one wrap point on a spatial tendon.
 
-    ``op`` is one of ``drop_site`` / ``reposition_site`` / ``replace_site``.
-    ``site`` is the existing wrap-site name being edited.
+    ``target`` names an existing wrap site or geom.  ``reposition_*`` moves it on
+    its current body; ``replace_*`` moves it to ``new_body``.  All ops need
+    ``pos``; ``replace_*`` also needs ``new_body``.
 
-    - ``drop_site``: remove the wrap entirely.
-    - ``reposition_site``: synthesize a new site (named ``{site}__mod``) at
-      ``pos`` on the *same* body the original site sits on; the wrap is
-      rewritten to reference it.
-    - ``replace_site``: same, but the new site is created on ``new_body``.
+    The wrap is never rewritten: it resolves the element's name at compile, so
+    moving the element moves the wrap.  Wraps cannot be deleted -- see
+    ``_RETIRED_WRAP_OPS``.
     """
 
     op: str
-    site: str
+    target: str
     new_body: Optional[str] = None
     pos: Optional[List[float]] = None
+
+    @property
+    def kind(self) -> str:
+        """``"site"`` or ``"geom"`` -- which element collection ``target`` names."""
+        return "geom" if self.op.endswith("_geom") else "site"
 
 
 @dataclass
 class TendonModification:
-    """In-place edits to a tendon's wrap path (e.g. after amputation).
+    """Re-anchor a tendon's wrap path onto the residual limb (myodesis).
 
-    By default, wraps whose sites live on removed bodies are auto-dropped in
-    the preprocess layer; ``wraps`` is only needed to re-anchor or reposition
-    surviving wraps, or to drop a specific wrap explicitly.
+    Applied *before* the removals.  A muscle whose distal wrap points sit on
+    bodies the amputation deletes would otherwise be destroyed by the
+    ``spec.delete`` cascade; re-anchoring those points onto the surviving bone
+    keeps the muscle acting at the joint that survives.
     """
 
     name: str
@@ -460,6 +493,21 @@ class KeyframeDef:
     time: float = 0.0
     qpos: Optional[List[float]] = None
     qvel: Optional[List[float]] = None
+
+
+@dataclass
+class ActuatorOverride:
+    """Override a muscle actuator's properties on the combined model.
+
+    ``lengthrange`` normalises a muscle's force-length curve, and the compiler
+    keeps whatever was authored (``LRopt.useexisting`` is 1).  A re-anchored
+    muscle therefore keeps a range for a path it no longer has, and silently
+    generates wrong forces.  Values come from a kinematic joint sweep, not from
+    ``mj_setLengthRange``, which ignores joint limits.
+    """
+
+    name: str
+    lengthrange: Optional[List[float]] = None
 
 
 @dataclass
@@ -498,6 +546,7 @@ class DeviceConfig:
     tendon_modifications: List[TendonModification] = field(default_factory=list)
     geom_removals: List[str] = field(default_factory=list)
     body_overrides: List[BodyOverride] = field(default_factory=list)
+    actuator_overrides: List[ActuatorOverride] = field(default_factory=list)
     contact_excludes: List[ContactExclude] = field(default_factory=list)
     contact_pairs: List[ContactPair] = field(default_factory=list)
     sensors: List[SensorDef] = field(default_factory=list)
@@ -513,7 +562,9 @@ class DeviceConfig:
     _attachments_by_msk: Dict[str, List["Attachment"]] = field(default_factory=dict, repr=False)
     _geom_removals_by_msk: Dict[str, List[str]] = field(default_factory=dict, repr=False)
     _equalities_by_msk: Dict[str, List["EqualityConstraint"]] = field(default_factory=dict, repr=False)
+    _body_removals_by_msk: Dict[str, List[str]] = field(default_factory=dict, repr=False)
     _body_overrides_by_msk: Dict[str, List["BodyOverride"]] = field(default_factory=dict, repr=False)
+    _actuator_overrides_by_msk: Dict[str, List["ActuatorOverride"]] = field(default_factory=dict, repr=False)
     _contact_excludes_by_msk: Dict[str, List["ContactExclude"]] = field(default_factory=dict, repr=False)
     _contact_pairs_by_msk: Dict[str, List["ContactPair"]] = field(default_factory=dict, repr=False)
     _sensors_by_msk: Dict[str, List["SensorDef"]] = field(default_factory=dict, repr=False)
@@ -533,8 +584,13 @@ class DeviceConfig:
     # ------------------------------------------------------------------
 
     def resolve_body_removals(self, msk_key: Optional[str] = None) -> List[str]:
-        """Body removals for the given MSK (default form returns the list)."""
-        return self.body_removals
+        """Body removals for the given MSK (per-MSK override or default).
+
+        Per-MSK because lineages differ anatomically: only the 80-muscle models
+        carry a ``patella_r``, and it is a sibling of ``tibia_r`` rather than a
+        descendant, so a transfemoral amputation must name it explicitly.
+        """
+        return self._resolve(self._body_removals_by_msk, msk_key, self.body_removals)
 
     @staticmethod
     def _resolve(by_msk: dict, msk_key: Optional[str], fallback):
@@ -598,6 +654,15 @@ class DeviceConfig:
         inertial frames, so a residual-limb override is not always transferable.
         """
         return self._resolve(self._body_overrides_by_msk, msk_key, self.body_overrides)
+
+    def resolve_actuator_overrides(self, msk_key: Optional[str] = None) -> List["ActuatorOverride"]:
+        """Actuator overrides for the given MSK (per-MSK override or default).
+
+        Per-MSK because a re-derived ``lengthrange`` belongs to one lineage's
+        geometry and muscle naming; the 80-muscle models split the lumped
+        muscles the 22/26-muscle models carry.
+        """
+        return self._resolve(self._actuator_overrides_by_msk, msk_key, self.actuator_overrides)
 
     def resolve_contact_excludes(self, msk_key: Optional[str] = None) -> List["ContactExclude"]:
         """Contact excludes for the given MSK (per-MSK override or default).
@@ -746,7 +811,7 @@ class DeviceConfig:
         ]
 
         # --- prosthetic: body removals ---
-        body_removals: List[str] = raw.get("body_removals", [])
+        body_removals, body_removals_by_msk = _parse_per_msk_list(raw.get("body_removals", []), lambda s: s)
 
         # --- prosthetic: mesh replacements (default or per-MSK) ---
         def _parse_mesh_rep(m):
@@ -776,6 +841,9 @@ class DeviceConfig:
 
         # --- body inertial overrides (default or per-MSK) ---
         body_overrides, body_overrides_by_msk = _parse_per_msk_list(raw.get("body_overrides", []), _parse_body_override)
+        actuator_overrides, actuator_overrides_by_msk = _parse_per_msk_list(
+            raw.get("actuator_overrides", []), _parse_actuator_override
+        )
 
         # --- sensors: additions + removals, each default or per-MSK ---
         sensors, sensors_by_msk = _parse_per_msk_list(raw.get("sensors", []), _parse_sensor)
@@ -820,6 +888,7 @@ class DeviceConfig:
             keyframe_overrides=keyframe_overrides,
             keyframes=keyframes,
             body_removals=body_removals,
+            _body_removals_by_msk=body_removals_by_msk,
             mesh_replacements=mesh_replacements,
             actuator_removals=actuator_removals,
             tendon_removals=tendon_removals,
@@ -834,6 +903,8 @@ class DeviceConfig:
             _mesh_replacements_by_msk=mesh_replacements_by_msk,
             body_overrides=body_overrides,
             _body_overrides_by_msk=body_overrides_by_msk,
+            actuator_overrides=actuator_overrides,
+            _actuator_overrides_by_msk=actuator_overrides_by_msk,
             contact_excludes=contact_excludes,
             _contact_excludes_by_msk=contact_excludes_by_msk,
             contact_pairs=contact_pairs,

@@ -3,12 +3,16 @@
 Single-phase, fully in-memory flow (requires ``mujoco>=3.3.4`` for
 ``MjSpec.delete``):
 
-1. **Surgery** -- apply every removal (body / geom / actuator / tendon
+1. **Re-anchor** -- apply ``tendon_modifications``, moving the wrap sites of
+   muscles that surgery preserves onto the bone that survives.  This runs
+   *before* the removals: afterwards the cascade has already taken the tendon
+   and there is nothing left to re-anchor.
+2. **Surgery** -- apply every removal (body / geom / actuator / tendon
    removals) directly on the human ``MjSpec`` via ``spec.delete``, which
    cascades subtrees and their referencing elements (child bodies, sensors,
    equality, contact pairs, and the actuators/tendons whose sites lived on
    removed bodies).
-2. **Attach** -- load the device spec, attach device bodies, edit attributes
+3. **Attach** -- load the device spec, attach device bodies, edit attributes
    (mesh swaps, inertial overrides, joint overrides), add actuators, import the
    device's tendons, then emit the sections ``attach_body`` does *not* migrate
    (equalities, contacts, sensors) against the combined model, and rebuild
@@ -86,6 +90,27 @@ _EQTYPE_MAP = {
 # Names that select the world body as an attachment parent (free-rooted device).
 _WORLD_PARENTS = ("world", "worldbody")
 
+# Placeholder name a re-anchored wrap element carries between being created on
+# the surviving body and inheriting the original's name.
+_REANCHOR_TMP_NAME = "__assist_sim_reanchor_tmp__"
+
+# Per wrap-element kind: (MjSpec finder, collection, MjsBody factory, inherited
+# attributes).  Identity, frame and unset sentinels (``fromto``, ``mass``) are
+# excluded, so a re-anchored element differs only in where it is anchored.
+_REANCHOR_KINDS = {
+    "site": ("site", "sites", "add_site", ("quat", "type", "size", "group", "rgba", "material")),
+    "geom": (
+        "geom",
+        "geoms",
+        "add_geom",
+        (
+            "type", "size", "quat", "group", "rgba", "material", "contype", "conaffinity",
+            "condim", "priority", "friction", "solmix", "solref", "solimp", "margin", "gap",
+            "density", "typeinertia",
+        ),
+    ),
+}  # fmt: skip
+
 # Target kind -> (MjSpec finder attribute, mjtObj enum, collection attribute used
 # to list candidates in an error message).
 _TARGET_KINDS = {
@@ -161,6 +186,10 @@ class ModelCombiner:
             key.qpos = []
             key.qvel = []
 
+        # Re-anchor before surgery: a muscle the amputation preserves has to be
+        # moved onto the residual bone while its wrap sites still exist.
+        self._apply_tendon_modifications(human_spec, device_config, msk_key)
+
         # Surgery: all removals happen here, in-memory.
         self._apply_removals(human_spec, device_config, msk_key)
 
@@ -182,6 +211,7 @@ class ModelCombiner:
             )
             self._replace_meshes(human_spec, device_config, prefix, msk_key)
             self._apply_body_overrides(human_spec, device_config, prefix, msk_key)
+            self._apply_actuator_overrides(human_spec, device_config, prefix, msk_key)
             self._apply_joint_overrides(human_spec, device_config, msk_key)
             self._add_actuators(human_spec, device_config, prefix)
             self._import_device_tendons_actuators(human_spec, device_xml, prefix)
@@ -271,18 +301,79 @@ class ModelCombiner:
                 if sensor.name in removals:
                     human_spec.delete(sensor)
 
-        # tendon_modifications re-anchor wrap sites on surviving tendons.  With
-        # spec.delete, a tendon that spanned a removed body is cascaded away
-        # entirely -- so a modification targeting an already-removed tendon is a
-        # no-op (skip it).  Editing the wraps of a *surviving* tendon is not yet
-        # supported on the spec API, so that raises.
-        survivors = [mod for mod in config.resolve_tendon_modifications(msk_key) if human_spec.tendon(mod.name) is not None]
-        if survivors:
-            raise NotImplementedError(
-                "tendon_modifications on a surviving tendon "
-                f"({', '.join(m.name for m in survivors)}) are not yet supported on the in-memory "
-                "pipeline (the MjSpec wrap API exposes no editable wrap list). File a follow-up."
-            )
+    # ------------------------------------------------------------------
+    # Surgical re-anchoring (runs before the removals)
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _apply_tendon_modifications(
+        human_spec: mj.MjSpec,
+        config: DeviceConfig,
+        msk_key: Optional[str] = None,
+    ) -> None:
+        """Re-anchor muscle wrap sites onto the residual limb.
+
+        This is the myodesis/myoplasty step.  A biarticular muscle -- ``rect_fem``
+        and ``hamstrings`` across a transfemoral amputation, ``gastroc`` across a
+        transtibial one -- is preserved in surgery and re-attached to the residual
+        bone, where it goes on acting at the joint that survives.  Left alone it
+        would instead be destroyed by the ``spec.delete`` cascade, because its
+        distal wrap sites sit on bodies the amputation removes.  Hence the
+        ordering: this runs *before* ``_apply_removals``.
+
+        ``MjsTendon`` exposes no readable wrap list, but none is needed: a wrap
+        stores its site or geom by *name* and resolves it at compile, so moving
+        the named element moves the wrap.  Geoms matter as well as sites -- the
+        80-muscle hamstrings cross condylar wrap cylinders, and one left on a
+        doomed body cascades the tendon away however many sites moved.
+
+        Editing elements rather than rebuilding tendons also keeps tendon and
+        actuator objects in place, preserving ``ctrl`` ordering.
+        """
+        for mod in config.resolve_tendon_modifications(msk_key):
+            if human_spec.tendon(mod.name) is None:
+                available = [t.name for t in human_spec.tendons if t.name]
+                raise unknown_reference(mod.name, available, section="tendon_modifications", kind="tendon")
+
+            for edit in mod.wraps:
+                finder, collection, _, _ = _REANCHOR_KINDS[edit.kind]
+                element = getattr(human_spec, finder)(edit.target)
+                if element is None:
+                    available = [e.name for e in getattr(human_spec, collection) if e.name]
+                    raise unknown_reference(edit.target, available, section="tendon_modifications", kind=edit.kind)
+
+                if edit.op.startswith("reposition_"):
+                    element.pos = [float(v) for v in edit.pos]
+                    continue
+
+                body = human_spec.body(edit.new_body)
+                if body is None:
+                    raise unknown_reference(
+                        edit.new_body,
+                        [b.name for b in human_spec.bodies],
+                        section="tendon_modifications.new_body",
+                        kind="body",
+                    )
+                ModelCombiner._reanchor_element(human_spec, element, body, edit.pos, edit.kind)
+
+    @staticmethod
+    def _reanchor_element(human_spec: mj.MjSpec, element, body, pos, kind: str) -> None:
+        """Move *element* onto *body* at *pos*, keeping its name (and its wraps).
+
+        MjSpec cannot reparent a site or geom, so build the replacement under a
+        placeholder name, delete the original, then take the freed name.  Wraps,
+        sensors and equalities resolve names at compile, so they follow.  The
+        replacement inherits the original's class and attributes.
+        """
+        _, _, adder, attrs = _REANCHOR_KINDS[kind]
+        name = element.name
+        replacement = getattr(body, adder)(name=_REANCHOR_TMP_NAME, pos=[float(v) for v in pos])
+        if element.classname:
+            replacement.classname = element.classname
+        for attr in attrs:
+            setattr(replacement, attr, getattr(element, attr))
+        human_spec.delete(element)
+        replacement.name = name
 
     # ------------------------------------------------------------------
     # Keyframes
@@ -498,6 +589,26 @@ class ModelCombiner:
             if override.iquat is not None:
                 body.iquat = [float(v) for v in override.iquat]
             body.explicitinertial = True
+
+    @staticmethod
+    def _apply_actuator_overrides(
+        human_spec: mj.MjSpec,
+        config: DeviceConfig,
+        prefix: str,
+        msk_key: Optional[str] = None,
+    ) -> None:
+        """Override actuator properties on the combined model.
+
+        A re-anchored muscle's ``lengthrange`` still describes the intact path,
+        and the compiler will not re-derive it (``LRopt.useexisting`` is 1).
+        Runs after surgery, so it can name an actuator that only survives
+        because it was re-anchored.
+        """
+        for override in config.resolve_actuator_overrides(msk_key):
+            name = _resolve_element_name(human_spec, "actuator", override.name, prefix, "actuator_overrides")
+            actuator = human_spec.actuator(name)
+            if override.lengthrange is not None:
+                actuator.lengthrange = [float(v) for v in override.lengthrange]
 
     # ------------------------------------------------------------------
     # Contacts (excludes + explicit pairs)

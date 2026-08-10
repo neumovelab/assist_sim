@@ -116,11 +116,10 @@ def load_msk(
     none of the decompose/rebuild that :meth:`ModelCombiner.combine` performs,
     because with no surgery the qpos/dof layout never changes.
 
-    The export is model-only in the same sense the combined path is: terrain
-    (ground plane, hfield, floor material) is stripped, on the convention that
-    downstream consumers layer the scene on top.  Note this does *not* strip the
-    default skybox that ships with the composed MSK -- combined exports keep it
-    too, so a caller wanting a specific backdrop must replace it either way.
+    The export carries no ground plane, hfield or floor material, because the
+    myosuite scene is stripped at resolve time.  It is not scene-free, though:
+    every export gains a soft headlight and a neutral gradient skybox, so a
+    caller wanting a specific backdrop must replace them.
 
     Args:
         msk_key: MSK registry key, e.g. ``"myolegs26"``.

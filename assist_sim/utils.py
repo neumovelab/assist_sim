@@ -23,14 +23,12 @@ def export_combined_xml(
         to the output file location
       - Compiler ``meshdir`` / ``texturedir`` strip (paths are now absolute
         relative to the output file)
-      - Terrain stripping: every element defined in the source MSK's terrain
-        include (ground body, ground-plane geom, floor texture/material,
-        hfield, terrain-referencing contact pairs) is removed from the export.
-        assist_sim emits model-only XMLs; downstream consumers (e.g.
-        ``myoassist.terrains``) layer the scene on top.
-      - Minimal-visual fallback: if no ``<visual>`` block survives in the
-        export, a small default is emitted so the model renders sensibly in
-        a viewer.
+      - Terrain stripping, only when ``terrain_paths`` is given.  No bundled
+        model needs it: composed MSKs carry no terrain include, and the
+        myosuite scene is already stripped at resolve time.
+      - Minimal visual: a soft headlight and a neutral gradient skybox are
+        added, so exports render sensibly but are *not* scene-free.  Downstream
+        consumers (e.g. ``myoassist.terrains``) layer terrain on top.
 
     Args:
         spec: The combined MjSpec to export.
@@ -40,10 +38,10 @@ def export_combined_xml(
             ``MjSpec.modelfiledir`` of each source spec; the meshdir is the
             value of ``<compiler meshdir="..."/>`` in that source.  Both are
             tried when resolving ``<mesh file="..."/>`` references.
-        terrain_paths: Absolute paths to the terrain XML(s) the source MSK
-            included.  Used to identify which named elements to strip from
-            the export (texture / material / hfield / body / geom).  Not
-            re-emitted as includes; assist_sim outputs are model-only.
+        terrain_paths: Absolute paths to terrain XML(s) whose named elements
+            (texture / material / hfield / body / geom) should be stripped.
+            No caller in the package passes this; it is retained for callers
+            that build on an MSK which does include terrain.
     """
     output_path = Path(output_path).resolve()
     output_path.parent.mkdir(parents=True, exist_ok=True)
