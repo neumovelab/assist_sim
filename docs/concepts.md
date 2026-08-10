@@ -1,135 +1,162 @@
 # Concepts
 
-This doc covers the architecture: why `assist_sim` exists, the in-memory
-pipeline, and how it fits with `myo_sim` and downstream training frameworks.
+This document gives the architecture. It tells you why `assist_sim` exists, how
+the pipeline operates in memory, and how `assist_sim` operates with `myo_sim`
+and with the downstream training frameworks.
 
 ## The three-repo split
 
-`assist_sim` sits between an upstream MSK source and downstream training
-frameworks. Four packages collaborate:
+`assist_sim` is between an upstream musculoskeletal (MSK) source and the
+downstream training frameworks. Four packages operate together:
 
-- **`myo_sim`** provides the baseline MSK models and their meshes. On the
-  `dev` branch these leg models are *composed at runtime* (no static
-  XML), so `assist_sim` obtains an editable `MjSpec` via
-  `myo_sim.build_spec(<model>)`, serializes it, strips the bundled myosuite
-  scene, and caches the model-only XML. assist_sim's MSK keys mirror the
-  myo_sim model names. `myolegs26` (26-muscle, passive torso) and `myolegs`
-  (80-muscle, passive torso) are wired; `myolegs22` follows when the 26→22
-  reduction lands.
-- **`assist_sim`** (this repo) holds the *combination pipeline* and *device
-  configurations*. It produces compiled `MjModel` objects (and optional
-  exported XMLs) where an MSK and a device are combined into one runnable
-  model.
-- **`myoassist`** consumes those combined models as the simulation backbone
-  for control optimization, reinforcement learning, etc. It wraps the
-  model with a scene (terrain, lighting, sensors specific to the training
-  task) and the policy training loop.
-- **`myoassist.terrains`** is a separate package that owns the *scene*
-  layer (ground plane, hfields, skybox). `assist_sim` outputs are
-  *model-only* -- no ground body, no terrain include -- and
-  `myoassist.terrains` layers the scene on top before simulation.
+- **`myo_sim`** supplies the baseline MSK models and their meshes. On the `dev`
+  branch, `myo_sim` *composes* these leg models at run time, with no static
+  XML. `assist_sim` gets an editable `MjSpec` with
+  `myo_sim.build_spec(<model>)`, then removes the bundled myosuite scene from
+  that live spec. The pipeline serializes nothing between the stages, and the
+  MSK keys of `assist_sim` are the same as the `myo_sim` model names. The
+  package supports `myolegs26` (26 muscles, passive torso), `myolegs` (80
+  muscles, passive torso) and `myofullbody`. It derives `myolegs22` (planar, 22
+  muscles) from `myolegs26` with a 26→22 reduction in the spec.
+- **`assist_sim`** (this repository) holds the *combination pipeline* and the
+  *device configurations*. It produces compiled `MjModel` objects that combine
+  an MSK model and a device into one model that you can run. It can also export
+  those models as XML files.
+- **`myoassist`** uses those combined models as the simulation base for control
+  optimization, reinforcement learning and related tasks. It adds a scene
+  (terrain, lights, and the sensors for the training task) and the training
+  loop for the policy.
+- **`myoassist.terrains`** is a separate package for the *scene* layer (ground
+  plane, hfields, lights). The outputs of `assist_sim` contain no terrain: no
+  ground body, no hfield, no terrain include. They contain a minimal visual,
+  that is a soft headlight and a neutral gradient skybox. Thus an export
+  renders correctly on its own. If a downstream scene adds its own headlight
+  and skybox, those take precedence.
 
-> *Diagram placeholder -- figure of package flow
-> will replace this in a later docs pass.* 
+> *Diagram placeholder. A figure of the package flow will replace this text in
+> a later documentation pass.*
 <!-- # TODO: #1 -->
 
 ## The in-memory pipeline
 
-The inputs are an MSK (a registry key that `myo_sim` composes on demand, or an
-explicit baseline XML path) and a device YAML; the outputs are an
-`(MjModel, MjData)` pair ready to step and (optionally) an exported combined
-XML.  Everything runs on a single live `MjSpec` -- the human model is never
-serialized to XML and reloaded (see [Why in-memory](#why-in-memory)).
+The inputs are an MSK model and a device YAML file. You give the MSK model as a
+registry key that `myo_sim` composes on demand, or as a path to an explicit
+baseline XML file. The outputs are an `(MjModel, MjData)` pair that you can
+step, and an optional export of the combined XML. All steps operate on one live
+`MjSpec`. The pipeline does not serialize the human model to XML and reload it.
+See [Why in-memory](#why-in-memory).
 
-**Resolve.**  `registry._resolve_msk` calls `myo_sim.build_spec(<model>)` and
-strips the bundled myosuite scene (worldbody-direct floor / backdrop / pedestal
-/ logo geoms, scene lights and cameras, plus the meshes only they referenced),
-returning a model-only human `MjSpec`.  (The explicit-path entry point instead
-loads the spec from the given XML.)
+**Resolve.**  `registry._resolve_msk` calls `myo_sim.build_spec(<model>)`. It
+then removes the bundled myosuite scene from the live spec. That scene contains
+the floor, backdrop, pedestal and logo geoms directly under worldbody, the
+scene lights and cameras, and the meshes that only these elements use. The
+`MjSpec` with no scene goes directly to `combine.py`. The pipeline writes
+nothing to disk between the two stages. The entry point that takes an explicit
+path loads the spec from the given XML file instead.
 
-**Combine** (`combine.py`).  Operates on that spec, requiring `mujoco>=3.3.4`
-for `MjSpec.delete`:
+**Combine** (`combine.py`).  This stage operates on that spec. It needs
+`mujoco>=3.3.4` for `MjSpec.delete`. The steps are:
 
-- Decompose each source keyframe's qpos/qvel into per-joint slices by *name*
-  (a pre-surgery compile), then blank the keyframe arrays so surgery can change
-  the layout.
-- Surgery -- apply body / geom / actuator / tendon removals via `spec.delete`.
-  Deleting a body cascades its subtree plus the sensors, equality constraints,
-  and actuators/tendons whose sites lived on it; contact `<pair>`s referencing a
-  removed geom are scrubbed manually (delete does not cascade those).
-- Attach each device body under its parent body, applying the device-name
-  prefix to all imported elements; honor per-MSK attachment overrides.
-- Apply joint range / damping overrides; add YAML-declared joint actuators;
-  import device-side spatial tendons + tendon-transmission actuators.
-- Compile, rebuild keyframes by joint name (restore surviving joints' authored
-  values, apply `keyframe_overrides`), and recompile to lock in the keyframes.
+- Decompose the qpos and qvel of each source keyframe into slices per joint, by
+  *name*. This step needs a compile before the removals. Then clear the
+  keyframe arrays, so that the removals can change the layout.
+- Re-anchor. Apply `tendon_modifications`, which move the wrap sites and the
+  wrap geoms of a kept muscle onto the bone that remains. This step runs
+  *before* the removals. After the removals, the cascade already removed the
+  tendon.
+- Remove. Apply the body, geom, actuator, tendon and sensor removals with
+  `spec.delete`. When you remove a body, the cascade also removes its subtree,
+  the sensors, the equality constraints, and the actuators and tendons that
+  referred to it. The pipeline removes a contact `<pair>` that refers to a
+  removed geom separately, because `spec.delete` does not cascade to those.
+- Attach each device body under its parent body. The pipeline applies the
+  device-name prefix to all imported elements, and it obeys the per-MSK
+  attachment overrides.
+- Apply the mesh replacements, the body inertial overrides, the actuator
+  overrides (`lengthrange`), and the joint range and damping overrides. Add the
+  joint actuators from the YAML file. Import the spatial tendons and the
+  tendon-transmission actuators of the device. Add the equalities, contacts and
+  sensors that `attach_body` does not move.
+- Compile the spec. Rebuild the keyframes by joint name: restore the authored
+  values of the joints that remain, then apply `keyframe_overrides`. Compile
+  again, to make the keyframes permanent.
 
-The compiled `MjModel` and a fresh `MjData` are returned.
+The pipeline returns the compiled `MjModel` and a new `MjData`. If you request
+an export, `utils.export_combined_xml` writes it from the final spec. This is
+the only step that makes XML from a combined model. The optional `cache_dir`
+cache in `cache.py` stores those *exports*. That cache has no relation to the
+resolve stage, which caches nothing.
 
 ### Why in-memory
 
-MuJoCo's `MjSpec.delete` (3.3.4+) lets removals happen on the live spec, so
-there is no separate ElementTree removal phase.  This is also *required* for
-`myo_sim`'s torso-composed models: their serialized `to_xml` output does not
-round-trip (the merged fragment default trees produce a nested unnamed
-`<default>`, which MuJoCo rejects on reload as an "empty class name").  Working
-the spec in memory sidesteps serialization entirely.  Device models are still
-static XML files that round-trip fine, so `preprocess.prepare_device_xml` does
-a little text-level massaging of the device side before attach.
+`MjSpec.delete` in MuJoCo 3.3.4 and later removes elements from the live spec,
+so the pipeline needs no separate removal phase with ElementTree. The `myo_sim`
+models that compose a torso also make this necessary. Their serialized `to_xml`
+output does not round-trip: the merged default trees of the fragments give a
+nested unnamed `<default>`, and MuJoCo rejects it on reload with an "empty
+class name" error. When the pipeline operates on the spec in memory, it avoids
+serialization completely. Device models are still static XML files that
+round-trip correctly, so `preprocess.prepare_device_xml` makes small text
+changes to the device side before the attachment.
 
 ## Naming conventions
 
 ### Registry keys
 
-- **MSK keys**: `myolegs22`, `myolegs26`, `myolegs`. Curated list in
-  `assist_sim/registry.py:_COMPATIBLE_MSK_KEYS`. Each binds to a
-  `myo_sim.build_spec` model name and a minimum MuJoCo version; the model is
-  composed on demand and cached as a model-only XML. Keys with no source yet
-  (`myolegs22`) or that need a newer MuJoCo (`myolegs`) raise a clear error
-  when resolved.
-- **Device keys**: derived from `models/<DeviceDir>/<variant>config.yaml`.
-  Example: `models/DephyExoBoot/L1config.yaml` → `DephyExoBoot_L1`,
-  `models/OpenSourceLeg/A_L1config.yaml` → `OpenSourceLeg_A_L1`. The
-  device's `device.name` field is also registered as an alias.
+- **MSK keys**: `myolegs22`, `myolegs26`, `myolegs`, `myofullbody`.
+  `assist_sim/registry.py:_COMPATIBLE_MSK_KEYS` holds the selected list. Each
+  key refers to a `myo_sim.build_spec` model name and to a minimum MuJoCo
+  version. `myo_sim` composes the model on demand and gives it as a live spec,
+  never as a cached XML file. A key with no `myo_sim` source raises a clear
+  error when you resolve it. A key that needs a more recent MuJoCo does the
+  same; `myolegs` and `myofullbody` need 3.3.4.
+- **Device keys**: the registry derives these from
+  `models/<DeviceDir>/<variant>config.yaml`. For example,
+  `models/DephyExoBoot/L1config.yaml` gives `DephyExoBoot_L1`, and
+  `models/OpenSourceLeg/A_L1config.yaml` gives `OpenSourceLeg_A_L1`. The
+  registry also adds the `device.name` field of the device as an alias.
 
 ### Namespace prefix
 
-When a device attaches to an MSK, the `device.name` is used as a prefix on
-every body, site, mesh, joint, actuator, and tendon imported from the device
-XML. Example: `DephyExoBootL1_exo_1_r`, `OSL_KA_L1_osl_ankle_angle_r`. This
-prevents collisions with names in the MSK and makes the device's contribution
-identifiable in the compiled model.
+When a device attaches to an MSK model, the pipeline uses `device.name` as a
+prefix. It applies that prefix to every body, site, mesh, joint, actuator and
+tendon that it imports from the device XML file. Two examples are
+`DephyExoBootL1_exo_1_r` and `OSL_KA_L1_osl_ankle_angle_r`. The prefix prevents
+collisions with the names in the MSK model. It also lets you identify the
+contribution of the device in the compiled model.
 
 ## Per-MSK configuration overrides
 
-A single device YAML can carry per-MSK variations for any of these sections:
-`attachments`, `tendon_modifications`, `keyframe_overrides`,
-`actuator_removals`, `tendon_removals`, `mesh_replacements`. The schema
-shape:
+One device YAML file can contain per-MSK variations for each section except
+`actuators` and the legacy `keyframes`. These sections are `attachments`,
+`equality`, `joint_overrides`, `keyframe_overrides`, `body_removals`,
+`geom_removals`, `mesh_replacements`, `actuator_removals`, `tendon_removals`,
+`tendon_modifications`, `body_overrides`, `actuator_overrides`, `contact`,
+`sensors` and `sensor_removals`. The schema has this shape:
 
 ```yaml
 tendon_modifications:
   default:
-    - name: gastroc_r_tendon
+    - name: hamstrings_r_tendon
       wraps: ...
   myolegs:
-    - name: gasmed_r_tendon       # 80-muscle equivalent
+    - name: bflh_r_tendon         # 80-muscle model splits the lumped muscle
       wraps: ...
 ```
 
-The resolver picks the matching MSK key if present, else `default`. See
-[device-config-reference.md](device-config-reference.md) for which sections
-support per-MSK overrides.
+The resolver selects the entry for the matching MSK key. If that entry is not
+present, the resolver selects `default`. For the sections that support per-MSK
+overrides, see [device-config-reference.md](device-config-reference.md).
 
 ## What `assist_sim` does *not* do
 
-- **Provide MSK models** -- those live in `myo_sim`.
-- **Provide terrain / scene** -- that's `myoassist.terrains`.
-- **Train policies** -- that's `myoassist`.
-- **Simulate** -- `assist_sim` produces models; you simulate them with
-  MuJoCo as you would any model.
-- **Provide a viewer** -- `examples/quickstart.py` opens `mujoco.viewer` for
-  inspection, but the package itself has no viewer logic.
+- **Supply MSK models.** `myo_sim` supplies them.
+- **Supply terrain or a scene.** `myoassist.terrains` supplies them.
+- **Train policies.** `myoassist` does this.
+- **Simulate.** `assist_sim` produces models. You simulate them with MuJoCo, as
+  you do with any other model.
+- **Supply a viewer.** `examples/quickstart.py` opens `mujoco.viewer` for
+  inspection, but the package contains no viewer code.
 
-This narrow scope is intentional: `assist_sim` is the *model composition*
-layer. Everything else is upstream or downstream.
+This narrow scope is intentional. `assist_sim` is the layer for *model
+composition*. All other functions are upstream or downstream.

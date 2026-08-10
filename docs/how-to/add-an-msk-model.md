@@ -1,36 +1,36 @@
 # How To: Add a New MSK Model
 
-MSK models live in `myo_sim`, not in this repo. Adding a new MSK is a
-two-step process: contribute the MSK to `myo_sim`, then register it
-here.
+The musculoskeletal (MSK) models are in `myo_sim`, not in this repository.
+To add a new MSK model, do two steps. First, contribute the MSK model to
+`myo_sim`. Then register the MSK model here.
 
-## Step 1 -- Contribute the MSK to `myo_sim`
+## Step 1: Contribute the MSK model to `myo_sim`
 
-Upstream the new MSK to `MyoHub/myo_sim` via PR. On the `dev` branch,
-leg models are *composed at runtime* and exposed as editable specs, so a new
-MSK means:
+Send the new MSK model to `MyoHub/myo_sim` in a pull request. On the `dev`
+branch, `myo_sim` composes the leg models at run time and gives them as
+editable specs. A new MSK model therefore needs two items:
 
-- Register a composed model (a `BuildStrategy` + `MODEL_REGISTRY` entry in
-  `myo_sim/build/compose.py`), and
-- Expose it via `myo_sim.build_spec(<name>)` (i.e. add it to
-  `GENERATE_SPEC_BUILDERS` / `FRAGMENT_SPEC_BUILDERS`) so `assist_sim` can get
-  an editable `MjSpec` for it. See `myolegs26` for a worked example.
+- A composed model. Add a `BuildStrategy` and a `MODEL_REGISTRY` entry in
+  `myo_sim/build/compose.py`.
+- Access through `myo_sim.build_spec(<name>)`. Add the model to
+  `GENERATE_SPEC_BUILDERS` or `FRAGMENT_SPEC_BUILDERS`, so that `assist_sim`
+  can get an editable `MjSpec` for it. `myolegs26` is a worked example.
 
-For the *interim* development period where `myo_sim` isn't yet PyPI-published
-with your MSK, install a fork or branch:
+During the interim development period, the published `myo_sim` package does
+not contain your MSK model. Install a fork or a branch:
 
 ```bash
 pip install git+https://github.com/<your-fork>/myo_sim.git@<branch>
 ```
 
-`assist_sim` consumes whatever's installed -- it doesn't care whether the
-source is upstream or a fork.
+`assist_sim` uses the installed `myo_sim`. The source can be the upstream
+package or a fork.
 
-## Step 2 -- Register the MSK in `assist_sim`
+## Step 2: Register the MSK model in `assist_sim`
 
-Add an entry to `_COMPATIBLE_MSK_KEYS` in `assist_sim/registry.py`, binding the
-key to the `myo_sim.build_spec` model name and the minimum MuJoCo version that
-can build it:
+Add an entry to `_COMPATIBLE_MSK_KEYS` in `assist_sim/registry.py`. The
+entry binds the key to the `myo_sim.build_spec` model name and to the
+minimum MuJoCo version that can build the model:
 
 ```python
 _COMPATIBLE_MSK_KEYS: Dict[str, _MskSource] = {
@@ -39,66 +39,110 @@ _COMPATIBLE_MSK_KEYS: Dict[str, _MskSource] = {
 }
 ```
 
-`_MskSource(myo_sim_model, min_mujoco, note)`: `myo_sim_model` is the
-`build_spec` name (or `None` for a planned key with no source yet); `min_mujoco`
-gates models that need newer MuJoCo (e.g. passive-torso conversions need
-`(3, 3, 4)`); `note` explains a gated/planned state in the error the caller
-sees. At resolve time `assist_sim` calls `build_spec`, serializes the returned
-`MjSpec`, strips the bundled myosuite scene, and caches a model-only XML.
+The fields of `_MskSource(myo_sim_model, min_mujoco, note)` are:
 
-## Step 3 -- Verify resolution
+- `myo_sim_model` is the `build_spec` name. Use `None` for a planned key
+  that has no source yet.
+- `min_mujoco` blocks a model that needs a newer MuJoCo. For example, the
+  passive-torso conversions need `(3, 3, 4)`.
+- `note` explains a blocked state or a planned state in the error that the
+  caller sees.
+
+`_MskSource` has an optional fourth field, `reduce_to_22`. This field marks
+a key that comes from another key through the 26->22 planar reduction. Only
+`myolegs22` uses it today.
+
+At resolve time, `assist_sim` calls `build_spec`. It then removes the
+bundled myosuite scene from the returned `MjSpec`. It gives that live spec
+to the pipeline. The pipeline does not serialize the spec and does not
+cache it at this point.
+
+Torso-composed models do not round-trip through `to_xml`. Every edit
+therefore occurs on the spec in memory. These edits are the removals
+through `spec.delete`, the attachment and the overrides. `assist_sim`
+builds a fresh spec on each call, because the pipeline changes the spec in
+place.
+
+## Step 3: Verify resolution
+
+`registry.resolve` returns `(MjSpec, Path)`. The first element is a live
+spec, not a path:
 
 ```python
 from assist_sim.registry import resolve
 
-msk_path, _ = resolve("MyNewMSK", "DephyExoBoot_L1")
-print(msk_path)        # a cached, model-only XML Path that exists
+human_spec, device_config_path = resolve("MyNewMSK", "DephyExoBoot_L1")
+print(len(human_spec.bodies))       # a composed MjSpec, editable
+print(human_spec.compile().nq)      # compile it to see the model
+print(device_config_path)           # the device config.yaml Path
 ```
 
-If you get an `ImportError`, either `myo_sim` isn't installed, the installed
-MuJoCo is older than `min_mujoco`, or `build_spec` failed -- the message says
-which. Confirm `myo_sim` knows the model:
+To get a compiled baseline with no device, use `load_msk`:
+
+```python
+from assist_sim import load_msk
+
+model, data = load_msk("MyNewMSK")
+print(model.nq, model.nu, model.nbody)
+```
+
+Or use the command line, which also writes the XML:
+
+```bash
+python -m assist_sim msk MyNewMSK -o mynewmsk.xml
+```
+
+An `ImportError` has three possible causes. `myo_sim` is not installed, the
+installed MuJoCo is older than `min_mujoco`, or `build_spec` gave an error.
+The message tells you which cause is correct. To confirm that `myo_sim`
+knows the model:
 
 ```python
 import myo_sim
 print("my_new_model" in myo_sim._COMPOSED_MODELS)
 ```
 
-## Step 4 -- Update devices for compatibility
+## Step 4: Update the devices for compatibility
 
-If your new MSK has unique conventions (different body / tendon names,
-different world orientation, different DOFs), devices that previously
-worked on 22/26/80 may break on it. For each device YAML where this
-matters, add a per-MSK override block. See
-[modify-an-msk-config.md](modify-an-msk-config.md).
+Your new MSK model can have unique conventions. Examples are different body
+or tendon names, a different world orientation, or different degrees of
+freedom (DOF). Devices that work on 22, 26 or 80 can then give an error on
+the new model. For each device YAML file that this affects, add a per-MSK
+override block. See [modify-an-msk-config.md](modify-an-msk-config.md).
 
-Two common patterns:
+Three usual patterns:
 
-1. **MSK has different tendon names** → add `myolegs: []`-style
-   opt-outs (or per-MSK alternate names) to `tendon_modifications`,
-   `tendon_removals`, `actuator_removals`.
-2. **MSK has a different parent body for an attachment** → add
-   per-MSK `attachments` block (see HMEDI's `myolegs` handling for
-   an example).
+1. **The MSK model has different tendon names.** Add `myolegs: []` opt-outs,
+   or per-MSK alternate names, to `tendon_modifications`, `tendon_removals`
+   and `actuator_removals`.
+2. **The MSK model has a different parent body for an attachment.** Add a
+   per-MSK `attachments` block. The `myolegs` handling in HMEDI is an
+   example.
+3. **The MSK model is a target for an amputee device.** Add a per-MSK
+   `tendon_modifications` block that names the wrap sites and the wrap
+   geoms. Also add a matching `actuator_overrides` block with the
+   re-derived `lengthrange` for each muscle that you re-anchor. Both blocks
+   are per-MSK, because the muscle names and the geometry differ by lineage.
 
-## Step 5 -- Add tests + docs
+## Step 5: Add tests and docs
 
-- Add the new MSK to the `EXPECTED` dict in
-  `tests/test_smoke_combinations.py` for each device combination you
-  expect to work. The `(nq, nu, nbody, nmesh)` tuples are frozen
-  signatures -- get them by running a one-off probe and pasting in
-  the actual values.
-- Update [available-models.md](../available-models.md) with the new
-  MSK and its compatibility row.
-- If the MSK has notable structural differences worth documenting
-  (different facing direction, no arms, freejoint root, etc.), add
-  a paragraph to [available-models.md](../available-models.md#important-msk-differences).
+- Add the new MSK model to the `EXPECTED` dict in
+  `tests/test_smoke_combinations.py`, for each device combination that you
+  expect to work. The `(nq, nu, nbody, nmesh)` tuples are frozen signatures.
+  Get them from a single probe run. Then put the actual values in the dict.
+- Update [available-models.md](../available-models.md) with the new MSK
+  model and its compatibility row.
+- The MSK model can have structural differences that other users must know
+  about. Examples are a different facing direction, no arms, or a freejoint
+  root. Add a paragraph about them to
+  [available-models.md](../available-models.md#important-msk-differences).
 
-## Step 6 -- Update quickstart's camera dispatch
+## Step 6: Update the camera dispatch in quickstart
 
-The viewer's initial camera azimuth in `examples/quickstart.py` is
-chosen per-MSK because each MSK faces a different direction in world
-coords. If the new MSK has a unique orientation, add a branch:
+Each MSK model faces a different direction in world coordinates. The
+`examples/quickstart.py` script therefore selects the initial camera azimuth
+of the viewer per MSK model. If the new MSK model has a unique orientation,
+add a branch:
 
 ```python
 if args.msk == "MyNewMSK":
@@ -110,11 +154,14 @@ else:
     ...
 ```
 
-To derive the values from a `<camera pos=... xyaxes=.../>` element, use
-the conversion in [usage.md](../usage.md) or just iterate by eye in the
-viewer (the right-side panel shows the current camera state).
+To derive the values from a `<camera pos=... xyaxes=.../>` element, use the
+conversion in [usage.md](../usage.md). As an alternative, adjust the values
+in the viewer until the view is correct. The panel on the right shows the
+current camera state.
 
 ## See also
 
-- [concepts.md](../concepts.md#naming-conventions) -- registry key conventions
-- [available-models.md](../available-models.md) -- full MSK + device matrix
+- [concepts.md](../concepts.md#naming-conventions): the registry key
+  conventions
+- [available-models.md](../available-models.md): the full matrix of MSK
+  models and devices

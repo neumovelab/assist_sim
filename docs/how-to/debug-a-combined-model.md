@@ -1,12 +1,13 @@
 # How To: Debug a Combined Model
 
-When the combined model compiles but something's wrong -- geometry in the
-wrong place, missing tendon, joint not actuating, viewer looks weird --
-here's where to look.
+The combined model can compile and still be incorrect. Examples are
+geometry in the wrong position, a missing tendon, a joint that does not
+actuate, or an incorrect view in the viewer. This guide tells you where to
+look.
 
-## Step 0: read the error message
+## Step 0: Read the error message
 
-If `load_combined_model` raised, the error has structure:
+If the load gave an error, the error has a structure:
 
 ```
 ValueError: tendon_modifications references unknown tendon 'gastroc_r_tendon'.
@@ -14,12 +15,16 @@ Did you mean: 'grac_r_tendon'?
 ```
 
 The section name (`tendon_modifications`) tells you which YAML block to
-fix. The `did you mean ...` suggestion uses fuzzy matching against the
-real names in the MSK + device -- usually the right answer is one of those.
+fix. The `did you mean ...` suggestion compares your name with the real
+names in the musculoskeletal (MSK) model and in the device. Usually one of
+those names is the correct answer.
 
-If `load_combined_model` succeeded but the result is wrong, continue.
+`tendon_modifications` runs before every removal. Its errors therefore come
+before the errors of all other sections.
 
-## Step 1: inspect the compiled model in Python
+If the load is successful but the result is incorrect, continue.
+
+## Step 1: Examine the compiled model in Python
 
 ```python
 from assist_sim import load_combined
@@ -42,120 +47,190 @@ for i in range(model.ntendon):
     print(mj.mj_id2name(model, mj.mjtObj.mjOBJ_TENDON, i))
 ```
 
-If a body / actuator / tendon you expected is missing, check the YAML
-section that should have added or preserved it.
+A body, an actuator or a tendon that you expect can be absent. Then examine
+the YAML section that must add it or keep it.
 
-## Step 2: export the combined XML and read it
+## Step 2: Export the combined XML
 
 ```python
-from assist_sim import load_combined_model
-load_combined_model(
-    human_xml="...",
-    device_config="...",
-    export_xml="combined.xml",
-)
+from assist_sim import load_combined
+
+load_combined("myolegs26", "MyDevice_L1", export_xml="combined.xml")
 ```
 
-Then open `combined.xml` in an editor. The XML is the canonical view of
-what got combined; everything you see in `MjModel` came from this file
-(including MuJoCo's own auto-additions like default textures).
+To get a baseline with no device, which is the start point of the removals:
 
-What to look for:
+```bash
+python -m assist_sim msk myolegs26 -o baseline.xml
+```
 
-- **Body hierarchy** -- is your device body attached where the YAML said?
-  The combined XML should have e.g. `<body name="MyDevice_L1_my_part"
-  ...>` nested under the parent body.
-- **Actuators** -- every actuator from the device XML (with the device
-  prefix) plus everything in `actuators:` (without prefix).
-- **Tendons** -- spatial tendons from the device XML (with prefix) plus
-  the MSK's surviving tendons.
-- **Keyframes** -- `<key name="stand" qpos="..."/>` should have the
-  authored MSK values plus any `keyframe_overrides`.
+Then open `combined.xml` in an editor. The XML is the primary record of the
+combination. Everything in `MjModel` comes from this file. The file also
+contains the automatic additions of MuJoCo, such as the default textures.
 
-## Step 3: keep the preprocess temp file
+Look for these items:
 
-The pipeline writes a temp XML during preprocess (before the MjSpec
-phase). Keep it for inspection:
+- **The body hierarchy.** Is the device body attached to the parent body
+  that the YAML file names? The combined XML must contain, for example,
+  `<body name="MyDevice_L1_my_part" ...>` inside the parent body.
+- **The actuators.** The combined XML has every actuator from the device
+  XML with the device prefix, plus everything in `actuators:` with no
+  prefix.
+- **The tendons.** The combined XML has the spatial tendons from the device
+  XML with the prefix, plus the remaining tendons of the MSK model.
+- **The keyframes.** `<key name="stand" qpos="..."/>` must have the authored
+  MSK values plus any `keyframe_overrides`.
+
+## Step 3: Examine the MSK spec inside the pipeline
+
+`assist_sim` never writes the MSK model to disk. The MSK model is a live
+`MjSpec` from `myo_sim`. `assist_sim` edits it in place, so there is no XML
+file after the removals. Run the stages yourself when you need the state
+between them:
+
+```python
+from assist_sim.combine import ModelCombiner
+from assist_sim.config import DeviceConfig
+from assist_sim.registry import _resolve_msk
+
+spec = _resolve_msk("myolegs26")
+config = DeviceConfig.from_yaml("assist_sim/models/MyDevice/L1config.yaml")
+
+ModelCombiner._apply_tendon_modifications(spec, config, msk_key="myolegs26")
+print(spec.tendon("gastroc_r_tendon"))    # present: re-anchored
+
+ModelCombiner._apply_removals(spec, config, msk_key="myolegs26")
+print(spec.tendon("gastroc_r_tendon"))    # None: taken by the cascade
+
+model = spec.compile()          # the human, after surgery, before attachment
+```
+
+A muscle can be present after the first call and `None` after the second
+call. The `spec.delete` cascade then removed the muscle, because one of its
+wrap points was still on a removed body.
+
+`assist_sim` does write the device XML to disk, two times: a full copy and
+a copy with no meshes. To keep both copies, set `keep_temp=True`, which
+`load_combined_model` and `ModelCombiner.combine` accept:
 
 ```python
 load_combined_model(..., keep_temp=True)
 ```
 
-Look for files matching `<msk_name>__human_pp_*.xml` next to the source
-MSK. This is the human XML *after* removals and cascades but *before*
-device attachment. Useful when:
+The two files go next to the device XML as `<device_stem>__dev_full_*.xml`
+and `<device_stem>__dev_nomesh_*.xml`. Use them when a device tendon,
+actuator or mesh is absent from the combined model.
 
-- The compiled `nbody` is wrong → check whether the body removal cascade
-  removed too much or too little
-- Tendons disappeared → check whether their wrap sites got auto-pruned
-  unexpectedly
-
-## Step 4: visually inspect in the viewer
+## Step 4: Examine the model in the viewer
 
 ```bash
 python examples/quickstart.py myolegs26 MyDevice_L1
 ```
 
-The paused viewer lets you spin the model. Drag to rotate, scroll to
-zoom, ctrl-drag to pan.
+The viewer starts in the paused state, so that you can turn the model.
+Drag to rotate. Scroll to zoom. Use ctrl-drag to pan.
 
-What to look for:
+Look for these symptoms:
 
-- **Device body in the wrong place** → the `pos`/`quat` on either the
-  device body (in the device XML) or the YAML attachment is off.
-  Iterate by editing the YAML attachment's `pos`/`quat`.
-- **Mesh oriented sideways** → device body's frame inherits its parent's
-  frame. If the parent is e.g. the 80-muscle torso (rotated relative to
-  22/26), use per-MSK attachment with a compensating `quat`.
-- **Tendon dangling in space** → a wrap site on a removed body that
-  wasn't re-anchored. Add a `tendon_modifications` with
-  `replace_site` / `reposition_site` in the YAML.
-- **Device floats free of the model** → the device body wasn't actually
-  attached. Check the YAML's `attachments` list and confirm the
-  `device_body` name matches a top-level body in the device XML.
+- **The device body is in the wrong position.** The `pos` or the `quat` is
+  incorrect. Look at the device body in the device XML and at the
+  attachment in the YAML file. Adjust the `pos` and the `quat` of the YAML
+  attachment.
+- **The mesh points sideways.** The frame of the device body comes from the
+  frame of its parent. The parent can be the 80-muscle torso, which is
+  rotated in relation to 22 and 26. In that case, use a per-MSK attachment
+  with a `quat` that compensates.
+- **A muscle is absent from the model.** This is the main symptom of a
+  missed re-anchor. Its wrap points were on a removed body, so the
+  `spec.delete` cascade also removed the tendon and its actuator. Re-anchor
+  the muscle with `tendon_modifications`. If the muscle has no joint left to
+  span, record the loss in `actuator_removals` and in `tendon_removals`.
+- **A muscle is absent although every site moved.** A wrap cylinder stayed
+  behind. A spatial tendon anchors on its wrap geoms and on its sites. One
+  geom on a removed body therefore removes the whole tendon. Move the geom
+  with `replace_geom`. Move its sidesite with `replace_site`. In the
+  80-muscle leg the names are pairs, for example `SM_at_condyles_wrap_r`
+  with `SM_at_condyles_site_semimem_r`.
+- **The tendon is a straight line across the joint.** The muscle stayed in
+  the model, but a moved wrap point is in the wrong position. Adjust the
+  `pos` values in `tendon_modifications`.
+- **The device floats free of the model.** The device body is not attached.
+  Examine the `attachments` list in the YAML file. Confirm that the
+  `device_body` name agrees with a top-level body in the device XML.
 
-## Step 5: diff against a known-good output
+## Step 5: Check the frozen signatures
 
-If you have a legacy combined XML for the same MSK + device, diff the
-exported XML against it. `tests/test_legacy_parity.py` does this
-structurally (matching `nq`, `nu`, body tree, actuator triples, tendon
-wraps); you can run it directly:
+`tests/test_smoke_combinations.py` holds a frozen `(nq, nu, nbody, nmesh)`
+tuple for each supported pair of MSK model and device. These tuples are the
+reference values. Any change to the pipeline or to a config that moves one
+of the four numbers stops this test first.
 
 ```bash
-pytest tests/test_legacy_parity.py -v -k "MyDevice"
+pytest tests/test_smoke_combinations.py -v -k "MyDevice"
 ```
 
-For finer-grained diffing, both `assist_sim.config.DeviceConfig` and
-the live model expose enough introspection to compare element-by-element
-in a script.
+A test failure prints the expected tuple and the actual tuple. Decide which
+tuple is correct. Then correct the config, or update the frozen tuple in
+the same commit as the change that moved it.
 
-## Step 6: use the validator
+For the amputee path, `tests/test_tendon_reanchor.py` is the more specific
+test. It pins the four wrap-edit ops, the muscle survival for each
+amputation, the `ctrl` order, and the re-derived `lengthrange`:
 
-For a pre-flight check that doesn't fully compile the model:
+```bash
+pytest tests/test_tendon_reanchor.py -v
+```
+
+For a more detailed comparison, use `assist_sim.config.DeviceConfig` and
+the live model in a script. Both give sufficient introspection for a
+comparison element by element.
+
+## Step 6: Use the validator
+
+The validator makes a check before you compile the full model. The
+validator reads XML, and a registry MSK model has no XML on disk. Export
+one first:
+
+```bash
+python -m assist_sim msk myolegs26 -o myolegs26.xml
+```
 
 ```python
+from assist_sim.config import DeviceConfig
 from assist_sim.validate import validate_config
 
 issues = validate_config(
-    human_xml="path/to/myolegs26.xml",
-    config=DeviceConfig.from_yaml("models/MyDevice/L1config.yaml"),
+    human_xml="myolegs26.xml",
+    config=DeviceConfig.from_yaml("assist_sim/models/MyDevice/L1config.yaml"),
 )
 for issue in issues:
     print(issue)
 ```
 
-Returns a list of unresolved references (names in the YAML that don't
-exist in either the MSK or the device XML). Empty list = clean.
+`validate_config` returns a list of unresolved references. These are names
+in the YAML file that exist neither in the MSK model nor in the device XML.
+An empty list shows no problems.
 
-## Common cause cheatsheet
+The validator has two limits. First, it checks the `default` block of each
+per-MSK section, not the per-MSK blocks. To check an override block, assign
+the resolved list first
+(`config.tendon_modifications = config.resolve_tendon_modifications("myolegs")`).
+Second, the validator makes a name check only. It never compiles, so it
+cannot tell you that a re-anchored wrap point is in the wrong position.
+
+## Quick reference: symptoms and causes
 
 | Symptom | Likely cause |
 |---|---|
-| `ValueError: unknown body 'X' in body_removals` | Typo in YAML, or per-MSK config used on the wrong MSK |
-| `ValueError: unknown tendon 'X' in tendon_modifications` | Same; check per-MSK overrides |
-| Tendon wrap site count smaller than expected | Auto-prune removed wraps on removed-body sites. Add `tendon_modifications` to re-anchor if you wanted them preserved |
-| Device body floats in place | Forgot to list it in `attachments`, or device body's name doesn't match the XML |
-| Mesh in wrong orientation on one MSK only | Parent body frame differs across MSKs. Use per-MSK `attachments` with `quat` |
-| nq drops more than expected after body_removals | Cascade removed wrap-site bodies (they have joints). Expected; their qpos slots are pruned from keyframes |
-| Keyframe pose looks all-zeros except pelvis | The keyframe pruning math + restore is broken (was a real bug previously); make sure the joint table covers ALL named joints |
-| All-white background in viewer | The terrain strip dropped both 2D texture + material binding. Fixed in current pipeline; if it recurs, check `_strip_terrain` in `utils.py` |
+| `ValueError: unknown body 'X' in body_removals` | A typo in the YAML file, or a per-MSK config used on the wrong MSK model |
+| `ValueError: unknown tendon 'X' in tendon_modifications` | The same. Examine the per-MSK overrides. The section runs first, so this error comes before any removal |
+| `ValueError: wrap edit op 'drop_site' is no longer supported` | `drop_site` is retired. Re-anchor with `replace_site` or `replace_geom`, or remove the muscle with `actuator_removals` |
+| `ValueError: replace_site 'X' requires 'new_body'` | Both `replace_*` ops need `new_body`. All four ops need `pos` |
+| A muscle is absent from the combined model | Its wrap points were on a removed body, and it is not re-anchored. Add `tendon_modifications` |
+| A muscle is absent although every site moved | A wrap cylinder stayed on a removed body. Add `replace_geom` for it, plus `replace_site` for its sidesite |
+| A muscle gives an implausible force after the re-anchor | Its authored `lengthrange` still describes the intact path. Add an `actuator_overrides` entry |
+| The device body floats in position | The device body is not in `attachments`, or its name does not agree with the XML |
+| The mesh orientation is wrong on one MSK model only | The parent body frame differs between MSK models. Use per-MSK `attachments` with `quat` |
+| `nq` decreases more than expected after `body_removals` | The cascade removed wrap-site bodies, which have joints. This is correct. The pipeline also removes their qpos slots from the keyframes |
+| The keyframe pose is all zeros except the pelvis | The keyframe pruning and restore code is incorrect (this was a real bug before). Make sure that the joint table covers ALL named joints |
+| The model has no ground | This is correct. `assist_sim` removes the bundled myosuite scene at resolve time, so an export carries no floor. Put a scene (`myoassist.terrains`) on top |

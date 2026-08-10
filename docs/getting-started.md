@@ -1,35 +1,37 @@
 # Getting Started
 
-This guide walks through installation, your first compiled model, and visual
-inspection. About 5 minutes end-to-end if the prerequisites are in place.
+This guide gives the installation steps, your first compiled model, and the
+visual inspection. The procedure takes approximately 5 minutes if you have the
+prerequisites.
 
 ## Prerequisites
 
 - Python ≥ 3.10
-- A working MuJoCo ≥ 3.3.4 install (`pip install "mujoco>=3.3.4"`) -- the
-  pipeline uses `MjSpec.delete`, which lands in 3.3.4
-- `myo_sim` for the baseline MSK models (see install step below)
+- A MuJoCo ≥ 3.3.4 installation (`pip install "mujoco>=3.3.4"`). The pipeline
+  uses `MjSpec.delete`, which is available in 3.3.4.
+- `myo_sim`, for the baseline musculoskeletal (MSK) models. See the
+  installation step below.
 
 ## Install
 
 ```bash
-git clone https://github.com/NeuMove/assist_sim.git
+git clone https://github.com/neumovelab/assist_sim.git
 cd assist_sim
 pip install -e .
 ```
 
-The editable install picks up `mujoco>=3.3.4`, `PyYAML`, `numpy` from
-`pyproject.toml`. It does **not** auto-install `myo_sim` (which is published
-separately).
+The editable installation gets `mujoco>=3.3.4`, `PyYAML` and `numpy` from
+`pyproject.toml`. It does **not** install `myo_sim` automatically, because
+`myo_sim` is published separately.
 
 ### myo_sim
 
-`myo_sim` provides the baseline MSK models. On the `dev` branch it
-*composes* leg models at runtime, and `assist_sim` obtains them via
-`myo_sim.build_spec(<model>)`. Three install options:
+`myo_sim` supplies the baseline MSK models. On the `dev` branch, `myo_sim`
+*composes* the leg models at run time, and `assist_sim` gets them with
+`myo_sim.build_spec(<model>)`. There are three installation options:
 
 ```bash
-# (1) Once it's published to PyPI -- preferred long-term:
+# (1) Once it is published to PyPI (preferred long-term):
 pip install myo_sim
 
 # (2) From a git branch in the meantime:
@@ -40,7 +42,7 @@ git clone https://github.com/MyoHub/myo_sim.git
 pip install -e ./myo_sim
 ```
 
-Verify:
+Verify the installation:
 
 ```python
 import myo_sim
@@ -48,10 +50,10 @@ print("myolegs26" in myo_sim._COMPOSED_MODELS)   # True
 print(myo_sim.build_spec("myolegs26"))           # an editable MjSpec
 ```
 
-If `myo_sim` is missing, `assist_sim` will still import and you can use most
-of the API, but any call that resolves an MSK (e.g. `load_combined`,
-`registry.resolve`) raises an `ImportError` pointing back at the install
-instructions.
+If `myo_sim` is not installed, `assist_sim` imports correctly and most of the
+API is available. But a call that resolves an MSK model, for example
+`load_combined` or `registry.resolve`, raises an `ImportError`. That error
+refers you to these installation instructions.
 
 ## First compiled model
 
@@ -60,16 +62,40 @@ from assist_sim import load_combined
 
 model, data = load_combined("myolegs26", "DephyExoBoot_L1")
 print(f"nq={model.nq}  nu={model.nu}  nbody={model.nbody}")
-# nq=47  nu=28  nbody=37
+# nq=47  nu=28  nbody=52
 ```
 
-`model` is a standard MuJoCo `MjModel` -- step it, render it,
-inspect it, use it as the env's model in your training framework.
+`model` is a standard MuJoCo `MjModel`. You can step it, render it, or inspect
+it. You can also use it as the model of the environment in your training
+framework.
+
+## A baseline MSK with no device
+
+`load_msk` gives an MSK model with no device. It does not run the device steps
+of the pipeline. It compiles the resolved spec directly:
+
+```python
+from assist_sim import load_msk
+
+model, data = load_msk("myolegs26")
+print(f"nq={model.nq}  nu={model.nu}  nbody={model.nbody}")
+# nq=47  nu=26  nbody=38
+```
+
+The command-line interface (CLI) does the same, and it also writes an export:
+
+```bash
+python -m assist_sim msk myolegs26 -o out.xml
+```
+
+The two forms accept the optional `cache_dir=` or `--cache-dir` argument. The
+section below describes it.
 
 ## Visual inspection
 
-The `examples/quickstart.py` script opens a paused MuJoCo viewer at the first
-keyframe of the combined model:
+The `examples/quickstart.py` script opens a paused MuJoCo viewer. The viewer
+shows the first keyframe of the combined model. If the model has no keyframe,
+the viewer shows `qpos0`. Only `myolegs22` has keyframes.
 
 ```bash
 python examples/quickstart.py                                    # defaults: myolegs26 + DephyExoBoot_L1
@@ -77,13 +103,13 @@ python examples/quickstart.py myolegs26 OpenSourceLeg_KA_L1     # explicit pair
 python examples/quickstart.py --list                             # list compatible MSK + device keys
 ```
 
-The viewer opens paused; drag to rotate, scroll to zoom, ctrl-drag to pan.
-Press **Enter** in the terminal to close (closing the window alone won't end
-the script).
+The viewer opens in the paused state. Drag to rotate the view. Scroll to zoom.
+Ctrl-drag to pan. Press **Enter** in the terminal to close the script. If you
+close only the window, the script continues.
 
-## Optional: caching
+## Optional: the cache
 
-If you reload the same combination repeatedly, opt in to local caching:
+If you load the same combination many times, enable the local cache:
 
 ```python
 model, data = load_combined_model(
@@ -93,13 +119,15 @@ model, data = load_combined_model(
 )
 ```
 
-A second call with unchanged inputs skips the full pipeline and loads the
-cached XML directly. Cache invalidates on input mtime change or pipeline
-version bump. See [usage.md](usage.md) for details.
+A second call with the same inputs does not run the pipeline. It loads the
+cached XML file directly. The cache becomes invalid when an input modification
+time changes, or when the pipeline version increases. For more data, see
+[usage.md](usage.md).
 
 ## What next?
 
-- [concepts.md](concepts.md) -- how the in-memory pipeline works
-- [usage.md](usage.md) -- the full API surface
-- [how-to/add-a-device.md](how-to/add-a-device.md) -- authoring a new device
-- [device-config-reference.md](device-config-reference.md) -- YAML schema reference
+- [concepts.md](concepts.md): how the pipeline operates in memory
+- [usage.md](usage.md): the full public API
+- [how-to/add-a-device.md](how-to/add-a-device.md): how to author a new device
+- [device-config-reference.md](device-config-reference.md): the YAML schema
+  reference

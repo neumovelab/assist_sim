@@ -1,10 +1,11 @@
 # Device Config Reference
 
-Every device under `models/<DeviceDir>/` carries a YAML config (typically
-named `L1config.yaml` or `<variant>_L1config.yaml`). This doc is the schema
-reference -- every section, every field, with examples.
+Each device under `models/<DeviceDir>/` has a YAML config file. The usual name
+is `L1config.yaml` or `<variant>_L1config.yaml`. This document is the schema
+reference. It gives each section and each field, with examples.
 
-For walkthroughs see [how-to/add-a-device.md](how-to/add-a-device.md).
+For step-by-step instructions, see
+[how-to/add-a-device.md](how-to/add-a-device.md).
 
 ## Top-level shape
 
@@ -29,13 +30,14 @@ tendon_removals: ...
 tendon_modifications: ...
 geom_removals: ...
 body_overrides: ...
+actuator_overrides: ...
 contact: ...
 sensors: ...
 sensor_removals: ...
 ```
 
-Only `device` and `attachments` are required. Every other section defaults
-to empty.
+Only the `device` and `attachments` sections are necessary. Each other section
+is empty by default.
 
 ## `device`
 
@@ -48,13 +50,13 @@ device:
 
 | Field | Type | Required | Meaning |
 |---|---|---|---|
-| `name` | string | yes | Namespace prefix applied to every body / site / mesh / joint / actuator / tendon imported from the device XML. Convention: PascalCase + `_L1` suffix (e.g. `DephyExoBoot_L1`, `OpenSourceLeg_A_L1`). |
-| `model_xml` | path | yes | Path to the device's MuJoCo XML, relative to this YAML file. |
-| `compatible_msk` | list | no | Restricts which MSKs this device may combine with. If absent, default to compatible with all. |
+| `name` | string | yes | The namespace prefix. The pipeline applies it to every body, site, mesh, joint, actuator and tendon that it imports from the device XML file. The convention is PascalCase with an `_L1` suffix, for example `DephyExoBoot_L1` or `OpenSourceLeg_A_L1`. |
+| `model_xml` | path | yes | The path to the MuJoCo XML file of the device, relative to this YAML file. |
+| `compatible_msk` | list | no | Limits the musculoskeletal (MSK) models that this device can combine with. If the field is absent, the device is compatible with all MSK models. |
 
 ## `attachments`
 
-Maps each top-level device body to a parent body in the MSK.
+This section maps each top-level device body to a parent body in the MSK model.
 
 ```yaml
 attachments:
@@ -68,17 +70,18 @@ attachments:
 
 | Field | Type | Required | Meaning |
 |---|---|---|---|
-| `device_body` | string | yes | Name of a top-level body in the device XML. |
-| `parent_body` | string | yes | Name of the MSK body the device body attaches under. The special value `world` (or `worldbody`) grafts the device body directly under worldbody, keeping its own `<freejoint>` -- see [Free-rooted attachment](#free-rooted-attachment-parent_body-world). |
-| `pos` | `[x, y, z]` | no | Frame offset on the parent (composes with the device body's authored pos). Use when the device-body's authored pos needs adjustment per attach point. |
-| `quat` | `[w, x, y, z]` | no | Frame rotation. Useful when the parent body's frame differs across MSKs (e.g. 22 vs 80 torso). |
+| `device_body` | string | yes | The name of a top-level body in the device XML file. |
+| `parent_body` | string | yes | The name of the MSK body that the device body attaches under. The special value `world` (or `worldbody`) attaches the device body directly under worldbody and keeps its own `<freejoint>`. See [Free-rooted attachment](#free-rooted-attachment-parent_body-world). |
+| `pos` | `[x, y, z]` | no | The frame offset on the parent. It composes with the authored pos of the device body. Use it when the authored pos of the device body needs a change for each attachment point. |
+| `quat` | `[w, x, y, z]` | no | The frame rotation. Use it when the frame of the parent body is different between MSK models, for example the 22-muscle torso and the 80-muscle torso. |
 
-Each attachment is implemented as `parent.add_frame(pos, quat).attach_body(device_body, prefix=device.name + "_")`.
+The pipeline implements each attachment as `parent.add_frame(pos, quat).attach_body(device_body, prefix=device.name + "_")`.
 
 ### Per-MSK attachments
 
-When a device needs different attachment topology per MSK (different
-`parent_body`, different pos/quat), use the per-MSK form:
+A device can need a different attachment topology for each MSK model, with a
+different `parent_body` or with different pos and quat values. In that
+condition, use the per-MSK form:
 
 ```yaml
 attachments:
@@ -92,15 +95,17 @@ attachments:
     # ...repeat any other attachments unchanged
 ```
 
-The resolver returns the matching MSK key's list if present, else `default`.
-Use this when even one attachment needs to differ per MSK.
+The resolver returns the list for the matching MSK key. If that list is not
+present, the resolver returns `default`. Use this form if only one attachment
+must be different for an MSK model.
 
 ### Free-rooted attachment (`parent_body: world`)
 
-Most devices are *rigidly re-parented* onto a leg body. A device that is
-physically a separate mechanism strapped to the leg -- e.g. the UT ankle exo,
-a parallel linkage clamped at several points -- instead attaches to `world`
-and is tied to the leg with [`equality`](#equality) constraints:
+The pipeline re-parents most devices *rigidly* onto a leg body. But some
+devices are a separate mechanism that straps to the leg. An example is the UT
+ankle exoskeleton, which is a parallel linkage with clamps at several points.
+Such a device attaches to `world` instead, and [`equality`](#equality)
+constraints then connect it to the leg:
 
 ```yaml
 attachments:
@@ -110,19 +115,21 @@ attachments:
     quat: [0.1209, 0.0, 0.0, 0.9927]
 ```
 
-The device body must declare a `<freejoint>` in the device XML (otherwise it
-would be welded to the world, immobile). `pos` / `quat` are the world pose the
-free root starts at -- place it so the exo sits on the leg, because MuJoCo's
-`connect` constraints (below) pin the two bodies at *whatever* relative pose
-holds at compile time. Per-MSK `attachments` are usually needed here, since
-each baseline places the leg in a different world frame.
+The device body must specify a `<freejoint>` in the device XML file. If it does
+not, MuJoCo welds the body to the world and the body cannot move. `pos` and
+`quat` give the world pose of the free root at the start. Set them so that the
+exoskeleton sits on the leg, because the MuJoCo `connect` constraints below
+hold the two bodies at the relative pose that exists at compile time. Per-MSK
+`attachments` are usually necessary here, because each baseline puts the leg in
+a different world frame.
 
 ## `equality`
 
-Add MuJoCo `<equality>` constraints tying a device body to an MSK body. This
-is how a free-rooted device (attached to `world`) is fastened to the leg --
-the counterpart to the rigid re-parenting that plain `attachments` perform.
-Emitted after attachment, so both endpoints exist.
+This section adds MuJoCo `<equality>` constraints that connect a device body to
+an MSK body. A free-rooted device attaches to `world`, and these constraints
+then hold it to the leg. They are the equivalent of the rigid re-parenting that
+a plain attachment does. The pipeline adds them after the attachment, so that
+both endpoints exist.
 
 ```yaml
 equality:
@@ -140,34 +147,36 @@ equality:
 | Field | Type | Required | Meaning |
 |---|---|---|---|
 | `type` | `connect` \| `weld` \| `joint` | yes | `connect` = point-to-point; `weld` = full pose lock; `joint` = scalar joint coupling. |
-| `device_body` | string | connect/weld | Device body (namespaced with the device prefix at combine time). |
-| `parent_body` | string | connect/weld | MSK body (left bare). |
-| `joint1` / `joint2` | string | joint | Coupled joints, each resolved bare-first then prefixed. |
-| `polycoef` | up to 5 floats | no (joint) | Quartic coefficients; unspecified trailing terms are zero. |
-| `anchor` | `[x, y, z]` | connect | Connection point in the device body's local frame. |
-| `relpose` | `[x, y, z, qw, qx, qy, qz]` | no (weld) | Relative pose; defaults to identity. |
-| `torquescale` | float | no (weld) | Weld torque scale; defaults to 1.0. |
-| `solref` / `solimp` | list | no | Constraint-solver knobs; default to MuJoCo's. |
-| `active` | bool | no | Whether the constraint starts active (default `true`). |
+| `device_body` | string | connect/weld | The device body. The pipeline adds the device prefix at combine time. |
+| `parent_body` | string | connect/weld | The MSK body, with no prefix. |
+| `joint1` / `joint2` | string | joint | The coupled joints. The pipeline resolves each name without a prefix first, then with the prefix. |
+| `polycoef` | up to 5 floats | no (joint) | The quartic coefficients. Trailing terms that you do not give are zero. |
+| `anchor` | `[x, y, z]` | connect | The connection point, in the local frame of the device body. |
+| `relpose` | `[x, y, z, qw, qx, qy, qz]` | no (weld) | The relative pose. The default is identity. |
+| `torquescale` | float | no (weld) | The weld torque scale. The default is 1.0. |
+| `solref` / `solimp` | list | no | The constraint-solver parameters. The defaults are the MuJoCo defaults. |
+| `active` | bool | no | Sets if the constraint is active at the start. The default is `true`. |
 
-Supports the per-MSK `default:` + `<msk_key>:` form, like `attachments`.
+This section supports the per-MSK `default:` and `<msk_key>:` form, like
+`attachments`.
 
-> **connect anchors record their coincidence at compile.** A `connect`
-> introduces *no* initial violation regardless of placement -- it pins the two
-> bodies at their qpos0 relative pose. Getting the exo to sit correctly is
-> therefore about the *attachment* `pos`/`quat`, not the anchor.
+> **A connect anchor records the coincidence at compile time.** A `connect`
+> gives *no* initial violation, whatever its position. It holds the two bodies
+> at their relative pose at qpos0. Therefore the *attachment* `pos` and `quat`
+> control the position of the exoskeleton, not the anchor.
 
-### `type: joint` -- closing a kinematic loop
+### `type: joint`: close a kinematic loop
 
-MuJoCo's body graph is strictly a tree, so a closed linkage cannot be expressed
-by nesting alone. A joint equality couples two scalar joints by a quartic:
+The MuJoCo body graph is strictly a tree. Thus nested bodies alone cannot give
+a closed linkage. A joint equality couples two scalar joints with a quartic:
 
 ```
 y - y0 = a0 + a1*(x - x0) + a2*(x - x0)^2 + a3*(x - x0)^3 + a4*(x - x0)^4
 ```
 
-with `y` = `joint1`, `x` = `joint2`, and `x0`/`y0` their reference (qpos0)
-values. Omitting `joint2` pins `joint1` to the constant in `polycoef[0]`.
+In this equation, `y` is `joint1`, `x` is `joint2`, and `x0` and `y0` are their
+reference values at qpos0. If you do not give `joint2`, the constraint holds
+`joint1` at the constant in `polycoef[0]`.
 
 ```yaml
 equality:
@@ -185,27 +194,29 @@ equality:
     polycoef: [2.0673e-02, -8.7548e-01, 6.1119e-02, 3.4395e-02, 1.0843e-01]
 ```
 
-`STRIDE_L2` is the worked example: five couplings per side, four closing the
-six-bar and one tying its master hinge to `ankle_angle`.
+`STRIDE_L2` is the example: five couplings on each side. Four of them close the
+six-bar, and one connects its master hinge to `ankle_angle`.
 
-> **Prefer a joint coupling over `connect` for a loop.** A `connect` imposes
-> three constraints where two suffice, and the redundancy shows up as drift.
-> Measured on STRIDE: 3.7 mm of link separation with `connect` versus 0.020 mm
-> with joint couplings.
+> **Use a joint coupling instead of `connect` for a loop.** A `connect` applies
+> three constraints when two are sufficient, and the redundancy causes drift.
+> The measurement on STRIDE gives 3.7 mm of link separation with `connect`, and
+> 0.020 mm with joint couplings.
 
-> **Loops want stiff solver settings.** With MuJoCo's defaults the links visibly
-> drift through the range of motion. `solimp: [0.9999, 0.9999, 0.001, 0.5, 2]`
-> with `solref: [0.002, 1]` holds the STRIDE loop to single-digit microradians.
+> **A loop needs stiff solver settings.** With the MuJoCo defaults, the links
+> drift visibly through the range of motion. `solimp: [0.9999, 0.9999, 0.001,
+> 0.5, 2]` with `solref: [0.002, 1]` holds the STRIDE loop to less than ten
+> microradians.
 
-> **Restrict the driven joint to the fit window.** A quartic fitted over a
-> mechanism's travel extrapolates wildly outside it, and the extrapolated target
-> then fights the linkage joints' own limits. Clamp the MSK joint with a
-> `joint_overrides` range -- intersected with the range the MSK already declares,
-> so the device never *widens* an anatomical limit.
+> **Restrict the driven joint to the fit window.** A quartic fit over the
+> travel of a mechanism gives incorrect values outside that travel, and the
+> incorrect target then acts against the limits of the linkage joints. Clamp
+> the MSK joint with a `joint_overrides` range. Use the intersection with the
+> range that the MSK model already has, so that the device never *increases* an
+> anatomical limit.
 
 ## `joint_overrides`
 
-Modify properties of existing joints in the MSK.
+This section changes the properties of joints that exist in the MSK model.
 
 ```yaml
 joint_overrides:
@@ -218,16 +229,17 @@ joint_overrides:
 
 | Field | Type | Required | Meaning |
 |---|---|---|---|
-| `name` | string | yes | MSK joint name. |
-| `range` | `[lo, hi]` | no | New range of motion. |
-| `damping` | float | no | New damping value. |
-| `axis` | `[x, y, z]` | no | Joint axis (rarely used). |
-| `pos` | `[x, y, z]` | no | Joint position (rarely used). |
+| `name` | string | yes | The name of the MSK joint. |
+| `range` | `[lo, hi]` | no | The new range of motion. |
+| `damping` | float | no | The new damping value. |
+| `axis` | `[x, y, z]` | no | The joint axis. This field is rarely necessary. |
+| `pos` | `[x, y, z]` | no | The joint position. This field is rarely necessary. |
 
 ## `actuators`
 
-Add new actuators to the combined model. For joint-transmission actuators
-only -- tendon-transmission actuators are authored in the device XML directly.
+This section adds new actuators to the combined model. It is only for
+joint-transmission actuators. You author tendon-transmission actuators directly
+in the device XML file.
 
 ```yaml
 actuators:
@@ -247,22 +259,24 @@ actuators:
 
 | Field | Required | Meaning |
 |---|---|---|
-| `name` | yes | Actuator name (will *not* be prefixed; declare with the final name you want). |
-| `joint` | yes | Target joint. If the bare name isn't found, the pipeline tries `<prefix>_<joint>` (for device-added joints like `osl_ankle_angle_r`). |
-| `type` | no | Reserved; currently always "general". |
-| `gaintype` / `biastype` / `dyntype` | no | `"fixed"`, `"affine"`, `"muscle"`, `"user"`, `"none"`, `"integrator"`, `"filter"`, `"filterexact"`. Mapped to the appropriate MuJoCo enum. |
-| `gainprm` / `biasprm` / `dynprm` | no | Numeric arrays (length-padded to 10). |
+| `name` | yes | The actuator name. The pipeline does **not** add a prefix, so give the final name that you want. |
+| `joint` | yes | The target joint. If the pipeline does not find the name without a prefix, it tries `<prefix>_<joint>`. This applies to joints that the device adds, such as `osl_ankle_angle_r`. |
+| `type` | no | Reserved. The value is always "general". |
+| `gaintype` / `biastype` / `dyntype` | no | `"fixed"`, `"affine"`, `"muscle"`, `"user"`, `"none"`, `"integrator"`, `"filter"`, `"filterexact"`. The pipeline maps the value to the correct MuJoCo enum. |
+| `gainprm` / `biasprm` / `dynprm` | no | Numeric arrays. The pipeline pads them to length 10. |
 | `ctrlrange` / `ctrllimited` | no | Standard MuJoCo. |
-| `gear` | no | Length-padded to 6. |
+| `gear` | no | The pipeline pads this array to length 6. |
 
-For *tendon-transmission* actuators (e.g. HMEDI's cables driving spatial
-tendons), author them in the device XML's `<actuator>` section. They get
-imported automatically with the device prefix at attach time.
+Author *tendon-transmission* actuators in the `<actuator>` section of the
+device XML file. An example is the HMEDI cables that drive the spatial tendons.
+The pipeline imports them automatically with the device prefix at attachment
+time.
 
 ## `keyframe_overrides`
 
-Patch joint values in the MSK's existing keyframes. Model-agnostic: refers
-to joints by name, not index.
+This section changes joint values in the keyframes that the MSK model already
+has. It is model-agnostic, because it refers to joints by name and not by
+index.
 
 ```yaml
 keyframe_overrides:
@@ -275,8 +289,8 @@ keyframe_overrides:
     osl_ankle_angle_r: 0.385      # device-added joint; prefix auto-resolved
 ```
 
-Each top-level key is a keyframe name that must already exist in the MSK.
-Joints not listed keep their authored value.
+Each top-level key is a keyframe name. That keyframe must already exist in the
+MSK model. A joint that you do not list keeps its authored value.
 
 ### Per-MSK keyframe_overrides
 
@@ -290,14 +304,16 @@ keyframe_overrides:
       osl_ankle_angle_r: 0.393
 ```
 
-Use when joint names differ across MSKs (e.g. `pelvis_ty` doesn't exist in
-80-muscle, which uses a freejoint root).
+Use this form when the joint names are different between MSK models. For
+example, `pelvis_ty` does not exist in the 80-muscle model, which uses a
+freejoint root.
 
 ## `keyframes` (legacy)
 
-Replace keyframes entirely with explicit qpos/qvel arrays. Model-specific
-(must match `nq` / `nv` exactly). Avoid unless you really need to author
-full arrays -- use `keyframe_overrides` instead for model-agnostic patches.
+This section replaces the keyframes completely with explicit qpos and qvel
+arrays. It is model-specific: the arrays must agree with `nq` and `nv` exactly.
+Use it only when you must author full arrays. For model-agnostic changes, use
+`keyframe_overrides` instead.
 
 ```yaml
 keyframes:
@@ -309,22 +325,37 @@ keyframes:
 
 ## `body_removals`
 
-Delete biological body subtrees from the MSK before attaching the device.
-Removes all child bodies, joints, geoms, sites recursively. Cascade cleanup
-removes contact pairs, sensors, equalities, and tendon wraps referencing
-removed elements.
+This section removes biological body subtrees from the MSK model. `spec.delete`
+cascades: it removes the full subtree (child bodies, joints, geoms and sites),
+the sensors, the equalities, and the actuators and tendons that referred to it.
+The pipeline removes a contact `<pair>` that names a removed geom separately,
+because `spec.delete` does not cascade to those.
 
 ```yaml
 body_removals:
-  - "talus_r"   # cascades to calcn_r, toes_r (transtibial amputation)
+  default:
+    - "tibia_r"      # cascades to talus_r, calcn_r, toes_r
+  myolegs:
+    - "tibia_r"
+    - "patella_r"    # a sibling of tibia_r, so the cascade misses it
 ```
 
-For prosthetics. Also auto-prunes qpos / qvel slots from keyframes for any
-joint inside removed subtrees.
+The pipeline decomposes the keyframes by joint name before the removals, then
+rebuilds them after the final compile. Thus the slots of a removed joint
+disappear.
+
+This section supports per-MSK entries, and they are usually necessary. The
+lineages have anatomical differences: only the 80-muscle models have a
+`patella_r`.
+
+> **You must re-anchor a muscle that you want to keep, before the removals.**
+> The cascade removes each tendon that has a wrap on a removed body. This
+> includes a tendon that only *crosses* the amputation level. See
+> [`tendon_modifications`](#tendon_modifications).
 
 ## `actuator_removals` / `tendon_removals`
 
-Remove named actuators / tendons.
+These sections remove the actuators and the tendons that you name.
 
 ```yaml
 actuator_removals:
@@ -342,53 +373,102 @@ tendon_removals:
     - "tib_ant_r_tendon"
 ```
 
-Both sections support per-MSK overrides (top-level `default:` + MSK key).
+The two sections tolerate an absent element. The body cascade can remove the
+element first, and a name that no longer exists causes no error. The sections
+are mostly an explicit record of the muscles that the amputation removes.
+
+The two sections support per-MSK overrides, with a top-level `default:` key and
+MSK keys.
 
 ## `tendon_modifications`
 
-Edit tendon wraps without rebuilding the whole tendon. Three operations
-per wrap:
+This section moves the wrap points of a muscle onto the bone that remains after
+an amputation. This is the myodesis step. Real surgery keeps a biarticular
+muscle and attaches it again to the residual bone, where it continues to act at
+the joint that remains.
+
+> **This section runs before the removals.** The `spec.delete` cascade removes
+> a muscle that has wrap points on a body that `body_removals` removes. The
+> muscle remains only if you re-anchor it first.
+
+The pipeline does not rewrite the tendon: a wrap holds its site or geom **by
+name** and resolves that name at compile time. Thus a move of the named element
+moves the wrap. `replace_*` adds the element on `new_body` with a placeholder
+name, removes the original, then gives the free name to the replacement. The
+replacement takes the class of the original and its visual and collision
+attributes. The pipeline changes elements and does not rebuild tendons. Thus
+the actuator objects stay in place and the `ctrl` order does not change.
+
+There are four operations. The op key selects the operation, and its value
+gives the name of the target element:
 
 ```yaml
 tendon_modifications:
   default:
-    - name: "rect_fem_r_tendon"
+    - name: "rect_fem_r_tendon"      # hip flexion survives
       wraps:
-        # Reposition a wrap site on the same body (move xyz only)
+        # Move a site on the body it already sits on.
         - reposition_site: "rect_fem_r_rect_fem_r-P2"
           pos: [0.045, -0.2, 0.005]
-
-        # Replace a wrap site -- re-anchor onto a different body at xyz
+        # Move a site onto the residual bone.
         - replace_site: "rect_fem_r_rect_fem_r-P3"
           new_body: "femur_r"
           pos: [0.025, -0.275, 0.0075]
-
-        # Drop a wrap entirely
-        - drop_site: "some_obsolete_wrap_site"
-  myolegs: []                      # explicitly no mods on 80
+  myolegs:
+    - name: "semimem_r_tendon"
+      wraps:
+        # A wrap cylinder and its sidesite move together.
+        - replace_geom: "SM_at_condyles_wrap_r"
+          new_body: "femur_r"
+          pos: [0.01464, -0.270, 0.00916]
+        - replace_site: "SM_at_condyles_site_semimem_r"
+          new_body: "femur_r"
+          pos: [0.01259, -0.270, 0.01207]
+        - replace_site: "semimem-P2_r"
+          new_body: "femur_r"
+          pos: [0.01259, -0.28301, 0.01207]
 ```
 
-| Op | Required fields | Meaning |
-|---|---|---|
-| `reposition_site` | `pos` | Move the wrap to a new xyz on its *current* body. |
-| `replace_site` | `new_body`, `pos` | Re-anchor the wrap onto a different body at xyz. |
-| `drop_site` | (none) | Remove the wrap entirely. |
+| Op | Value | Required fields | Effect |
+|---|---|---|---|
+| `reposition_site` | site name | `pos` | Moves the site to a new xyz position on its *current* body. |
+| `replace_site` | site name | `new_body`, `pos` | Moves the site onto `new_body`, at the given xyz position. |
+| `reposition_geom` | geom name | `pos` | Moves the wrap geom to a new xyz position on its *current* body. |
+| `replace_geom` | geom name | `new_body`, `pos` | Moves the wrap geom onto `new_body`, at the given xyz position. |
 
-Synthesized sites are named `{original_name}__mod` (e.g.
-`rect_fem_r_rect_fem_r-P2__mod`).
+Each wrap entry has exactly one op. `pos` is in the local frame of the body
+that receives the element: the current body for `reposition_*`, and `new_body`
+for `replace_*`. An unknown tendon, element or `new_body` raises an error.
 
-**Default behavior (no mods listed):** when `body_removals` removes a body
-whose sites are referenced by a tendon wrap, those wraps are *auto-pruned*
-in the preprocess pass. `tendon_modifications` is only needed when you want
-to re-anchor / reposition rather than drop.
+Rules for the author:
 
-Per-MSK supported. Use `myolegs: []` to disable mods on 80 when the
-default block references 22/26-specific tendon names.
+- Move **every** point at the cut plane or distal to it. This includes the
+  points that are already on the body that remains. Use `reposition_*` for
+  those points.
+- **You must also move the sidesite of a wrap cylinder.** If one geom stays on
+  a body that the pipeline removes, the cascade removes the tendon, whatever
+  number of sites you moved. A sidesite that stays behind has the same result.
+- Spread the new points along the residual bone, so that no tendon segment has
+  zero length.
+- A re-anchor changes the operating range of the muscle. Give the actuator a
+  new `lengthrange` with [`actuator_overrides`](#actuator_overrides).
+
+You cannot remove a wrap, because `MjsTendon` gives no editable list of wraps.
+The obsolete `drop_site` op raises an error with that reason. To remove a
+muscle, use `actuator_removals` and `tendon_removals`, or let the cascade
+remove it.
+
+This section supports per-MSK entries. If the block does not name an MSK key,
+and the block has no `default:` entry, the resolver gives no modifications.
+
+`OpenSourceLeg/KA_L1config.yaml` is the example. It is a transfemoral
+amputation. It re-anchors two muscles on the 22-muscle and 26-muscle lineage,
+and eight muscles on the 80-muscle lineage, which splits the same muscles.
 
 ## `mesh_replacements`
 
-Swap a geom's mesh to a replacement mesh defined in the device XML's
-`<asset>` section.
+This section changes the mesh of a geom to a replacement mesh from the
+`<asset>` section of the device XML file.
 
 ```yaml
 mesh_replacements:
@@ -400,18 +480,19 @@ mesh_replacements:
       mesh: "osl_tibia_fibula_trans_r"
 ```
 
-The replacement mesh must be declared in the device's `model_xml` `<asset>`
-section. Its name in the *combined* model is the prefixed version (e.g.
-`OSL_A_L1_osl_tibia_fibula_trans_r`); the YAML uses the bare name and the
-prefix is added at substitution time.
+The `<asset>` section of the `model_xml` file of the device must specify the
+replacement mesh. In the *combined* model, the mesh name has the prefix, for
+example `OSL_A_L1_osl_tibia_fibula_trans_r`. The YAML file uses the name with
+no prefix, and the pipeline adds the prefix at substitution time.
 
-Per-MSK supported (typical use: different MSKs have different geom names
-on the same body, e.g. `tibia_r_geom_1` vs `r_tibia`).
+This section supports per-MSK entries. The usual reason is that different MSK
+models use different geom names on the same body, for example
+`tibia_r_geom_1` and `r_tibia`.
 
 ## `geom_removals`
 
-Geom removal -- for cases where `mesh_replacements` swaps one geom
-on a body but a sibling geom needs to disappear too.
+This section removes a geom. Use it when `mesh_replacements` changes one geom
+on a body, but you must also remove a second geom on the same body.
 
 ```yaml
 geom_removals:
@@ -421,17 +502,18 @@ geom_removals:
     - "r_fibula"
 ```
 
-Use: transtibial amputation where the residual mesh covers
-tibia + fibula but the MSK had them as two separate geoms. The strip
-cascades into contact pair cleanup.
+An example is a transtibial amputation where the residual mesh covers the tibia
+and the fibula, but the MSK model has them as two separate geoms. The removal
+also cascades to the cleanup of the contact pairs.
 
-Per-MSK supported.
+This section supports per-MSK entries.
 
 ## `body_overrides`
 
-Override the inertial properties of a body in the combined model. Targets an MSK
-body (bare name) or a device body (resolved with the device prefix). Only the
-fields given change.
+This section overrides the inertial properties of a body in the combined model.
+The target is an MSK body, with no prefix on the name, or a device body, which
+the pipeline resolves with the device prefix. Only the fields that you give
+change.
 
 ```yaml
 body_overrides:
@@ -444,32 +526,76 @@ body_overrides:
 
 | Field | Type | Required | Meaning |
 |---|---|---|---|
-| `name` | string | yes | Body to modify (bare MSK name, or device name resolved with the prefix). |
-| `mass` | float | no | New mass, kg. |
-| `diaginertia` | `[Ixx, Iyy, Izz]` | no | Principal moments, in the frame set by `iquat`. Mutually exclusive with `fullinertia`. |
-| `fullinertia` | `[Ixx, Iyy, Izz, Ixy, Ixz, Iyz]` | no | Full tensor. Mutually exclusive with `diaginertia`. |
-| `ipos` | `[x, y, z]` | no | Inertial-frame origin, in the body frame. |
-| `iquat` | `[qw, qx, qy, qz]` | no | Inertial-frame orientation. |
+| `name` | string | yes | The body to change. Give the MSK name with no prefix, or the device name, which the pipeline resolves with the prefix. |
+| `mass` | float | no | The new mass, in kg. |
+| `diaginertia` | `[Ixx, Iyy, Izz]` | no | The principal moments, in the frame that `iquat` sets. Do not use it with `fullinertia`. |
+| `fullinertia` | `[Ixx, Iyy, Izz, Ixy, Ixz, Iyz]` | no | The full tensor. Do not use it with `diaginertia`. |
+| `ipos` | `[x, y, z]` | no | The origin of the inertial frame, in the body frame. |
+| `iquat` | `[qw, qx, qy, qz]` | no | The orientation of the inertial frame. |
 
-Supports the per-MSK `default:` + `<msk_key>:` form.
+This section supports the per-MSK `default:` and `<msk_key>:` form.
 
-This is the mass-side counterpart to `mesh_replacements`. Amputation is the
-motivating case: `spec.delete` removes the distal subtree, but the surviving
-parent body still carries the *whole* intact segment's mass -- MuJoCo has no
-notion that the segment was transected. All three transtibial devices
-(`KFoot_L1`, `OpenSourceLeg_A_L1`, `NEUankle_L1`) reduce `tibia_r` this way;
-without it the prosthetic side carries roughly 1.85 kg of phantom mass.
+This section is the mass equivalent of `mesh_replacements`. Amputation is the
+primary use: `spec.delete` removes the distal subtree, but the parent body that
+remains still has the mass of the *complete* segment. MuJoCo does not know that
+the segment was cut. All three transtibial devices (`KFoot_L1`,
+`OpenSourceLeg_A_L1` and `NEUankle_L1`) decrease `tibia_r` in this way. Without
+this decrease, the prosthetic side has approximately 1.85 kg of unwanted mass.
 
-> **Setting `mass` alone on a compiler-derived-inertia body raises.** MuJoCo
-> derives a body's inertia from its geoms unless the body is `explicitinertial`.
-> Marking it explicit while supplying only a mass would silently leave the inertia
-> at zero, so that combination is rejected -- supply an inertia too.
+> **A `mass` value alone raises an error on a body with compiler-derived
+> inertia.** MuJoCo derives the inertia of a body from its geoms, unless the
+> body is `explicitinertial`. If the pipeline made the body explicit and gave
+> only a mass, the inertia would stay at zero with no warning. Therefore the
+> pipeline rejects that combination. Give an inertia also.
+
+## `actuator_overrides`
+
+This section overrides the properties of an actuator in the combined model. The
+target is an MSK actuator, with no prefix on the name, or a device actuator,
+which the pipeline resolves with the device prefix. The pipeline applies this
+section after the removals and the attachment, and before the final compile.
+Thus the section can name a muscle that remains only because
+`tendon_modifications` re-anchored it.
+
+```yaml
+actuator_overrides:
+  myolegs26:
+    - name: "rectfem_r"
+      lengthrange: [0.226056, 0.330193]
+    - name: "hamstrings_r"
+      lengthrange: [0.238041, 0.343585]
+```
+
+| Field | Type | Required | Meaning |
+|---|---|---|---|
+| `name` | string | yes | The actuator to change. Give the MSK name with no prefix, or the device name, which the pipeline resolves with the prefix. |
+| `lengthrange` | `[lo, hi]` | yes | The operating length range, in metres. `lo` must be less than `hi`. |
+
+This section supports the per-MSK `default:` and `<msk_key>:` form. Per-MSK
+entries are important here. A range that you derive again applies to the
+geometry and the muscle names of one lineage only. The 80-muscle models divide
+the muscles that the 22-muscle and 26-muscle models combine.
+
+> **A re-anchored muscle keeps the incorrect `lengthrange`.** `lengthrange`
+> normalises the force-length curve of a muscle, and the MuJoCo compiler keeps
+> the value that the model authored, because `LRopt.useexisting` is 1. After a
+> re-anchor, the muscle has the operating range of a path that it no longer
+> has, and it gives incorrect forces with no warning. On `myolegs26`, the
+> author gave `rectfem_r` the range `[0.321, 0.510]`. After the re-anchor,
+> `rectfem_r` operates over approximately `[0.227, 0.329]`, which starts below
+> its own lower limit.
+
+> **Derive the values from a kinematic joint sweep.** Move the joints that the
+> muscle still spans across their model ranges. Record the minimum and the
+> maximum tendon length, and add a small margin. Do **not** use
+> `mj_setLengthRange`. It ignores the joint limits, so it reports lengths for
+> poses that the model cannot reach.
 
 ## `contact`
 
-Add MuJoCo `<contact>` entries to the combined model. Emitted after attachment,
-so device geoms and bodies exist to reference; every name resolves bare-first
-then prefixed.
+This section adds MuJoCo `<contact>` entries to the combined model. The
+pipeline adds them after the attachment, so that the device geoms and bodies
+exist. It resolves each name without a prefix first, then with the prefix.
 
 ```yaml
 contact:
@@ -480,40 +606,45 @@ contact:
     - {body1: "link_gcf_l", body2: "calcn_l"}   # or explicit keys
 ```
 
-`pairs` fields: `geom1`, `geom2` (required), plus optional `condim`, `margin`,
-`gap`, `friction`, `solref`, `solimp`. `excludes` take two body names.
+The `pairs` fields are `geom1` and `geom2`, which are necessary, plus the
+optional `condim`, `margin`, `gap`, `friction`, `solref` and `solimp`. Each
+`excludes` entry takes two body names.
 
-Both sub-sections support the per-MSK `default:` + `<msk_key>:` form -- which
-matters, because geom names differ between lineages (the 80-muscle models call
-the femur mesh geom `femur_r`, the 26-muscle ones `femur_r_geom_1`) and some
-bodies only exist on some MSKs.
+The two sub-sections support the per-MSK `default:` and `<msk_key>:` form. This
+form is important, because the geom names are different between lineages. The
+80-muscle models call the femur mesh geom `femur_r`, and the 26-muscle models
+call it `femur_r_geom_1`. Also, some bodies exist only on some MSK models.
 
-Needed because `attach_body` copies a body subtree, not top-level sections, so a
-device XML's own `<contact>` block never migrates.
+This section is necessary because `attach_body` copies a body subtree and not
+the top-level sections. Thus the `<contact>` block of the device XML file never
+moves to the combined model.
 
-> **Reach for `contype`/`conaffinity` before reaching for excludes.** MuJoCo
-> already skips geoms in the same weld group and in parent-child body pairs, so a
-> device whose bodies are welded onto the MSK (no joints of its own) needs no
-> excludes at all. A device with joints does: its links are separate weld groups,
-> and grandparent/sibling pairs are live candidates. Rather than one exclude per
-> pair, give every device geom `contype="2" conaffinity="1"` -- device-vs-device
-> tests `2 & 1 = 0` both ways and never collides, while bone and ground
-> (`contype=1`) still do. That replaced ~30 excludes per side on `STRIDE_L2`.
-> The cost: device parts no longer collide with each other at all, including
-> left-vs-right.
+> **Use `contype` and `conaffinity` before you use excludes.** MuJoCo already
+> ignores geoms in the same weld group and in parent-child body pairs. Thus a
+> device that welds onto the MSK model, with no joints of its own, needs no
+> excludes. A device with joints does need them: its links are separate weld
+> groups, and the grandparent and sibling pairs are candidates for contact.
+>
+> Instead of one exclude for each pair, give every device geom
+> `contype="2" conaffinity="1"`. A device-to-device test then gives `2 & 1 = 0`
+> in both directions and makes no contact, but bone and ground (`contype=1`)
+> continue to make contact. This method replaced approximately 30 excludes on
+> each side of `STRIDE_L2`. The cost is that device parts make no contact with
+> each other, and this includes left against right.
 
-> **An `exclude` silently cancels a `pair`.** Excludes act at body level and win.
-> If a forced pair stops generating contacts, check whether something excluded its
-> owning bodies.
+> **An `exclude` cancels a `pair` with no warning.** An exclude acts at body
+> level and has priority. If a forced pair makes no contacts, examine whether
+> an exclude applies to the bodies that own the geoms.
 
-> **A welded device body inherits its host's weld group.** So a shank-mounted
-> part is auto-excluded from the *femur* (its weld group's parent) and will
-> interpenetrate the thigh with no contact generated. That needs an explicit
-> `pair`, which bypasses `contype`/`conaffinity` filtering entirely.
+> **A welded device body takes the weld group of its host.** Thus MuJoCo
+> automatically excludes a part on the shank from the *femur*, which is the
+> parent of its weld group. The part then goes into the thigh, and MuJoCo makes
+> no contact. This condition needs an explicit `pair`, which ignores the
+> `contype` and `conaffinity` filter completely.
 
 ## `sensors` / `sensor_removals`
 
-Add sensors to, and remove sensors from, the combined model.
+These sections add sensors to the combined model and remove sensors from it.
 
 ```yaml
 sensor_removals: ["r_foot", "r_toes"]
@@ -523,82 +654,95 @@ sensors:
   - {name: "r_ankle_sensor", type: jointlimitfrc, joint: "neuankle_ankle_angle_r"}
 ```
 
-Each sensor names exactly one target, and the key used selects the target kind:
-`site`, `joint`, `actuator`, `tendon`, `body` or `geom`. Optional `cutoff` and
-`noise` pass through. Supported `type` values: `touch`, `force`, `torque`,
-`jointpos`, `jointvel`, `jointlimitpos`, `jointlimitvel`, `jointlimitfrc`,
-`jointactuatorfrc`, `actuatorpos`, `actuatorvel`, `actuatorfrc`, `tendonpos`,
-`tendonvel`, `framepos`, `framequat`, `framelinvel`, `frameangvel`. A type that
-does not accept the target kind you gave raises.
+Each sensor names exactly one target. The key selects the kind of target:
+`site`, `joint`, `actuator`, `tendon`, `body` or `geom`. The optional `cutoff`
+and `noise` fields pass through. The pipeline supports these `type` values: `touch`,
+`force`, `torque`, `jointpos`, `jointvel`, `jointlimitpos`, `jointlimitvel`,
+`jointlimitfrc`, `jointactuatorfrc`, `actuatorpos`, `actuatorvel`,
+`actuatorfrc`, `tendonpos`, `tendonvel`, `framepos`, `framequat`,
+`framelinvel`, `frameangvel`. A type that does not accept the kind of target
+that you give raises an error.
 
-Both sections support the per-MSK `default:` + `<msk_key>:` form. That matters
-more than it looks: `myolegs26` and `myolegs22` ship twelve sensors including
-`jointlimitfrc` on every leg joint, while `myolegs` and `myofullbody` ship only
-the four leg touch sensors. Restoring a `jointlimitfrc` on the latter would make
-it the only sensor of its kind in the model.
+The two sections support the per-MSK `default:` and `<msk_key>:` form. This
+form is important here. `myolegs26` and `myolegs22` have twelve sensors, with a
+`jointlimitfrc` sensor on every leg joint. `myolegs` and `myofullbody` have
+only the four leg touch sensors. If you restore a `jointlimitfrc` sensor on
+`myolegs` or `myofullbody`, it becomes the only sensor of that kind in the
+model.
 
-Two distinct uses:
+There are two different uses:
 
-- **Restoring what surgery cascaded away.** Deleting `talus_r` also deletes
-  `r_foot`/`r_toes` (touch sensors on the removed sites) and
-  `r_ankle_sensor`/`r_mtp_sensor`, dropping the baseline's twelve sensors to
-  eight and leaving nothing reading the prosthetic side while the intact side
-  keeps all four counterparts.
-- **Re-pointing a sensor**, via removal plus re-addition under the same name.
-  A shod device moves ground contact from the bare foot onto the sole, and the
-  baseline touch site is a *box*: `r_foot_touch` spans y in [-0.022, 0.018] on
-  `calcn_r` while a shoe sole's contact surface sits at y = -0.058, 35 mm below
-  the bottom of the box. A touch sensor left on the baseline site reads exactly
-  zero for the whole stance phase.
+- **To restore what the cascade removed.** When you remove `talus_r`, the
+  cascade also removes `r_foot` and `r_toes`, which are touch sensors on the
+  removed sites, and `r_ankle_sensor` and `r_mtp_sensor`. The count of sensors
+  decreases from the baseline twelve to eight. No sensor then reads the
+  prosthetic side, but the intact side keeps all four equivalent sensors.
+- **To point a sensor at a different target.** Remove the sensor, then add it
+  again with the same name. A device with a shoe moves the ground contact from
+  the bare foot onto the sole, and the baseline touch site is a *box*.
+  `r_foot_touch` spans y from -0.022 to 0.018 on `calcn_r`, but the contact
+  surface of a shoe sole is at y = -0.058, which is 35 mm below the bottom of
+  the box. A touch sensor that stays on the baseline site reads exactly zero
+  for the complete stance phase.
 
-> **Sensors are appended, not inserted.** The combined model's `sensordata`
-> ordering therefore differs from the baseline's. Index by name, never position.
+> **The pipeline adds sensors at the end of the list.** Thus the `sensordata`
+> order of the combined model is different from the baseline order. Index by
+> name, never by position.
 
-> **Name a device site distinctly if the MSK still has one by that name.**
-> Targets resolve bare-first, so a device site called `r_foot_touch` is silently
-> shadowed by the surviving MSK site of the same name and the sensor keeps reading
-> the bare foot. `STRIDE_L2` names its sole sites `r_sole_touch` /
-> `r_forefoot_touch` for exactly this reason, while keeping the *sensor* named
-> `r_foot` so downstream consumers are unaffected.
+> **Give a device site a different name if the MSK model keeps a site with that
+> name.** The pipeline resolves a target without a prefix first. Thus the MSK
+> site that remains hides a device site that is also called `r_foot_touch`, and
+> the sensor continues to read the bare foot. The pipeline gives no warning.
+> For this reason, `STRIDE_L2` names its sole sites `r_sole_touch` and
+> `r_forefoot_touch`, but it keeps the *sensor* name `r_foot`, so that
+> downstream consumers see no change.
 
-## Per-MSK overrides -- summary
+## Per-MSK overrides: summary
 
-Sections that support the `default:` + `<msk_key>:` dispatch:
+These sections support the `default:` and `<msk_key>:` dispatch:
 
 | Section | Per-MSK? |
 |---|---|
 | `attachments` | ✓ |
 | `equality` | ✓ |
 | `joint_overrides` | ✓ |
-| `actuators` | (planned; currently default form only) |
+| `actuators` | flat form only |
 | `keyframe_overrides` | ✓ |
-| `body_removals` | (planned; currently default form only) |
+| `keyframes` (legacy) | flat form only |
+| `body_removals` | ✓ |
 | `mesh_replacements` | ✓ |
 | `actuator_removals` | ✓ |
 | `tendon_removals` | ✓ |
 | `tendon_modifications` | ✓ |
 | `geom_removals` | ✓ |
 | `body_overrides` | ✓ |
+| `actuator_overrides` | ✓ |
 | `contact` (`pairs` + `excludes`) | ✓ |
 | `sensors` | ✓ |
 | `sensor_removals` | ✓ |
 
-Sections marked "planned" use the flat list form for now; per-MSK support
-is incremental as configs need it.
+The `actuators` section and the legacy `keyframes` section take the flat form
+only. The project adds per-MSK support step by step, when a config needs it.
 
-## Authoring rules of thumb
+A section in the per-MSK form with no `default:` entry resolves to nothing, for
+each MSK key that it does not name. `attachments` is the one exception, because
+the dict form needs a `default:` entry.
 
-1. **Order matters in the schema's expression but not in execution.**
-   The YAML can list sections in any order; the pipeline runs the
-   removals before attachments and keyframe rebuilds at compile time.
-2. **Tendons/actuators that *cross* an amputation level need explicit
-   removal.** Body removal cascades remove tendons whose wrap sites are
-   entirely inside the removed subtree; tendons that wrap *across* a
-   removed body need explicit `tendon_removals`.
-3. **Use the device prefix in `keyframe_overrides` for device-added
-   joints.** `keyframe_overrides` can refer to either bare names (MSK
-   joints) or prefixed names (device joints like `OSL_KA_L1_osl_knee_angle_r`),
-   but the bare-then-prefixed fallback in the resolver means you can
-   often omit the prefix -- the resolver tries both.
-4. **For unnamed joint inside a body, you still must remove the body if
-   you want it gone.** Removals are by body name; the joints come along.
+## General rules for authors
+
+1. **The order in the YAML file is free, but the order in the pipeline is
+   fixed.** You can list the sections in any order. The pipeline always runs
+   `tendon_modifications` first, then the removals, then the attachment and the
+   sections that add elements. It rebuilds the keyframes last, at compile time.
+2. **The cascade removes a tendon that has a wrap on a removed body.** This
+   includes a muscle that only *crosses* the amputation level. Thus
+   `actuator_removals` and `tendon_removals` are mostly an explicit record of
+   what the amputation removes. To keep a muscle, re-anchor it with
+   `tendon_modifications`.
+3. **Use the device prefix in `keyframe_overrides` for a joint that the device
+   adds.** `keyframe_overrides` accepts a name with no prefix, for an MSK
+   joint, or a name with the prefix, for a device joint such as
+   `OSL_KA_L1_osl_knee_angle_r`. The resolver tries the name without the prefix
+   first, then with the prefix. Thus you can usually omit the prefix.
+4. **To remove a joint that has no name, you must remove its body.** The
+   pipeline removes by body name, and the joints go with the body.

@@ -9,20 +9,115 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **`load_msk(msk_key, export_xml=..., cache_dir=...)`** — the device-less
-  counterpart to `load_combined`, for handing a bare MSK to a downstream
-  consumer. Almost all of `ModelCombiner.combine` is device work, so this goes
-  straight from the resolved spec to a compile; with no surgery the qpos/dof
-  layout never changes, so the keyframe decompose/rebuild is unnecessary too.
-  Exposed on the CLI as `python -m assist_sim msk MSK [-o OUT] [--cache-dir DIR]`.
-  Caching mirrors `load_combined`: a composed MSK has no source file on disk and
-  no device, so its identity is `(msk_key, assist_sim version, myo_sim token)`.
+- **Surgical muscle re-anchoring** (myodesis/myoplasty). `tendon_modifications`
+  now runs **before** the removals, so a biarticular muscle that the amputation
+  preserves moves onto the residual bone while its wrap points still exist.
+  Before this change it ran after the removals, when the `spec.delete` cascade
+  already removed the muscle and gave no message. The affected muscles are
+  `rect_fem` and `hamstrings` across a transfemoral amputation, and `gastroc`
+  across a transtibial amputation. `MjsTendon` exposes no readable wrap list, but none
+  is necessary: a wrap stores its site or geom by *name* and resolves that name
+  at compile. A move of the named element therefore also moves the wrap. The
+  code edits elements and does not rebuild tendons, which keeps the tendon and
+  actuator objects in place and keeps the `ctrl` order.
+- **`actuator_overrides`** sets the `lengthrange` of a muscle, as the re-anchor
+  feature above requires. The compiler keeps authored lengthrange values
+  (`LRopt.useexisting=1`), so a re-anchored muscle would otherwise describe a
+  path that it no longer has. The author gave `rectfem_r` the range
+  `[0.321, 0.510]`, but the muscle now operates over `[0.227, 0.329]`, which
+  starts below its own lower bound. A kinematic joint sweep with a 1% span
+  margin supplies the new values, and it reproduces the authored intact ranges
+  to within 3% of span. Muscles that keep their original path also keep their
+  authored values.
+- **`body_removals` per musculoskeletal (MSK) model.** The section takes the
+  `default:` + `<msk_key>:` dispatch form, the same as the sections near it.
+- **`tests/test_tendon_reanchor.py`**: 16 tests. They cover all four wrap
+  operations, a re-anchored tendon that survives the cascade, and the actuator
+  order. They also cover the lengthrange consequence, the error for a retired
+  operation, and the error for an unknown reference.
+- **`load_msk(msk_key, export_xml=..., cache_dir=...)`** is the counterpart to
+  `load_combined` that uses no device. It gives a bare MSK model to a
+  downstream consumer. Almost all of `ModelCombiner.combine` does device work,
+  so this function goes directly from the resolved spec to a compile. There is
+  no surgery, so the qpos/dof layout stays the same and the keyframe decompose
+  and rebuild step is also unnecessary. The CLI makes the function
+  available as `python -m assist_sim msk MSK [-o OUT] [--cache-dir DIR]`.
+  `load_msk` caches in the same manner as `load_combined`: a composed MSK model
+  has no source file on disk and no device, so its identity is
+  `(msk_key, assist_sim version, myo_sim token)`.
 
-> The MSK-only export is model-only in the same sense the combined path is —
-> terrain (ground plane, hfield, floor material) is stripped. It does **not**
-> strip the default gradient skybox the composed MSK ships with; combined
-> exports keep that too, so a caller wanting a specific backdrop must replace it
-> either way.
+> The MSK-only export contains the model only, the same as the combined path:
+> no ground, no hfield, no floor. An export-time terrain removal does not cause
+> this. The composed spec never had terrain, because `registry._resolve_msk`
+> removes the full myosuite scene at resolve time. `utils._strip_terrain` stays
+> in the code, but no caller gives it `terrain_paths`, so it never runs.
+>
+> Both exports keep some scene elements. `_strip_scene_visual` removes the
+> myosuite headlight. Then `_ensure_minimal_visual` **adds** a soft headlight
+> and a neutral gradient skybox, so a bare file renders with light instead of a
+> black void. A downstream scene can override both, but a caller that needs a
+> specific backdrop must replace the skybox in each case.
+
+### Changed
+
+- **The wrap-edit operations are now `reposition_site` / `replace_site` /
+  `reposition_geom` / `replace_geom`.** The geom pair is new and necessary. The
+  hamstrings of the 80-muscle lineage cross condylar wrap cylinders. If one
+  cylinder stays on a body that the pipeline removes, the cascade removes the
+  tendon, even when every site moved.
+- **`drop_site` is retired** and raises an error. It needs an editable wrap
+  list, and `MjsTendon` does not expose one. An immediate error is better than
+  a skipped surgical edit that the author expects the code to apply. The error
+  message names the replacement operations.
+- **`tendon_modifications` validates its targets.** It already raised an error
+  for an unknown tendon. It now also raises an error for an unknown target site
+  or geom, and for an unknown `new_body`. Each error gives a "did you mean"
+  list. `assist-sim validate` makes the same three checks statically, and also
+  checks every `actuator_overrides` name.
+- **`tests/test_smoke_combinations.py` freezes the 16 amputee smoke signatures
+  again**: the four amputee devices (`KFoot_L1`, `NEUankle_L1`,
+  `OpenSourceLeg_A_L1`, `OpenSourceLeg_KA_L1`) across all four MSK models.
+  Muscles that the pipeline removed before now stay in the model, so `nu`
+  increases in each combination.
+  `OSL_KA` on the 80-muscle lineage also loses the 3 degrees of freedom (DOFs)
+  of `patella_r`.
+
+### Fixed
+
+- **The transfemoral residual femur had the mass of the intact segment.** The
+  pipeline removes `tibia_r` and all bodies below it. The prosthetic side then
+  weighed more than the intact leg (100.7% of it on `myolegs26`). `femur_r` now
+  carries a mass-per-length fit that stops at the cut plane (y = −0.283012):
+  6.59257 kg on 22/26, and 6.06705 kg on the 80-muscle lineage. The
+  `diaginertia`, `ipos` and `iquat` values agree with the new mass.
+- **`patella_r` stayed in the model after the knee removal on the 80-muscle
+  lineage.** It is a *sibling* of `tibia_r`, so the cascade did not reach it and
+  left 3 unconstrained DOFs inside the socket. The config now removes it for
+  `OSL_KA` on `myolegs` / `myofullbody`.
+- **`femur2_col_r` collided with the prosthesis.** That collider extends to
+  y = −0.457 with `contype=1`, which is 0.174 m of active geometry beyond the
+  transfemoral cut. The config now removes it. The 22/26 lineage has no
+  equivalent geom.
+- **The transfemoral model lost the sensors on the prosthetic side.** The
+  cascade reduced `myolegs26` from twelve sensors to seven, and the intact side
+  kept all of its sensors. The config now restores them for `OSL_KA`, which
+  gives eleven sensors on `myolegs26`: the two touch sensors on all four MSK
+  models, and the two `jointlimitfrc` sensors on 22/26. The 80-muscle lineage
+  contains no `jointlimitfrc` sensor, so a restored sensor there would be the
+  only sensor of that type in the model.
+- **The configs removed muscles with no justification.** `OSL_KA` now keeps
+  `addmagDist_r`, `addmagMid_r` and `addmagProx_r`, which do not cross the
+  removed knee. It also keeps `grac_r`, `sart_r` and `tfl_r`, which act at the
+  hip that stays in the model, and the pipeline re-anchors these three. `OSL_A`
+  now keeps `bfsh_r`, which runs from `femur_r` to `tibia_r`. Both of these
+  bodies stay in the model after a transtibial amputation, so `bfsh_r` had no
+  wrap point on a removed body. `hamstrings_r`, `bflh_r`, `semimem_r`,
+  `semiten_r`, `recfem_r`, `addmagIsch_r` and the `gastroc` / `gasmed_r` /
+  `gaslat_r` group change from removal to re-anchoring.
+- **`assist-sim validate` printed the repr of an `MjSpec` object.**
+  `resolve_model_path` returns `(MjSpec, Path)` and not a path, because the
+  pipeline composes the human model in memory. The command now reports the MSK
+  key and the body count of the model.
 
 ## [0.6.1] — lower-limb mass/inertia re-tare (STRIDE, Anatomics, Hippo, Humotech)
 

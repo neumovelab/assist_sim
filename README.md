@@ -1,14 +1,14 @@
 # assist_sim
 
-Programmatic combination of musculoskeletal (MSK) models with assistive devices
-for MuJoCo simulation — the middle layer between [myo_sim][myo_sim] (which
-ships the MSK models) and downstream training frameworks (e.g.
-[myoassist][myoassist]).
+`assist_sim` combines musculoskeletal (MSK) models with assistive devices for
+MuJoCo simulation. It is the middle layer between [myo_sim][myo_sim], which
+supplies the MSK models, and downstream training frameworks such as
+[myoassist][myoassist].
 
-`assist_sim` takes a baseline MSK and a YAML-described device, applies any
-prosthetic surgery (body removals, tendon edits, mesh swaps), attaches the
-device, and returns a compiled `MjModel` ready to simulate. The baseline MSK
-on disk is never modified.
+`assist_sim` takes a baseline MSK model and a device that YAML describes. It
+applies the prosthetic surgery (body removals, tendon edits, mesh swaps). Then
+it attaches the device. It returns a compiled `MjModel` that you can simulate.
+`assist_sim` keeps the baseline MSK model on disk unchanged.
 
 ## Quickstart
 
@@ -18,9 +18,10 @@ model, data = load_combined("myolegs26", "DephyExoBoot_L1")
 # `model` and `data` are ready for mj.mj_step / mj.viewer
 ```
 
-This composes the MSK on demand through `myo_sim` (must be installed) and the
-device config from the bundled `assist_sim/models/`. For full path control (if
-you already have a baseline MSK XML on disk):
+This composes the MSK model on demand through `myo_sim`, which you must install
+first. It reads the device config from the bundled `assist_sim/models/`
+directory. For full control of the paths, if you already have a baseline MSK XML
+file on disk:
 
 ```python
 from assist_sim import load_combined_model
@@ -31,14 +32,34 @@ model, data = load_combined_model(
 )
 ```
 
+### Baseline MSK model, no device
+
+`load_msk` is the counterpart to `load_combined` for a model with no device. Use
+it when you give a bare MSK model to a downstream consumer:
+
+```python
+from assist_sim import load_msk
+
+model, data = load_msk("myolegs26")
+model, data = load_msk("myolegs26", export_xml="myolegs26.xml")
+```
+
+It skips the device half of the pipeline (surgery, attachment, actuators,
+tendons, equalities, contacts, sensors). It goes directly from the resolved spec
+to a compile. Without surgery, the qpos and DOF (degree of freedom) layout stays
+the same. Therefore the keyframes also need no decomposition and no rebuild. It
+takes the same optional `cache_dir=` argument as `load_combined`.
+
 Or from the CLI:
 
 ```bash
 python -m assist_sim combine myolegs26 DephyExoBoot_L1 -o combined.xml
+python -m assist_sim msk myolegs26 -o out.xml      # baseline MSK, no device
 python -m assist_sim list
+python -m assist_sim validate myolegs26 DephyExoBoot_L1
 ```
 
-Visual inspection of any combination:
+To inspect any combination visually:
 
 ```bash
 python examples/quickstart.py myolegs26 DephyExoBoot_L1
@@ -46,11 +67,12 @@ python examples/quickstart.py myolegs26 DephyExoBoot_L1
 
 ## Available Combinations
 
-MSK keys mirror the myo_sim model names. All four are wired and tested:
-`myolegs22` (planar 22-muscle, a runtime 26→22 reduction), `myolegs26`
-(26-muscle, passive torso), `myolegs` (80-muscle, passive torso) and
-`myofullbody` (full body). Every device works with every MSK — all four carry the
-passive torso scaffold — and each pairing has a frozen smoke signature.
+The MSK keys mirror the myo_sim model names. All four keys are connected and
+tested: `myolegs22` (planar, 22 muscles, a runtime 26→22 reduction),
+`myolegs26` (26 muscles, passive torso), `myolegs` (80 muscles, passive torso)
+and `myofullbody` (full body). Every device works with every MSK model, because
+all four MSK models carry the passive torso scaffold. Each pair also has a
+frozen smoke signature.
 
 | Device key            | myolegs22 | myolegs26 | myolegs | myofullbody |
 |-----------------------|:-:|:-:|:-:|:-:|
@@ -68,15 +90,15 @@ passive torso scaffold — and each pairing has a frozen smoke signature.
 | `Tutorial_L1`         | ✓ | ✓ | ✓ | ✓ |
 | `UTAnkleExo_L2`       | ✓ | ✓ | ✓ | ✓ |
 
-See [docs/available-models.md](docs/available-models.md) for descriptions of
-each device + tested combinations.
+See [docs/available-models.md](docs/available-models.md) for a description of
+each device and the tested combinations.
 
 ## Collaboration environments (upper-body)
 
-Alongside the modular lower-limb devices, `assist_sim` ships **upper-body
-collaboration environments** built by dedicated functions in
-`assist_sim/upper_body.py`, rather than by `load_combined`. These are **not**
-registry devices and are **not** modular:
+`assist_sim` also ships **upper-body collaboration environments** next to the
+modular lower-limb devices. Dedicated functions in `assist_sim/upper_body.py`
+build them, not `load_combined`. These environments are **not** registry
+devices, and they are **not** modular:
 
 ```python
 from assist_sim.upper_body import (
@@ -92,21 +114,23 @@ model, data = build_auxivo_liftsuit()   # passive back-exosuit on the muscled my
 model, data = build_bionic_bimanual()   # MyoChallenge arm + MPL-prosthesis manipulation task
 ```
 
-All four are available today: the **Wheelchair** (seated human propelling a
-manual wheelchair), the **MPL** (a standalone bimanual Modular Prosthetic Limb
-robot), the **AuxivoLiftsuit** (a passive back-exosuit on the muscled
-`myotorso`), and **bionic-bimanual** (the MyoChallenge manipulation task pairing
-a biological arm with an MPL prosthesis). Each builder returns
-`(MjModel, MjData)`; the three composed environments also expose a
-`build_*_spec()` companion returning the uncompiled `MjSpec`, which
-`export_upper_body_xml(spec, path)` serializes to a standalone, reloadable XML.
-See [docs/collaboration-environments.md](docs/collaboration-environments.md).
+All four environments are available today. The **Wheelchair** is a seated human
+who propels a manual wheelchair. The **MPL** is a standalone bimanual Modular
+Prosthetic Limb robot. The **AuxivoLiftsuit** is a passive back-exosuit on the
+muscled `myotorso`. **bionic-bimanual** is the MyoChallenge manipulation task
+that pairs a biological arm with an MPL prosthesis.
+
+Each builder returns `(MjModel, MjData)`. The three composed environments also
+give a `build_*_spec()` companion that returns the uncompiled `MjSpec`.
+`export_upper_body_xml(spec, path)` serializes that spec to a standalone XML
+file that you can reload. See
+[docs/collaboration-environments.md](docs/collaboration-environments.md).
 
 ## Installation
 
 ```bash
 # Clone
-git clone https://github.com/NeuMove/assist_sim.git
+git clone https://github.com/neumovelab/assist_sim.git
 cd assist_sim
 
 # Editable install + myo_sim dependency
@@ -129,16 +153,16 @@ pytest
 |---|---|
 | [docs/getting-started.md](docs/getting-started.md) | Install, run the quickstart, first compiled model |
 | [docs/concepts.md](docs/concepts.md) | Architecture: in-memory pipeline, naming, repo split |
-| [docs/usage.md](docs/usage.md) | Full API: `load_combined_model`, caching, CLI, registry |
+| [docs/usage.md](docs/usage.md) | Full API: `load_combined_model`, the cache, the CLI, the registry |
 | [docs/device-config-reference.md](docs/device-config-reference.md) | Every YAML field with examples |
-| [docs/available-models.md](docs/available-models.md) | Devices + MSKs + which combinations are tested |
+| [docs/available-models.md](docs/available-models.md) | Devices, MSK models, and the tested combinations |
 | [docs/collaboration-environments.md](docs/collaboration-environments.md) | Upper-body collaboration environments (wheelchair, MPL, liftsuit, bionic-bimanual) |
-| [docs/troubleshooting.md](docs/troubleshooting.md) | Common errors and how to fix |
+| [docs/troubleshooting.md](docs/troubleshooting.md) | Common errors and their fixes |
 | [docs/how-to/](docs/how-to/) | Task-focused guides (add a device, use custom devices, modify a config, debug, export) |
 
 ## License
 
-Apache 2.0 — see [LICENSE](LICENSE).
+Apache 2.0. See [LICENSE](LICENSE).
 
 ## Citation
 

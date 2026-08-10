@@ -1,8 +1,7 @@
 # Contributing to `assist_sim`
 
-This guide covers the development setup, the
-codebase layout, and the conventions that keep contributions easy to
-review and merge.
+This guide covers the development setup, the codebase layout, and the
+conventions that keep contributions easy to review and merge.
 
 ## Setup
 
@@ -11,18 +10,22 @@ git clone https://github.com/neumovelab/assist_sim.git
 cd assist_sim
 pip install -e .
 pip install -r requirements-dev.txt
-pytest                # 50 pass without myo_sim; 24 skip
+pytest                # most tests skip without myo_sim
 ```
 
-For full-suite testing you also need `myo_sim` (ships the baseline MSK
-files):
+To run the full test suite, you also need `myo_sim`. `myo_sim` composes the
+baseline musculoskeletal (MSK) models.
 
 ```bash
 pip install myo_sim                                          # when on PyPI
 # or, interim:
 pip install git+https://github.com/MyoHub/myo_sim.git@<tag>
-pytest                # all 74 should pass
+pytest                # 232 collected: 231 pass, 1 skip (~5 min)
 ```
+
+Without `myo_sim`, most tests skip on the `needs_myo_sim` gate. Three modules
+(`test_msk_only.py`, `test_tendon_reanchor.py`, `test_upper_body_export.py`)
+skip completely at import.
 
 ## Repo layout (orientation)
 
@@ -34,7 +37,7 @@ assist_sim/                       ← the importable package
 ├── preprocess.py                 ← device-XML prep + KeyframeData container
 ├── registry.py                   ← MSK + device key resolution
 ├── config.py                     ← DeviceConfig dataclass + per-MSK resolvers
-├── utils.py                      ← XML export, terrain strip, mesh dedup
+├── utils.py                      ← XML export, myosuite-scene strip, mesh dedup
 ├── validate.py                   ← standalone config validator
 ├── cache.py                      ← opt-in local cache
 ├── loading.py                    ← high-level load_combined / resolve_model_path
@@ -49,59 +52,69 @@ docs/                             ← user-facing documentation
 examples/                         ← runnable example scripts
 ```
 
-See [docs/concepts.md](docs/concepts.md) for the architectural overview
-and how `assist_sim` fits with `myo_sim` upstream and `myoassist` downstream.
+See [docs/concepts.md](docs/concepts.md) for the architectural overview and for
+the position of `assist_sim` between `myo_sim` upstream and `myoassist`
+downstream.
 
-## Adding a device
+## How to add a device
 
-The most common contribution. See
+This is the most common contribution. See
 [docs/how-to/add-a-device.md](docs/how-to/add-a-device.md) for the full
-walkthrough. TL;DR:
+walkthrough. In summary:
 
 1. Create `assist_sim/models/MyDevice/` with `L1config.yaml`, `L1model.xml`,
    and a `mesh/` subdir.
-2. The registry autodiscovers it on next import — no code changes needed.
+2. The registry finds the device automatically at the next import. You do not
+   have to change any code.
 3. Add the device to the `EXPECTED` dict in
-   `tests/test_smoke_combinations.py` for each MSK it should work with.
+   `tests/test_smoke_combinations.py` for each MSK model it must work with.
 4. Add a row to [docs/available-models.md](docs/available-models.md).
-5. If the device behaves differently across MSKs, use the per-MSK
+5. If the device behaves differently on different MSK models, use the per-MSK
    override schema (see
    [docs/how-to/modify-an-msk-config.md](docs/how-to/modify-an-msk-config.md)).
 
-## Adding an MSK
+## How to add an MSK model
 
-MSK models live in `myo_sim`, not here. See
+The MSK models live in `myo_sim`, not here. See
 [docs/how-to/add-an-msk-model.md](docs/how-to/add-an-msk-model.md).
-After the MSK lands in `myo_sim`, add an entry to
-`_COMPATIBLE_MSK_KEYS` in `assist_sim/registry.py` and update tests +
-docs.
+After `myo_sim` includes the MSK model, add an entry to
+`_COMPATIBLE_MSK_KEYS` in `assist_sim/registry.py`. Then update the tests and
+the docs.
 
 ## Pipeline changes
 
-If you're modifying the combination pipeline itself (`preprocess.py`,
-`combine.py`, `utils.py`, etc.), bump `__version__` in
-`assist_sim/__init__.py`. The cache key includes this string, so a bump
-ensures stale cached exports are invalidated automatically.
+If you change the combination pipeline itself (`preprocess.py`, `combine.py`,
+`utils.py`, etc.), increase `__version__` in `assist_sim/__init__.py`. The cache
+key includes this string. Therefore an increase invalidates the old cached
+exports automatically.
 
 Also update the smoke regression tuples in
-`tests/test_smoke_combinations.py` if your change affects any compiled
-`(nq, nu, nbody, nmesh)` signatures. Capture the new tuples by running
-the suite once with `pytest -v` and pasting the actual values.
+`tests/test_smoke_combinations.py` if your change affects a compiled
+`(nq, nu, nbody, nmesh)` signature. To get the new tuples, run the suite once
+with `pytest -v`. Then copy the actual values into the test file.
 
 ## Style
 
-- **Errors over warnings.** Unresolved name references in YAML configs
-  raise `ValueError` (with a "did you mean" suggestion via
-  `difflib.get_close_matches`). Don't add `warnings.warn` calls — they
+- **Errors over warnings.** An unresolved name reference in a YAML config
+  raises `ValueError`. The error includes a "did you mean" suggestion from
+  `difflib.get_close_matches`. Do not add `warnings.warn` calls, because they
   hide problems.
-- **Per-MSK overrides should be opt-in.** Add per-MSK schema support to
-  a YAML section only when a real config needs it. Otherwise stay flat.
-- **Public surface is minimal.** Things exported from `assist_sim/__init__.py`
-  are committed-to. Internal helpers stay underscore-prefixed.
-- **In-memory surgery (`mujoco>=3.3.4`).** Removals run on the live human
-  `MjSpec` via `spec.delete` (which cascades subtrees + referencing elements;
-  contact `<pair>`s are scrubbed manually). The human model is never serialized
-  to XML -- torso-composed models don't round-trip through `to_xml`.
+- **Make per-MSK overrides optional.** Add per-MSK schema support to a YAML
+  section only when a real config needs it. If no config needs it, keep the
+  section flat.
+- **Keep the public surface minimal.** `assist_sim/__init__.py` exports the
+  committed API. Internal helpers keep an underscore prefix.
+- **In-memory surgery (`mujoco>=3.3.4`).** The removals run on the live human
+  `MjSpec` through `spec.delete`. `spec.delete` cascades to subtrees and to the
+  elements that reference them. The pipeline removes contact `<pair>` elements
+  manually. The pipeline keeps the human model in memory and does not serialize
+  it to XML, because torso-composed models do not round-trip through `to_xml`.
+- **Re-anchor before you remove.** `tendon_modifications` runs before every
+  removal. Move a muscle that the surgery keeps onto the residual bone while its
+  wrap sites still exist. After the removals run, the cascade already removed
+  that muscle. A re-anchor changes the path of a muscle, so also set an
+  `actuator_overrides` `lengthrange` for it. The compiler keeps the authored
+  ranges.
 
 ## Tests
 
@@ -111,14 +124,14 @@ pytest tests/test_X.py -v       # one file, verbose
 pytest -k smoke -v              # match by test name fragment
 ```
 
-Tests gated by `@needs_myo_sim` skip when `myo_sim` isn't installed.
-Don't try to work around the gate — if a test needs MSK files, mark it.
+Tests with the `@needs_myo_sim` marker skip when `myo_sim` is not installed. Do
+not work around the gate. If a test needs MSK model files, add the marker to it.
 
 ## Pull requests
 
-Branch off `main`. Keep commits focused. CI (`.github/workflows/test.yml`)
-runs `pytest` against Python 3.10 / 3.11 / 3.12 + verifies the wheel
-builds cleanly on push and PR.
+Make your branch from `main`. Keep each commit focused. On each push and pull
+request, CI (`.github/workflows/test.yml`) runs `pytest` against Python 3.10,
+3.11 and 3.12. CI also verifies that the wheel builds without an error.
 
 ## Questions
 

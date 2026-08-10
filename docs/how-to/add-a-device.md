@@ -1,12 +1,12 @@
 # How To: Add a New Device
 
-Authoring a new device from scratch. The pipeline will autodiscover it as
-long as it follows the directory layout below.
+This guide tells you how to write a new device. The pipeline finds the
+device automatically if the device obeys the directory layout below.
 
 ## Directory layout
 
 ```
-models/
+assist_sim/models/                  # the scanned root (MODELS_ROOT)
 └── MyDevice/                       # directory name -> half of the registry key
     ├── L1config.yaml               # YAML config (see schema reference)
     ├── L1model.xml                 # MuJoCo XML: bodies, geoms, meshes
@@ -16,19 +16,20 @@ models/
         └── ...
 ```
 
-The registry key derives from the directory name + the config stem:
-`MyDevice/L1config.yaml` → `MyDevice_L1`. Add additional variants by
-authoring sibling configs (`A_L1config.yaml`, `KA_L1config.yaml`) -- see
-OpenSourceLeg for an example.
+The registry key comes from the directory name plus the config stem:
+`MyDevice/L1config.yaml` → `MyDevice_L1`. To add more variants, write
+sibling configs (`A_L1config.yaml`, `KA_L1config.yaml`). OpenSourceLeg is
+an example.
 
-## Step 1 -- Author `L1model.xml`
+## Step 1: Write `L1model.xml`
 
-The device XML is a standalone MuJoCo XML that contains *only* the device's
-physical description. It must be loadable by `MjSpec.from_file` on its own
-(though it may not simulate meaningfully -- bodies don't need to be
-connected to a world here; they get grafted onto the MSK at attach time).
+The device XML is a standalone MuJoCo XML file. It contains only the
+physical description of the device. `MjSpec.from_file` must load it on its
+own. The device XML does not have to simulate correctly. Its bodies do not
+connect to a world here, because the pipeline attaches them to the
+musculoskeletal (MSK) model at attach time.
 
-Minimum shape:
+The minimum content is:
 
 ```xml
 <mujoco model="MyDeviceL1">
@@ -72,21 +73,21 @@ Minimum shape:
 ```
 
 **Conventions:**
-- Each body that will independently attach to the MSK should be a
-  *top-level* `<body>` (direct child of `<worldbody>`). The YAML's
-  `attachments` list pulls them in by name.
-- Sites can live nested inside bodies; they get prefixed with the device
-  name on attach.
-- For prosthetics, also include any *replacement meshes* (e.g. residual
-  stump meshes) in `<asset>`. They don't need to be referenced by any geom
-  in the device XML -- they're loaded into the combined spec when the
-  pipeline executes `mesh_replacements`.
+- Each body that attaches to the MSK model on its own must be a *top-level*
+  `<body>`. A top-level body is a direct child of `<worldbody>`. The
+  `attachments` list in the YAML file selects these bodies by name.
+- Sites can be inside bodies. The pipeline adds the device name as a prefix
+  to each site at attach time.
+- For a prosthetic, also put the *replacement meshes* in `<asset>`. The
+  residual stump meshes are an example. No geom in the device XML has to
+  refer to them. The pipeline loads them into the combined spec when it
+  applies `mesh_replacements`.
 
-## Step 2 -- Author `config.yaml`
+## Step 2: Write `config.yaml`
 
-The YAML drives the combination. See
+The YAML file controls the combination. See
 [device-config-reference.md](../device-config-reference.md) for the full
-schema. Minimum:
+schema. The minimum content is:
 
 ```yaml
 device:
@@ -98,7 +99,7 @@ attachments:
     parent_body: "tibia_r"
 ```
 
-For an exoskeleton you'll typically have:
+An exoskeleton usually also needs these blocks:
 
 ```yaml
 joint_overrides:
@@ -118,11 +119,12 @@ keyframe_overrides:
     pelvis_ty: 0.93
 ```
 
-For a **free-floating mechanism** clamped to the leg at several points (a
-parallel-linkage exo, not a rigid strap-on), give each root body its own
-`<freejoint>` in the XML, attach it to `world`, and fasten it with `equality`
-constraints instead of rigid re-parenting (see `UTAnkleExo` and the
-[`equality` reference](../device-config-reference.md#equality)):
+A **free-floating mechanism** clamps to the leg at more than one point. A
+parallel-linkage exoskeleton is an example, but a rigid strap-on is not.
+Give each root body its own `<freejoint>` in the XML. Attach the body to
+`world`. Then hold the body with `equality` constraints in place of rigid
+re-parenting. See `UTAnkleExo` and the
+[`equality` reference](../device-config-reference.md#equality).
 
 ```yaml
 attachments:
@@ -138,25 +140,28 @@ equality:
     anchor: [-0.071, 0.05, 0.005]  # in part3_r's local frame
 ```
 
-For a prosthetic, add:
+Caution: `body_removals` uses `spec.delete`, which cascades. It removes the
+subtree and every actuator, tendon and sensor that refers to the subtree.
+
+For a prosthetic, add these blocks:
 
 ```yaml
 body_removals:
-  - "talus_r"          # transtibial
+  - "talus_r"          # transtibial; cascades to calcn_r and toes_r
 
 mesh_replacements:
   default:
     - geom: "tibia_r_geom_1"
       mesh: "my_device_residual_stump"
   myolegs:
-    - geom: "r_tibia"
+    - geom: "tibia_r"
       mesh: "my_device_residual_stump"
 
 geom_removals:
   default:
     - "tibia_r_geom_2"   # drop the fibula geom (covered by stump mesh)
   myolegs:
-    - "r_fibula"
+    - "fibula_r"
 
 actuator_removals:
   - "soleus_r"
@@ -168,7 +173,29 @@ tendon_removals:
   - "tib_ant_r_tendon"
 ```
 
-## Step 3 -- Verify discovery
+A real amputation keeps some biarticular muscles. You must therefore
+re-anchor such a muscle to the residual bone. `tendon_modifications` runs
+before the removals, so it can do this:
+
+```yaml
+tendon_modifications:
+  default:
+    - name: "gastroc_r_tendon"       # spans knee + ankle; the knee survives
+      wraps:
+        - replace_site: "gastroc_r_med_gas_r-P3"
+          new_body: "tibia_r"        # residual tibia, at the cut plane
+          pos: [-0.02631, -0.21890, 0.02034]
+
+actuator_overrides:
+  default:
+    - name: "gastroc_r"
+      lengthrange: [0.202513, 0.229413]   # re-derived for the shorter path
+```
+
+See [modify-an-msk-config.md](modify-an-msk-config.md#worked-example-osl_ka-transfemoral-re-anchoring)
+for the four wrap-edit ops and the rules for the new point positions.
+
+## Step 3: Verify discovery
 
 ```python
 from assist_sim.registry import DEVICE_CONFIGS, refresh
@@ -176,45 +203,54 @@ refresh()
 print("MyDevice_L1" in DEVICE_CONFIGS)   # should be True
 ```
 
-Or from the CLI:
+Or use the command line:
 
 ```bash
 python -m assist_sim list
 ```
 
-## Step 4 -- Compile + visually inspect
+## Step 4: Compile and examine the model
 
 ```bash
 python examples/quickstart.py myolegs26 MyDevice_L1
 ```
 
-If it opens the viewer and shows the device attached, you're done. Common
-issues at this step:
+If the viewer opens and shows the device attached, the device is correct.
+These problems are usual at this step:
 
 - **`unknown body 'my_device_part_a'`**: the body name in `attachments`
-  doesn't match the top-level body in the device XML. Names are
+  does not agree with the top-level body in the device XML. Names are
   case-sensitive.
-- **Device geometry in the wrong place**: the device body's `pos`/`quat`
-  in the XML is interpreted in the parent body's frame. Use `pos`/`quat`
-  on the attachment in the YAML to nudge.
-- **MSK-specific issues on 80**: if 80 has different parent body names or
-  needs a different attachment pose, use the per-MSK `attachments:`
-  form (see HMEDI for an example).
+- **The device geometry is in the wrong position**: MuJoCo reads the `pos`
+  and `quat` of the device body in the frame of the parent body. Set `pos`
+  and `quat` on the attachment in the YAML file to adjust the position.
+- **The device is incorrect on 80 only**: model 80 can have different
+  parent body names, or it can need a different attachment pose. Use the
+  per-MSK `attachments:` form. HMEDI is an example.
 
-## Step 5 -- Add to tests + docs
+## Step 5: Add tests and docs
 
-Add the new device to the smoke regression in
-`tests/test_smoke_combinations.py` (frozen `(nq, nu, nbody, nmesh)`
-tuples). Update [available-models.md](../available-models.md) with a
-description and the compatibility matrix.
+Add the new device to the `EXPECTED` dict in
+`tests/test_smoke_combinations.py`. Add one frozen `(nq, nu, nbody, nmesh)`
+tuple for each MSK model that you support. That dict protects the whole
+pipeline, because it shows an unwanted change in the combined model. Get
+the tuples from a single probe run. Then put the actual values in the dict:
 
-If you also have a legacy combined XML (e.g. from a prior monolithic
-authoring pipeline), drop a parity test into
-`tests/test_legacy_parity.py` to confirm the pipeline output matches the
-legacy structure.
+```bash
+python -m assist_sim combine myolegs26 MyDevice_L1
+```
+
+Update [available-models.md](../available-models.md) with a description and
+the compatibility matrix.
+
+For a prosthetic that re-anchors muscles, also add a case to
+`tests/test_tendon_reanchor.py`. That test checks that the re-anchored
+muscles stay in the model after the removal cascade. It also checks that
+each muscle starts inside its `lengthrange`.
 
 ## See also
 
-- [device-config-reference.md](../device-config-reference.md) -- full schema
-- [how-to/debug-a-combined-model.md](debug-a-combined-model.md) -- when
-  things look wrong in the viewer
+- [device-config-reference.md](../device-config-reference.md): the full
+  schema
+- [how-to/debug-a-combined-model.md](debug-a-combined-model.md): what to do
+  when the viewer shows an incorrect model
