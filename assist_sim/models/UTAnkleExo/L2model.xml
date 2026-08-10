@@ -82,7 +82,7 @@
 
             
             <body name="part1_sx" pos="-.09 0 0.0375" euler="0 0 0">
-                <inertial pos="-0.035204 -0.000454 0.047435" mass="0.1832" fullinertia="0.2253e-03 0.2340e-03 0.0222e-03 0 0.0309e-03 0" />
+                <inertial pos="-0.035204 -0.000454 0.047435" mass="0.1832" fullinertia="0.2253e-03 0.2340e-03 0.0222e-03 0 0.0409e-03 0" />
                 <geom type="mesh" mesh="part1_sx" class="ut_exo_sx" pos="-.03 0 0" euler="1.57 0 -3.04" />
                 <joint name="joint1_sx" pos="-.03 0 0" axis="0 -1 0" range="-0.7 0.55" damping="0.1" />
                 <site name="part1_attach_sx" pos="-0.034 0 0.04" rgba="1 0 0 1" group="4" />
@@ -95,22 +95,22 @@
     <tendon>
         
         <spatial name="part2part3attach_dx" range="0.04 0.06" class="ut_exo_dx" stiffness="25000" solreflimit="0.002 1.0" solimplimit="0.9 0.95 0.01" rgba="0.8 0.8 0.8 1.0">
-            <site site="part1_attach_dx" group="4" />
-            <site site="part3_attach_dx" group="4" />
+            <site site="part1_attach_dx" />
+            <site site="part3_attach_dx" />
         </spatial>
         <spatial name="part3part4attach_dx" limited="false" class="ut_exo_dx">
-            <site site="part3_attach_dx" group="4" />
-            <site site="part2_attach_dx" group="4" />
+            <site site="part3_attach_dx" />
+            <site site="part2_attach_dx" />
         </spatial>
 
         
         <spatial name="part2part3attach_sx" range="0.04 0.06" class="ut_exo_sx" stiffness="25000" solreflimit="0.002 1.0" solimplimit="0.9 0.95 0.01" rgba="0.8 0.8 0.8 1.0">
-            <site site="part1_attach_sx" group="4" />
-            <site site="part3_attach_sx" group="4" />
+            <site site="part1_attach_sx" />
+            <site site="part3_attach_sx" />
         </spatial>
         <spatial name="part3part4attach_sx" limited="false" class="ut_exo_sx">
-            <site site="part3_attach_sx" group="4" />
-            <site site="part2_attach_sx" group="4" />
+            <site site="part3_attach_sx" />
+            <site site="part2_attach_sx" />
         </spatial>
     </tendon>
 
