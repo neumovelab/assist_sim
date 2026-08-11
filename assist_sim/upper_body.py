@@ -550,7 +550,11 @@ def build_bionic_bimanual_spec() -> "mujoco.MjSpec":
     _ground_bionic(human, feet_low)
     # The original enables multiccd (multi-point convex contacts) so the box rests stably
     # on a pillar; MjSpec.attach drops the scene's <flag>, so re-assert it on the composite.
-    human.option.enableflags |= int(mujoco.mjtEnableBit.mjENBL_MULTICCD)
+    # mujoco exposed this as the mjENBL_MULTICCD enable bit through 3.3.x and removed the
+    # global flag in newer versions, so only set it when the enum is present.
+    _multiccd = getattr(mujoco.mjtEnableBit, "mjENBL_MULTICCD", None)
+    if _multiccd is not None:
+        human.option.enableflags |= int(_multiccd)
     human.option.timestep = 0.002
     _add_bionic_keyframes(human)
     return human
