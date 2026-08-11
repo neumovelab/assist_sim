@@ -2,7 +2,7 @@
 # Pinned for reproducibility; pyproject.toml declares the project's
 # install_requires range.
 
-# >=3.3.4 for MjSpec.delete (in-memory model surgery)
-mujoco==3.3.4
+# >=3.4 to match myo_sim and the verified stack (MjSpec.delete itself needs 3.3.4)
+mujoco==3.4.0
 PyYAML>=6.0.2
 numpy>=1.24
