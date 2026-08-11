@@ -21,6 +21,7 @@ Or from explicit paths, if you already have a baseline MSK XML on disk::
 """
 
 import shutil
+from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 from typing import Optional, Tuple, Union
 
@@ -36,9 +37,13 @@ from .loading import (  # noqa: F401
     validate_combination,
 )
 
-# Bump whenever a pipeline change affects compiled-model output; the cache
-# key includes this so stale cached XMLs are invalidated automatically.
-__version__ = "0.7.0"
+# Read from installed package metadata (pyproject.toml is the single source of
+# truth). The cache key includes this, so a release version bump also
+# invalidates stale cached XMLs.
+try:
+    __version__ = version("assist_sim")
+except PackageNotFoundError:
+    __version__ = "0.0.0+unknown"
 
 # Keep the public surface small: load_combined_model is the documented path.
 # ModelCombiner stays importable from assist_sim.combine for advanced callers
