@@ -40,6 +40,8 @@ dependencies = [
     "mujoco>=3.3.4",
     "PyYAML>=6.0.2",
     "numpy>=1.24",
+    # Every MSK key resolves via myo_sim.load_spec(<model>); required at runtime.
+    "myo-sim>=0.2.1",
 ]
 
 [project.optional-dependencies]
@@ -70,6 +72,11 @@ assist_sim = [
     "models/**/*.yaml",
     "models/**/*.xml",
     "models/**/*.stl",
+    "models/**/*.obj",   # collision/visual meshes (e.g. Wheelchair handrails, MPL pedestal)
+    "models/**/*.msh",   # MuJoCo binary meshes (e.g. YCB gelatin box)
+    "models/**/*.png",   # textures referenced by <texture file=...> (MPL scenes, YCB)
+    "models/**/*.json",  # runtime data (e.g. bionic-bimanual keyframes)
+    "models/MPL/LICENSE",
     "py.typed",
 ]
 

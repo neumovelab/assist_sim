@@ -5,7 +5,7 @@ Two distinct discovery models:
 - **MSK models** are an explicit, curated set (:data:`_COMPATIBLE_MSK_KEYS`),
   keyed to mirror the ``myo_sim`` model names.  ``myo_sim`` composes its leg
   models at runtime, so each key is resolved by calling
-  ``myo_sim.build_spec(<model>)`` and stripping the bundled myosuite scene,
+  ``myo_sim.load_spec(<model>)`` and stripping the bundled myosuite scene,
   returning an editable ``MjSpec`` that the pipeline mutates in place (surgery
   via ``spec.delete``) -- it is never serialized to XML.  ``myolegs26``
   (26-muscle, torso'd) and ``myolegs`` (80-muscle, passive torso) are buildable;
@@ -44,9 +44,9 @@ MODELS_ROOT = Path(str(_files("assist_sim").joinpath("models")))
 # ----------------------------------------------------------------------
 # MSK registry (explicit, composed at runtime by myo_sim)
 # ----------------------------------------------------------------------
-# On myo_sim's dev branch the leg models are *composed* at runtime --
-# there is no static XML on disk.  assist_sim obtains an editable MjSpec via
-# ``myo_sim.build_spec(<model>)``, strips the bundled myosuite scene (outputs are
+# In myo_sim the leg models are *composed* at runtime -- there is no static XML
+# on disk.  assist_sim obtains an editable MjSpec via
+# ``myo_sim.load_spec(<model>)``, strips the bundled myosuite scene (outputs are
 # model-only), and hands the live spec to the combination pipeline, which edits
 # it in place (surgery via ``spec.delete``) and never serializes it.
 
@@ -54,7 +54,7 @@ MODELS_ROOT = Path(str(_files("assist_sim").joinpath("models")))
 class _MskSource(NamedTuple):
     """Binds an assist_sim MSK key to a myo_sim composed model.
 
-    ``myo_sim_model`` is the ``myo_sim.build_spec`` name, or ``None`` when no
+    ``myo_sim_model`` is the ``myo_sim.load_spec`` name, or ``None`` when no
     source exists yet (planned work).  ``min_mujoco`` is the lowest MuJoCo
     version that can *build* it -- the passive-torso models need ``MjSpec.delete``
     (3.3.4+).  ``note`` explains a gated/planned state in the error the caller sees.
@@ -99,7 +99,7 @@ def _mujoco_version() -> Tuple[int, ...]:
 def _resolve_msk(key: str) -> "mujoco.MjSpec":
     """Compose an MSK key into a fresh, model-only ``MjSpec`` via myo_sim.
 
-    Calls ``myo_sim.build_spec(<model>)`` and strips the bundled myosuite scene,
+    Calls ``myo_sim.load_spec(<model>)`` and strips the bundled myosuite scene,
     returning an editable spec.  A fresh spec is built per call because the
     combination pipeline mutates it in place (surgery via ``spec.delete``).
     The result is never serialized -- torso-composed models don't round-trip
@@ -126,7 +126,7 @@ def _resolve_msk(key: str) -> "mujoco.MjSpec":
     except ImportError as exc:
         raise ImportError(
             f"The MSK model '{key}' is composed by the myo_sim package, which is "
-            f"not installed. Install it with `pip install myo_sim` once published, "
+            f"not installed. Install it with `pip install myo-sim`, "
             f"or follow the install instructions in the project README."
         ) from exc
 
@@ -138,14 +138,14 @@ def _resolve_msk(key: str) -> "mujoco.MjSpec":
     from .utils import strip_myosuite_scene_spec
 
     try:
-        spec = myo_sim.build_spec(src.myo_sim_model)
+        spec = myo_sim.load_spec(src.myo_sim_model)
         if src.reduce_to_22:
             from .reduce_legs import reduce_myolegs26_to_22
 
             reduce_myolegs26_to_22(spec)
     except Exception as exc:  # noqa: BLE001 - surface any build failure as a clear ImportError
         raise ImportError(
-            f"Failed to compose MSK model '{key}' via myo_sim.build_spec({src.myo_sim_model!r}): {type(exc).__name__}: {exc}"
+            f"Failed to compose MSK model '{key}' via myo_sim.load_spec({src.myo_sim_model!r}): {type(exc).__name__}: {exc}"
         ) from exc
     strip_myosuite_scene_spec(spec)
     return spec

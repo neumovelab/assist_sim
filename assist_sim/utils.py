@@ -157,7 +157,7 @@ def _strip_terrain(
 def strip_myosuite_scene_spec(spec) -> None:
     """Remove the bundled myosuite scene from a composed ``MjSpec`` in place.
 
-    ``myo_sim.build_spec`` output carries the shared myosuite scene (floor
+    ``myo_sim.load_spec`` output carries the shared myosuite scene (floor
     plane, decorative backdrop mesh, pedestal cylinder, logo, scene lights and
     cameras).  assist_sim emits model-only models -- downstream consumers (e.g.
     ``myoassist.terrains``) layer the scene on top -- so this drops the scene

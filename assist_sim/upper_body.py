@@ -574,7 +574,7 @@ def build_auxivo_liftsuit_spec() -> "mujoco.MjSpec":
     """
     import myo_sim
 
-    human = myo_sim.build_spec("myotorso")
+    human = myo_sim.load_spec("myotorso")
     _strip_scene_decor(human)  # model-only env; also lets it export cleanly
 
     probe = human.compile()  # read this build's torso world pose to place the suit

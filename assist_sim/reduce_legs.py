@@ -1,7 +1,7 @@
 """Derive the planar 22-muscle leg model (``myolegs22``) from ``myolegs26``.
 
 :func:`reduce_myolegs26_to_22` takes a freshly-composed ``myolegs26`` ``MjSpec``
-(the 26-muscle, passive-torso leg model that ``myo_sim.build_spec`` returns) and
+(the 26-muscle, passive-torso leg model that ``myo_sim.load_spec`` returns) and
 transforms it *in place* into the planar 22-muscle ``myolegs22`` -- the same
 model shape the reference documents.  It is a
 joint / actuator / site transform: the 38-body tree is left untouched.

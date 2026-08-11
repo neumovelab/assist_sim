@@ -17,7 +17,7 @@ The trunk itself is the full muscled `myotorso` (nu 210, ntendon 210). MyoAssist
 ## assist_sim version (final)
 - Relocated to `models/AuxivoLiftsuit/`. Built as a **runtime composition**: the human
   is the muscled myo_sim `myotorso` pulled from the installed package
-  (`myo_sim.build_spec("myotorso")`), so no anatomical assets are housed here — only the
+  (`myo_sim.load_spec("myotorso")`), so no anatomical assets are housed here — only the
   **three exosuit meshes** live in `mesh/`.
 - The exosuit hardware is a **device fragment** (`auxivo_liftsuit.xml`: the three exo
   bodies + wrap geom + sites + four spring tendons) attached onto the torso at load, then
@@ -37,7 +37,7 @@ original**:
 - **Counts** — nu / ntendon / neq match exactly.
 
 ## Diff vs the original
-- **Placement.** `myo_sim.build_spec("myotorso")` orients the `torso` body ~90° from the
+- **Placement.** `myo_sim.load_spec("myotorso")` orients the `torso` body ~90° from the
   original env's authoring frame (it nests the torso under a `Full Body` wrapper). The
   suit is therefore placed by the **rigid map** taking the original authoring torso pose
   (`_AUXIVO_AUTHOR_TORSO_POS/QUAT`) to this build's torso pose, applied as the attach
