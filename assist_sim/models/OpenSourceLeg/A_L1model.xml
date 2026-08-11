@@ -36,7 +36,7 @@
 
                 <body name="osl_ankle_assembly" pos="0 -0.14 -0.006">
                     <inertial pos="-0.00665 0.04539 0.00924" quat="0.612323 0.440299 -0.442253 0.485396" mass="1.739" diaginertia="0.00535042 0.00492977 0.0030318"/>
-                    <geom name="osl_ankle_assembly_geom_1" type="mesh" rgba="0.8 0.8 0.8 1" mesh="osl_ankle_assembly_geom_1_osl_ankle_v2" condim="3" contype="1"/>
+                    <geom name="osl_ankle_assembly_geom_1" type="mesh" rgba="0.227 0.573 0.851 1" mesh="osl_ankle_assembly_geom_1_osl_ankle_v2" condim="3" contype="1"/>
                     <site name="r_osl_load_force" type="box" pos="0 0.105 0.005" size="0.02 0.003 0.02" euler="0 0 0" group="3" rgba="0.8 0.2 .2 1"/>
 
                     <body name="osl_foot_assembly">
