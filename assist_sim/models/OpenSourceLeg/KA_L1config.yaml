@@ -171,100 +171,100 @@ tendon_modifications:
       wraps:
         - replace_site: "bflh-P2_r"
           new_body: "femur_r"
-          pos: [0.0124, -0.265, 0.02165]
+          pos: [0.01183, -0.26500, 0.01376]
         - replace_site: "bflh-P3_r"
           new_body: "femur_r"
-          pos: [0.0124, -0.28301, 0.02165]
+          pos: [0.01136, -0.28301, 0.01839]
     - name: "semimem_r_tendon"
       wraps:
         - replace_geom: "SM_at_condyles_wrap_r"
           new_body: "femur_r"
-          pos: [0.01464, -0.270, 0.00916]
+          pos: [0.02272, -0.27000, 0.01850]
         - replace_site: "SM_at_condyles_site_semimem_r"
           new_body: "femur_r"
-          pos: [0.01259, -0.270, 0.01207]
+          pos: [0.01769, -0.27000, 0.00720]
         - replace_site: "semimem-P2_r"
           new_body: "femur_r"
-          pos: [0.01259, -0.28301, 0.01207]
+          pos: [0.01857, -0.28301, 0.00658]
     - name: "semiten_r_tendon"
       wraps:
         - replace_geom: "ST_at_condyles_wrap_r"
           new_body: "femur_r"
-          pos: [0.01464, -0.265, 0.00916]
+          pos: [0.02235, -0.26500, 0.01965]
         - replace_site: "ST_at_condyles_site_semiten_r"
           new_body: "femur_r"
-          pos: [0.01259, -0.265, 0.01207]
+          pos: [0.01585, -0.26500, 0.00875]
         - replace_site: "semiten-P2_r"
           new_body: "femur_r"
-          pos: [0.01259, -0.274, 0.01207]
+          pos: [0.01885, -0.27400, 0.00675]
         - replace_site: "semiten-P3_r"
           new_body: "femur_r"
-          pos: [0.01259, -0.28301, 0.01207]
+          pos: [0.02451, -0.28301, 0.00640]
     - name: "grac_r_tendon"
       wraps:
         - replace_geom: "GR_at_condyles_wrap_r"
           new_body: "femur_r"
-          pos: [0.01464, -0.265, 0.00916]
+          pos: [0.02235, -0.26500, 0.01965]
         - replace_site: "GR_at_condyles_site_grac_r"
           new_body: "femur_r"
-          pos: [0.0124, -0.265, 0.02165]
+          pos: [0.01149, -0.26500, 0.01606]
         - replace_site: "grac-P2_r"
           new_body: "femur_r"
-          pos: [0.0124, -0.274, 0.02165]
+          pos: [0.02201, -0.27400, 0.00616]
         - replace_site: "grac-P3_r"
           new_body: "femur_r"
-          pos: [0.0124, -0.28301, 0.02165]
+          pos: [0.02537, -0.28301, 0.00708]
     - name: "sart_r_tendon"
       wraps:
         # P2 already sits on femur_r, but at y = -0.357, past the cut.
         - reposition_site: "sart-P2_r"
-          pos: [0.0146, -0.250, 0.00916]
+          pos: [0.01780, -0.25000, 0.01004]
         - replace_site: "sart-P3_r"
           new_body: "femur_r"
-          pos: [0.0146, -0.265, 0.00916]
+          pos: [0.02058, -0.26500, 0.00708]
         - replace_site: "sart-P4_r"
           new_body: "femur_r"
-          pos: [0.0146, -0.274, 0.00916]
+          pos: [0.02231, -0.27400, 0.00615]
         - replace_site: "sart-P5_r"
           new_body: "femur_r"
-          pos: [0.02162, -0.28301, 0.00549]
+          pos: [0.02817, -0.28301, 0.00760]
     - name: "tfl_r_tendon"
       wraps:
         # P3 already sits on femur_r, but at y = -0.405, past the cut.
         - reposition_site: "tfl-P3_r"
-          pos: [0.01293, -0.265, 0.02455]
+          pos: [0.02597, -0.26500, 0.02980]
         - replace_site: "tfl-P4_r"
           new_body: "femur_r"
-          pos: [0.01293, -0.28301, 0.02455]
+          pos: [0.03314, -0.28301, 0.02026]
     - name: "addmagIsch_r_tendon"
       wraps:
         # Survives the cascade outright (nothing of it sits on tibia_r), but
         # both remaining points are on the part of the femur that was cut off.
         - reposition_geom: "AMisch_at_condyles_wrap_r"
-          pos: [-0.0227, -0.270, -0.0032]
+          pos: [0.02272, -0.27000, 0.01850]
         - reposition_site: "addmagIsch-P2_r"
-          pos: [0.0048, -0.28301, -0.0327]
+          pos: [0.02258, -0.28301, 0.00683]
     - name: "recfem_r_tendon"
       wraps:
         # Routes over a cylinder at y = -0.403 and through three sites on the
         # patella, which this config removes, then inserts on tibia_r.
         - reposition_geom: "KnExt_at_fem_wrap_r"
-          pos: [0.0036, -0.250, 0.0021]
+          pos: [0.02193, -0.25000, 0.02136]
         - replace_site: "KnExt_at_fem_site_recfem_r"
           new_body: "femur_r"
-          pos: [0.0250, -0.250, 0.00456]
+          pos: [0.02906, -0.25000, 0.01162]
         - replace_site: "recfem-P2_r"
           new_body: "femur_r"
-          pos: [0.02518, -0.260, 0.00456]
+          pos: [0.03348, -0.26000, 0.01904]
         - replace_site: "recfem-P3_r"
           new_body: "femur_r"
-          pos: [0.02518, -0.270, 0.00456]
+          pos: [0.03380, -0.27000, 0.01608]
         - replace_site: "recfem-P4_r"
           new_body: "femur_r"
-          pos: [0.02518, -0.276, 0.00456]
+          pos: [0.03062, -0.27600, 0.00987]
         - replace_site: "recfem-P5_r"
           new_body: "femur_r"
-          pos: [0.02518, -0.28301, 0.00456]
+          pos: [0.03271, -0.28301, 0.01287]
   myofullbody: *r80_reanchor
 
 # --- Re-derived operating ranges for the re-anchored muscles ---
@@ -287,21 +287,21 @@ actuator_overrides:
       lengthrange: [0.238041, 0.343585]
   myolegs: &r80_lengthrange
     - name: "bflh_r"
-      lengthrange: [0.221648, 0.350614]
+      lengthrange: [0.222201, 0.350565]
     - name: "semimem_r"
-      lengthrange: [0.229135, 0.341938]
+      lengthrange: [0.230001, 0.342120]
     - name: "semiten_r"
-      lengthrange: [0.213901, 0.355581]
+      lengthrange: [0.216483, 0.357490]
     - name: "grac_r"
-      lengthrange: [0.213845, 0.345106]
+      lengthrange: [0.212519, 0.345297]
     - name: "sart_r"
-      lengthrange: [0.216168, 0.366187]
+      lengthrange: [0.215456, 0.365997]
     - name: "tfl_r"
-      lengthrange: [0.207750, 0.419825]
+      lengthrange: [0.209568, 0.421643]
     - name: "addmagIsch_r"
-      lengthrange: [0.213911, 0.405749]
+      lengthrange: [0.212486, 0.353181]
     - name: "recfem_r"
-      lengthrange: [0.231707, 0.337886]
+      lengthrange: [0.237078, 0.344095]
   myofullbody: *r80_lengthrange
 
 # --- Add prosthetic actuators ---
