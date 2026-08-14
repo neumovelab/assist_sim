@@ -6,8 +6,7 @@ device:
 # --- Additive ankle exoskeleton ---
 # Rigid exo frame on the right shank + foot, plus bilateral instrumented
 # soles/uppers that form the ground interface. Everything is welded (no device
-# joints) and passive (no actuators), faithful to the source model. Biology is
-# untouched -- no removals.
+# joints) and passive (no actuators).
 attachments:
   # Right shank + foot exo frame
   - device_body: "shank_exo"
@@ -33,3 +32,20 @@ attachments:
     parent_body: "toes_l"
   - device_body: "l_fore_upper"
     parent_body: "toes_l"
+
+# --- Re-point the foot GRF sensors onto the shoe sole ---
+# The instrumented sole is the ground interface, not the bare calcn/toes, so the
+# baseline touch sensors (boxes on calcn_r / toes_r) sit above the floor and read
+# zero.  Drop them and re-declare against the device sole sites (r_sole_touch /
+# r_forefoot_touch in L1model.xml).  Same shoe + wiring as Humotech and STRIDE.
+sensor_removals:
+  - "r_foot"
+  - "r_toes"
+  - "l_foot"
+  - "l_toes"
+
+sensors:
+  - {name: "r_foot", type: touch, site: "r_sole_touch"}
+  - {name: "r_toes", type: touch, site: "r_forefoot_touch"}
+  - {name: "l_foot", type: touch, site: "l_sole_touch"}
+  - {name: "l_toes", type: touch, site: "l_forefoot_touch"}

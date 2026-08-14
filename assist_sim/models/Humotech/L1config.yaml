@@ -78,6 +78,23 @@ actuators:
     ctrllimited: true
     gear: [1.0]
 
+# --- Re-point the foot GRF sensors onto the shoe sole ---
+# The baseline touch sensors sit on the myo_sim foot sites 
+# (a box on calcn_r / toes_r) which the shoe lifts off
+# the floor, so they silently read zero.  Drop them and re-declare against the
+# device's own sole sites (see r_sole_touch / r_forefoot_touch in L1model.xml).
+sensor_removals:
+  - "r_foot"
+  - "r_toes"
+  - "l_foot"
+  - "l_toes"
+
+sensors:
+  - {name: "r_foot", type: touch, site: "r_sole_touch"}
+  - {name: "r_toes", type: touch, site: "r_forefoot_touch"}
+  - {name: "l_foot", type: touch, site: "l_sole_touch"}
+  - {name: "l_toes", type: touch, site: "l_forefoot_touch"}
+
 keyframe_overrides:
   stand:
     pelvis_ty: 0.96075
