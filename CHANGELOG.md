@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Canonical leg keyframes** injected when a base MSK ships none. The
+  3D-lineage MSKs (`myolegs26`, `myolegs`) carry no `stand` / `walk_left` /
+  `walk_right` / `squat` / `lunge` keyframes the way `myolegs22` does, so the
+  combined model had zero keyframes and any downstream consumer that seats or
+  poses from a named keyframe failed outright. `ModelCombiner._rebuild_keyframes`
+  now falls back to a canonical per-joint pose table (`canonical_keyframes.py`)
+  when the base MSK has no keyframes and the model is a leg (it carries
+  `hip_flexion_r`). The table holds the `myolegs22` angles and is applied by
+  joint *name*, so a freejoint-root model takes the shared hinge angles and
+  leaves its root / frontal DOFs at `qpos0` (the standing height is re-seated
+  downstream by the myoassist compose step); a non-leg MSK is left untouched.
 - **Surgical muscle re-anchoring** (myodesis/myoplasty). `tendon_modifications`
   now runs **before** the removals, so a biarticular muscle that the amputation
   preserves moves onto the residual bone while its wrap points still exist.

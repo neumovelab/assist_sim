@@ -39,6 +39,7 @@ from typing import Dict, List, Optional, Tuple
 
 import mujoco as mj
 
+from .canonical_keyframes import LEG_SENTINEL_JOINT, canonical_leg_keyframes
 from .config import _SENSOR_TYPES, ActuatorDef, DeviceConfig, EqualityConstraint
 from .errors import unknown_reference
 from .preprocess import KeyframeData, prepare_device_xml
@@ -839,7 +840,15 @@ class ModelCombiner:
                 return
 
         if not parsed_keyframes:
-            return
+            # The base MSK shipped no keyframes (e.g. the 3D-lineage myolegs26 or
+            # the 80-muscle myolegs).  Fall back to the canonical leg keyframes so
+            # the standard poses exist.  They are applied by joint name, so a
+            # freejoint-root model just takes the shared hinge angles and keeps its
+            # root / frontal DOFs at qpos0 (height re-seated downstream).  Only
+            # inject on a leg model, never on a non-leg MSK.
+            if mj.mj_name2id(model, mj.mjtObj.mjOBJ_JOINT, LEG_SENTINEL_JOINT) < 0:
+                return
+            parsed_keyframes = canonical_leg_keyframes()
 
         overrides = config.resolve_keyframe_overrides(msk_key)
 
