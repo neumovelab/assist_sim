@@ -14,10 +14,16 @@ for ``myolegs22`` do not transfer.
 :func:`to_planar_root` fixes both in one pass, for the controller-optimization
 (CO) build only:
 
-1. **Re-orient** the pelvis to the ``myolegs22`` quat. Because the whole leg
-   subtree hangs rigidly off the pelvis, this is a pure yaw about vertical -- it
-   leaves gravity and the upright stance untouched, only the horizontal facing
-   changes.
+1. **Re-orient** the whole skeleton by the yaw that carries the pelvis to the
+   ``myolegs22`` quat. The composed leg MSK is *not* one subtree hanging off the
+   pelvis: the upper body (``sacrum`` -> spine -> ``torso`` -> ``head``) and the
+   legs (``<leg>_root`` -> ``pelvis`` -> femurs) are **two separate welded
+   branches** that both hang directly off the freejoint root body. Re-orienting
+   only the pelvis therefore yaws the legs but leaves the torso in the old frame,
+   splitting them 90 deg apart. The frame difference is a pure yaw about vertical,
+   so the fix is to turn the whole model together by rotating the *root body* --
+   a single rigid turn that keeps the torso aligned with the legs and leaves
+   gravity and the upright stance untouched.
 2. **Swap** the ``freejoint`` for the six named pelvis DOF joints
    (``tx, ty, tz, tilt, list, rotation``) with the ``myolegs22`` axes, so the
    model becomes a structural + frame drop-in for ``myolegs22``.
@@ -28,9 +34,12 @@ a CO-only flag on the combine/compose path, so the RL build (which wants the
 floating freejoint base) never sees it.
 """
 
+import numpy as np
 import mujoco as mj
 
-# The ``myolegs22`` root convention (z-up world).
+# The ``myolegs22`` root convention (z-up world): the target world orientation of
+# the pelvis.  The whole-skeleton yaw is derived from this and the pelvis's
+# current orientation, so the torso branch turns by the same amount as the legs.
 _PELVIS_QUAT = [0.7071068, 0.7071068, 0.0, 0.0]
 # Named root DOFs in qpos order, with the ``myolegs22`` axes.
 _ROOT_DOF = (
@@ -55,6 +64,27 @@ _LIMIT_SENSORS = {
     "r_ankle_sensor": "ankle_angle_r",
     "l_ankle_sensor": "ankle_angle_l",
 }
+
+
+def _mul(a, b):
+    """Quaternion product ``a (x) b`` (w, x, y, z)."""
+    out = np.zeros(4)
+    mj.mju_mulQuat(out, np.asarray(a, dtype=float), np.asarray(b, dtype=float))
+    return out
+
+
+def _inv(q):
+    """Inverse (conjugate) of a unit quaternion."""
+    out = np.zeros(4)
+    mj.mju_negQuat(out, np.asarray(q, dtype=float))
+    return out
+
+
+def _rotvec(v, q) -> np.ndarray:
+    """Rotate 3-vector ``v`` by quaternion ``q``."""
+    out = np.zeros(3)
+    mj.mju_rotVecQuat(out, np.asarray(v, dtype=float), np.asarray(q, dtype=float))
+    return out
 
 
 def _ensure_limit_sensors(spec: mj.MjSpec) -> None:
@@ -94,16 +124,33 @@ def to_planar_root(spec: mj.MjSpec) -> bool:
     if pelvis is None:
         return False
 
-    # 1) re-orient the pelvis frame to the myolegs22 convention (a rigid yaw).
-    pelvis.quat = list(_PELVIS_QUAT)
+    # 1) rigidly yaw the whole skeleton to the myolegs22 frame.  The composed leg
+    #    MSK is not one subtree hanging off the pelvis: the upper body and the legs
+    #    are separate branches off the root body, so re-orienting the pelvis alone
+    #    would split the torso from the legs.  Instead rotate the *root body* by the
+    #    yaw that carries the pelvis to the target -- because both branches share
+    #    one consistent world frame before the turn, a single root rotation turns
+    #    them together.  (Pre-compile body quats omit frame orientations, but the
+    #    pelvis's true world orientation is read from a throwaway compile, because
+    #    pre-compile body quats omit frame contributions and differ per MSK.)
+    probe = spec.copy()
+    probe_model = probe.compile()
+    probe_data = mj.MjData(probe_model)
+    mj.mj_forward(probe_model, probe_data)
+    pelvis_world = probe_data.xquat[mj.mj_name2id(probe_model, mj.mjtObj.mjOBJ_BODY, "pelvis")].copy()
+    delta = _mul(_PELVIS_QUAT, _inv(pelvis_world))
+    root_body.quat = list(_mul(delta, root_body.quat))
 
-    # 2) replace the freejoint with the six named pelvis DOF joints.
+    # 2) replace the freejoint with the six named pelvis DOF joints.  Their axes
+    #    are given in the myolegs22 (world) convention, so rotate each back into the
+    #    now-turned root-body frame to keep tx forward / ty up / tilt sagittal.
     spec.delete(free_joint)
+    inv_root = _inv(root_body.quat)
     for name, jtype, axis in _ROOT_DOF:
         joint = root_body.add_joint()
         joint.name = name
         joint.type = jtype
-        joint.axis = list(axis)
+        joint.axis = list(_rotvec(axis, inv_root))
         joint.limited = mj.mjtLimited.mjLIMITED_FALSE
 
     # 3) add the knee/hip/ankle joint-limit sensors the reflex controller reads
