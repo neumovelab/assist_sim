@@ -865,7 +865,17 @@ class ModelCombiner:
             # inject on a leg model, never on a non-leg MSK.
             if mj.mj_name2id(model, mj.mjtObj.mjOBJ_JOINT, LEG_SENTINEL_JOINT) < 0:
                 return
-            parsed_keyframes = canonical_leg_keyframes()
+            # The 80-muscle gait2392 knee flexes positive (range ``[0, +pi]``) while
+            # the myoLeg knee flexes negative; the shared canonical angles are
+            # authored myoLeg-negative, so flip them for a positive-convention knee
+            # (else a walk pose lands below the knee's range and a squat folds over).
+            knee_jid = mj.mj_name2id(model, mj.mjtObj.mjOBJ_JOINT, "knee_angle_r")
+            knee_positive = (
+                knee_jid >= 0
+                and model.jnt_limited[knee_jid]
+                and model.jnt_range[knee_jid][1] > abs(model.jnt_range[knee_jid][0])
+            )
+            parsed_keyframes = canonical_leg_keyframes(knee_sign=-1.0 if knee_positive else 1.0)
 
         overrides = config.resolve_keyframe_overrides(msk_key)
 
