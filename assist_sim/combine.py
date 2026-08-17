@@ -159,6 +159,7 @@ class ModelCombiner:
         export_xml: Optional[str] = None,
         msk_key: Optional[str] = None,
         keep_temp: bool = False,
+        planar_root: bool = False,
     ) -> Tuple[mj.MjModel, mj.MjData]:
         """Combine a human musculoskeletal ``MjSpec`` with a device.
 
@@ -170,6 +171,10 @@ class ModelCombiner:
             export_xml: If provided, save the combined model XML to this path.
             msk_key: Optional MSK key for per-MSK config overrides.
             keep_temp: If True, leave the device temp files on disk (debug aid).
+            planar_root: CO-only. Re-orient a freejoint 3D-lineage leg MSK to the
+                ``myolegs22`` frame and swap the freejoint for the named pelvis
+                DOF joints (see :mod:`assist_sim.root_frame`). No-op on the planar
+                ``myolegs22``. Leave False for RL (keeps the floating freejoint).
 
         Returns:
             Tuple of (MjModel, MjData) ready for simulation.
@@ -186,6 +191,18 @@ class ModelCombiner:
         for key in human_spec.keys:
             key.qpos = []
             key.qvel = []
+
+        # CO-only frame reconciliation: align a freejoint 3D-lineage leg MSK to
+        # the myolegs22 frame + named planar root (a rigid yaw about vertical plus
+        # a freejoint -> named-DOF swap) so the reflex controller -- calibrated to
+        # the 2D frame -- can drive it.  No-op on the planar myolegs22; RL never
+        # sets this, so its floating-base models are unchanged.  Runs before the
+        # surgery/attachments (all name-based, frame-independent) and before the
+        # keyframe rebuild (which then restores pelvis_ty/pelvis_tilt by name).
+        if planar_root:
+            from .root_frame import to_planar_root
+
+            to_planar_root(human_spec)
 
         # Re-anchor before surgery: a muscle the amputation preserves has to be
         # moved onto the residual bone while its wrap sites still exist.

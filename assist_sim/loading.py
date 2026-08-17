@@ -50,6 +50,7 @@ def load_combined(
     device_key: str,
     export_xml: Optional[str] = None,
     cache_dir: Optional[Union[str, Path]] = None,
+    planar_root: bool = False,
 ) -> Tuple[mj.MjModel, mj.MjData]:
     """Resolve ``(msk_key, device_key)`` and return the combined model.
 
@@ -64,7 +65,7 @@ def load_combined(
     config = DeviceConfig.from_yaml(str(device_config_path))
 
     if cache_dir is None:
-        return ModelCombiner().combine(human_spec, config, export_xml=export_xml, msk_key=msk_key)
+        return ModelCombiner().combine(human_spec, config, export_xml=export_xml, msk_key=msk_key, planar_root=planar_root)
 
     # Composed MSKs now round-trip through export_combined_xml, so caching works.
     # The MSK has no source file on disk; its identity is the (msk_key, myo_sim
@@ -75,7 +76,7 @@ def load_combined(
     cache_dir = Path(cache_dir)
     paths = _cache.input_paths_composed(str(device_config_path), str(config.model_xml_path))
     version = f"{__version__}+myosim-{_myosim_token()}"
-    key = _cache.compute_key(paths, version, msk_key)
+    key = _cache.compute_key(paths, version, f"{msk_key}+planar" if planar_root else msk_key)
 
     hit = _cache.try_load(cache_dir, key)
     if hit is not None:
@@ -85,7 +86,7 @@ def load_combined(
 
     cache_dir.mkdir(parents=True, exist_ok=True)
     cached_xml = str(_cache.cached_xml_path(cache_dir, key))
-    model, data = ModelCombiner().combine(human_spec, config, export_xml=cached_xml, msk_key=msk_key)
+    model, data = ModelCombiner().combine(human_spec, config, export_xml=cached_xml, msk_key=msk_key, planar_root=planar_root)
     _cache.write_meta(
         cache_dir,
         key,

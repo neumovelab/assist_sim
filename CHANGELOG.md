@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **CO frame reconciliation** (:func:`assist_sim.root_frame.to_planar_root`, a
+  ``planar_root`` flag on ``ModelCombiner.combine`` / ``load_combined``). The
+  3D-lineage MSKs (``myolegs26`` and the 80-muscle ``myolegs``) float on a
+  ``freejoint`` and mount the pelvis **yawed 90 deg about vertical** relative to
+  ``myolegs22``. That is invisible to joint-angle readouts but not to anything
+  reading the pelvis *orientation* in world, so a controller calibrated to the
+  ``myolegs22`` frame cannot pose, seat, or sense them. With ``planar_root`` set
+  (the controller-optimization build only -- RL leaves it off and keeps the
+  floating freejoint), the pipeline re-orients the pelvis to the ``myolegs22``
+  frame (a rigid, physically benign yaw) and swaps the freejoint for the six
+  named ``pelvis_tx/ty/tz/tilt/list/rotation`` DOF joints with the ``myolegs22``
+  axes, making the model a structural + frame drop-in. It also adds the
+  knee/hip/ankle ``jointlimitfrc`` sensors the reflex controller reads but the
+  80-muscle model omits. No-op on the planar ``myolegs22``.
 - **Canonical leg keyframes** injected when a base MSK ships none. The
   3D-lineage MSKs (`myolegs26`, `myolegs`) carry no `stand` / `walk_left` /
   `walk_right` / `squat` / `lunge` keyframes the way `myolegs22` does, so the
