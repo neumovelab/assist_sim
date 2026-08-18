@@ -46,15 +46,25 @@ actuators:
     ctrllimited: true
     gear: [1.0]
 
+# See the note in Tutorial/L1config.yaml: the myoLeg knee flexes negative, the 80-muscle
+# and full-body knees flex positive, so the authored lunge knee needs its sign per lineage.
+# Per-MSK blocks merge onto `default`.
 keyframe_overrides:
-  stand:
-    pelvis_ty: 0.92
-  walk_left:
-    pelvis_ty: 0.89
-  walk_right:
-    pelvis_ty: 0.885
-  squat:
-    pelvis_ty: 0.73
-  lunge:
-    pelvis_ty: 0.675
-    knee_angle_l: -1.25
+  default:
+    stand:
+      pelvis_ty: 0.92
+    walk_left:
+      pelvis_ty: 0.89
+    walk_right:
+      pelvis_ty: 0.885
+    squat:
+      pelvis_ty: 0.73
+    lunge:
+      pelvis_ty: 0.675
+      knee_angle_l: -1.25
+  myolegs:
+    lunge:
+      knee_angle_l: 1.25
+  myofullbody:
+    lunge:
+      knee_angle_l: 1.25

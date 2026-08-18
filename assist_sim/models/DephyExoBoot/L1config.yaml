@@ -90,6 +90,12 @@ sensors:
   - {name: "l_foot", type: touch, site: "l_sole_touch"}
   - {name: "l_toes", type: touch, site: "l_forefoot_touch"}
 
+# The boot's toe box is effectively rigid, so joint_overrides above restricts
+# mtp_angle_{r,l} to [-0.0145, 0.2].  The MSK poses were authored for a bare foot and
+# ask the right toe for more than that (walk_right -0.0737, squat and lunge +0.349), so
+# clamp those three to the travel the boot actually allows -- the same pattern Humotech
+# and STRIDE use for their shoes.  mtp_angle_l is already inside the range in every pose
+# (0 / 0 / 0 / 0.125 / 0.06) and needs no clamp.
 keyframe_overrides:
   stand:
     pelvis_ty: 0.96
@@ -97,7 +103,10 @@ keyframe_overrides:
     pelvis_ty: 0.93285
   walk_right:
     pelvis_ty: 0.93285
+    mtp_angle_r: -0.0145
   squat:
     pelvis_ty: 0.77
+    mtp_angle_r: 0.2
   lunge:
     pelvis_ty: 0.72
+    mtp_angle_r: 0.2

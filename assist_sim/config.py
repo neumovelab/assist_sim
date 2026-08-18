@@ -785,8 +785,12 @@ class DeviceConfig:
     sensors: List[SensorDef] = field(default_factory=list)
     sensor_removals: List[str] = field(default_factory=list)
 
-    # Per-MSK override maps (each guaranteed a "default" entry). Populated by
-    # from_yaml; resolve_* methods select the matching MSK key or fall back.
+    # Per-MSK override maps, populated by from_yaml.  The resolve_* methods consult these
+    # for an MSK-specific entry and otherwise return the matching *public* field above,
+    # which holds the ``default:`` list.  The maps do also carry a "default" key, but it is
+    # deliberately not consulted: reading it first made the public fields decoys, so
+    # ``config.body_removals = [...]`` on a loaded config was a silent no-op while the
+    # same assignment was visible to ``validate_config``, which reads the public fields.
     _tendon_modifications_by_msk: Dict[str, List["TendonModification"]] = field(default_factory=dict, repr=False)
     _actuator_removals_by_msk: Dict[str, List[str]] = field(default_factory=dict, repr=False)
     _keyframe_overrides_by_msk: Dict[str, Dict[str, "KeyframeOverride"]] = field(default_factory=dict, repr=False)
@@ -827,11 +831,17 @@ class DeviceConfig:
 
     @staticmethod
     def _resolve(by_msk: dict, msk_key: Optional[str], fallback):
-        """Pick the per-MSK entry, else the 'default' entry, else fallback."""
+        """Pick the MSK-specific entry if there is one, else *fallback*.
+
+        *fallback* is the public dataclass field, which ``from_yaml`` sets to the section's
+        ``default:`` list.  The ``"default"`` key inside *by_msk* holds the same list and is
+        deliberately **not** read here: consulting it first made every public field a decoy
+        once a config was loaded, so mutating one (which the docs suggest for scoping the
+        validator, and which ``tests/test_validator.py`` had to work around by poking the
+        private map) silently did nothing to the pipeline.
+        """
         if msk_key is not None and msk_key in by_msk:
             return by_msk[msk_key]
-        if "default" in by_msk:
-            return by_msk["default"]
         return fallback
 
     def resolve_actuator_removals(self, msk_key: Optional[str] = None) -> List[str]:
@@ -843,8 +853,39 @@ class DeviceConfig:
         return self._resolve(self._tendon_modifications_by_msk, msk_key, self.tendon_modifications)
 
     def resolve_keyframe_overrides(self, msk_key: Optional[str] = None) -> Dict[str, "KeyframeOverride"]:
-        """Keyframe overrides for the given MSK (per-MSK override or default)."""
-        return self._resolve(self._keyframe_overrides_by_msk, msk_key, self.keyframe_overrides)
+        """Keyframe overrides for the given MSK: the default block **merged** with the
+        MSK-specific one, joint by joint.
+
+        This section merges where every other per-MSK section replaces, because it is
+        already a patch rather than a definition.  A lineage usually needs to change one
+        joint of one pose -- the 80-muscle and full-body knees flex positive where the
+        myoLeg knee flexes negative, so a lunge knee authored for one is out of range on the
+        other -- and under replace semantics correcting that meant restating all five poses
+        per MSK, roughly sixty duplicated values across the shipped devices, every one of
+        them free to drift from the default.  Merging keeps the fix to the joint that
+        actually differs::
+
+            keyframe_overrides:
+              default:
+                lunge: {pelvis_ty: 0.675, knee_angle_l: -1.25}
+              myolegs:
+                lunge: {knee_angle_l: 1.25}     # pelvis_ty still comes from default
+
+        The trade-off is that a per-MSK block can only add or change a joint, never drop
+        one from the default.  Nothing needs that today.
+        """
+        default = self.keyframe_overrides
+        specific = self._keyframe_overrides_by_msk.get(msk_key) if msk_key else None
+        if not specific:
+            return default
+
+        merged = {kf: KeyframeOverride(joint_values=dict(ov.joint_values)) for kf, ov in default.items()}
+        for kf_name, override in specific.items():
+            if kf_name in merged:
+                merged[kf_name].joint_values.update(override.joint_values)
+            else:
+                merged[kf_name] = KeyframeOverride(joint_values=dict(override.joint_values))
+        return merged
 
     def resolve_mesh_replacements(self, msk_key: Optional[str] = None) -> List["MeshReplacement"]:
         """Mesh replacements for the given MSK (per-MSK override or default)."""
