@@ -7,6 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] — MuJoCo range, cache repair, config strictness, CO frame + canonical keyframes
+
+### Added
+
+- **Keyframe tests rewritten** (`tests/test_keyframe_pruning.py`). The module asserted
+  `nkey == 0` for a keyframe-less base MSK, which the canonical-keyframe fallback replaced;
+  the assertion was never updated, so the suite was red. It now pins the injection, the
+  per-model knee-flexion sign, the sign probe surviving amputation, and the RL/CO split —
+  a device's `pelvis_ty` override is skipped on the default freejoint build and applies
+  under `planar_root=True`, together with the 1.5 m/s forward walk velocity.
+- **`tests/test_config_strictness.py`**, **`tests/test_device_tendon_import.py`** and
+  **`tests/test_spec_edit_safety.py`**: 25 tests covering the rejections, the tendon-wrap
+  import and the copy-probe invariant described under *Fixed*. The spec-edit module fails if
+  either `spec.copy()` probe is removed, which is the whole reason those copies exist.
+
+- **`.github/workflows/publish.yml`**: a `workflow_dispatch` PyPI release via `uv build` and
+  trusted publishing, and the CI wheel-content check no longer hard-codes a version.
+
+- **CO frame reconciliation** (:func:`assist_sim.root_frame.to_planar_root`, a
+  ``planar_root`` flag on ``ModelCombiner.combine`` / ``load_combined``). The
+  3D-lineage MSKs (``myolegs26`` and the 80-muscle ``myolegs``) float on a
+  ``freejoint`` and mount the pelvis **yawed 90 deg about vertical** relative to
+  ``myolegs22``. That is invisible to joint-angle readouts but not to anything
+  reading the pelvis *orientation* in world, so a controller calibrated to the
+  ``myolegs22`` frame cannot pose, seat, or sense them. With ``planar_root`` set
+  (the controller-optimization build only -- RL leaves it off and keeps the
+  floating freejoint), the pipeline re-orients the pelvis to the ``myolegs22``
+  frame (a rigid, physically benign yaw) and swaps the freejoint for the six
+  named ``pelvis_tx/ty/tz/tilt/list/rotation`` DOF joints with the ``myolegs22``
+  axes, making the model a structural + frame drop-in. It also adds the
+  knee/hip/ankle ``jointlimitfrc`` sensors the reflex controller reads but the
+  80-muscle model omits. No-op on the planar ``myolegs22``.
+
+- **Canonical leg keyframes** injected when a base MSK ships none. The
+  3D-lineage MSKs (`myolegs26`, `myolegs`) carry no `stand` / `walk_left` /
+  `walk_right` / `squat` / `lunge` keyframes the way `myolegs22` does, so the
+  combined model had zero keyframes and any downstream consumer that seats or
+  poses from a named keyframe failed outright. `ModelCombiner._rebuild_keyframes`
+  now falls back to a canonical per-joint pose table (`canonical_keyframes.py`)
+  when the base MSK has no keyframes and the model is a leg (it carries
+  `hip_flexion_r`). The table holds the `myolegs22` angles and is applied by
+  joint *name*, so a freejoint-root model takes the shared hinge angles and
+  leaves its root / frontal DOFs at `qpos0` (the standing height is re-seated
+  downstream by the myoassist compose step); a non-leg MSK is left untouched.
+
 ### Changed
 
 - **Per-MSK `keyframe_overrides` now merge onto `default` instead of replacing it.** Every
@@ -16,7 +61,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   roughly sixty duplicated values across the shipped devices, every one free to drift from
   its default. A block can now add or change a joint but not drop one; nothing needs that.
 
+- **CI restructured** into `lint` / `test` / `mujoco-range` / `package`. `test` runs the
+  pinned stack across Python 3.10 to 3.13 on Linux plus the ends of that span on Windows
+  and macOS. `mujoco-range` installs **without** the pin file and runs the suite at both
+  ends of the declared range — the lane whose absence let the unbounded range ship.
+  `lint` runs once instead of once per Python version.
+
+- **Python 3.13** added to the classifiers. The suite already passed on 3.13; only the
+  metadata and the matrix omitted it.
+
+- **Per-key MuJoCo gates in `registry.py`** were `(3, 3, 3)` / `(3, 3, 4)`, both below the
+  package floor and therefore unreachable. All four keys now sit at the real floor
+  `(3, 4, 0)`. The gate mechanism is kept for a future MSK that needs a *newer* MuJoCo
+  than the floor, which is the only case where gating one key beats raising the floor.
+
+- **`requirements.txt` header** no longer claims to mirror
+  `pyproject.toml [project.dependencies]`. It is a point-pin inside the declared range,
+  it deliberately omits the `myo-sim` sibling, and it now records why the pinned lanes
+  cannot be the only ones.
+
+- **The OSL knee and ankle hardware assemblies** are now blue, matching the rest of the
+  prosthesis.
+
 ### Fixed
+
+- **Shod devices read zero ground contact.** A boot or shoe puts its own outsole between the
+  foot and the ground, so the baseline `r_foot` / `r_toes` touch sensors — boxes on `calcn`
+  and `toes` — no longer contained the contact points and reported nothing. `DephyExoBoot_L1`
+  and `Humotech_L1` now drop those four sensors and re-declare them against the device
+  outsole sites, which were renamed `*_sole_touch` / `*_forefoot_touch` to say what they are.
+  This is the treatment the Anatomics and STRIDE shoes already had.
+
+- **The transfemoral re-anchor points did not sit on the residual femur surface.** They are
+  now conformed to it and their operating ranges re-derived, so a re-anchored muscle pulls
+  along a path the bone actually supports.
 
 - **Two device-data conflicts where a config contradicted the poses it ships with.** Both
   were caught by a joint-limit sweep over every MSK x device keyframe and both were invisible
@@ -97,6 +175,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the documented "no `default:` resolves to nothing" behaviour are unchanged.
   `tests/test_validator.py` no longer needs to poke the private map to make a mutation take
   effect.
+
 - **`resolve_model_path` told the wrong type.** It is annotated and documented as returning
   `(human_xml, device_config)` **paths**, but returns `(MjSpec, Path)` — an MSK registry key
   has no XML on disk, myo_sim composes it in memory. The annotation and docstring now say
@@ -133,26 +212,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - the per-MSK dict form on `actuators` or `keyframes`, which take a flat list only. This
     used to surface as `TypeError: string indices must be integers` from inside the parser,
     naming neither the section nor the file.
+
 - **Actuator `type` is validated instead of ignored.** The field was parsed and never
   read. `general` and `motor` are accepted, because MJCF's `<motor>` *is* `general` with
   gaintype=fixed / biastype=none / dyntype=none — this schema's defaults — which is why the
   shipped `type: "motor"` entries were correct by coincidence. `position` or `velocity`
   would need a different biastype and are now rejected rather than silently built as a
   motor. A declared `motor` that also sets a contradicting gaintype/biastype/dyntype raises.
+
 - **`actuators[].joint` is resolved and validated** like every other section, bare-first
   then device-prefixed, raising with a "did you mean". It previously fell through with the
   bare name, so the failure arrived later as a raw MuJoCo compile error naming neither the
   section nor the actuator.
+
 - **A typo'd keyframe *name* in `keyframe_overrides` raises.** Pose names come from the
   base MSK or the canonical set and are identical across leg lineages, so an unknown one is
   unambiguously a typo. The joint names *inside* an override stay lenient on purpose:
   lineages differ, and a freejoint-rooted MSK genuinely has no `pelvis_ty`.
+
 - **An incompatible myo_sim no longer looks like an empty registry.** `_msk_available` read
   the private `myo_sim._COMPOSED_MODELS` through `getattr(..., frozenset())`, so an upstream
   rename made every MSK look unavailable: `get_available_combinations()` returned `{}` and
   both the CLI and myoassist then reported "no combinations buildable -- is myo_sim
   installed?" while myo_sim was installed and working. A missing attribute now raises an
   `ImportError` that says the interface changed.
+
 - **A malformed device config is reported instead of swallowed.** Discovery runs at import
   time and still must not crash — a broken config would otherwise break `import assist_sim`
   and the CLI you would use to diagnose it. The parse error is now recorded, the device is
@@ -160,6 +244,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with the file path and the parse error, and `python -m assist_sim list` names it under
   "Devices skipped (unreadable config)". Previously it registered silently with
   `compatible_msk=None`, which reads as "compatible with every MSK".
+
 - **`compatible_msk` given as a bare string raises.** `msk_key in "myolegs26"` is a
   substring test, so `compatible_msk: myolegs26` would also match `myolegs`.
 
@@ -181,73 +266,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     means the same thing in every version — validated against `ten_J` on 3.4 to 4e-11.
   - The upper-body export tests referenced `mjtEnableBit.mjENBL_MULTICCD`, removed in
     3.8. They now use the same `getattr` guard `upper_body.py` already had.
+
 - **Canonical knee-sign probe defeated by amputation.** The probe read only
   `knee_angle_r` to decide whether the host knee flexes positive. A transfemoral
   amputation deletes that joint, so the probe found it absent, skipped the flip, and drove
   the *intact* left knee of the 80-muscle `myolegs` to -1.309 against a `[0, +2.09]`
   range. It now probes every knee and lets the first survivor decide.
 
-### Changed
-
-- **CI restructured** into `lint` / `test` / `mujoco-range` / `package`. `test` runs the
-  pinned stack across Python 3.10 to 3.13 on Linux plus the ends of that span on Windows
-  and macOS. `mujoco-range` installs **without** the pin file and runs the suite at both
-  ends of the declared range — the lane whose absence let the unbounded range ship.
-  `lint` runs once instead of once per Python version.
-- **Python 3.13** added to the classifiers. The suite already passed on 3.13; only the
-  metadata and the matrix omitted it.
-- **Per-key MuJoCo gates in `registry.py`** were `(3, 3, 3)` / `(3, 3, 4)`, both below the
-  package floor and therefore unreachable. All four keys now sit at the real floor
-  `(3, 4, 0)`. The gate mechanism is kept for a future MSK that needs a *newer* MuJoCo
-  than the floor, which is the only case where gating one key beats raising the floor.
-- **`requirements.txt` header** no longer claims to mirror
-  `pyproject.toml [project.dependencies]`. It is a point-pin inside the declared range,
-  it deliberately omits the `myo-sim` sibling, and it now records why the pinned lanes
-  cannot be the only ones.
+## [0.7.0] — surgical muscle re-anchoring (myodesis/myoplasty) + amputee config audit
 
 ### Added
 
-- **Keyframe tests rewritten** (`tests/test_keyframe_pruning.py`). The module asserted
-  `nkey == 0` for a keyframe-less base MSK, which the canonical-keyframe fallback replaced;
-  the assertion was never updated, so the suite was red. It now pins the injection, the
-  per-model knee-flexion sign, the sign probe surviving amputation, and the RL/CO split —
-  a device's `pelvis_ty` override is skipped on the default freejoint build and applies
-  under `planar_root=True`, together with the 1.5 m/s forward walk velocity.
-- Two `xfail(strict=True)` markers recording open device-data conflicts, so they turn into
-  failures once the data is corrected:
-  - `DephyExoBoot_L1` narrows `mtp_angle_r` to `[-0.0145, 0.2]` through `joint_overrides`,
-    but the poses it ships use +0.349 (squat, lunge) and -0.0737 (walk_right).
-  - `keyframe_overrides` are applied verbatim, after the canonical pose and with no
-    knee-sign flip, so the myoLeg-negative lunge knee that `Tutorial_L1`, `OpenExo_L1`
-    (-1.25), `Humotech_L1` and `STRIDE_L2` (-1.09) author hyperextends the
-    positive-flexion 80-muscle knee. Resetting to that pose ejects the model from it: the
-    limit constraint moves the knee ~1.1 rad within 50 steps.
-
-- **CO frame reconciliation** (:func:`assist_sim.root_frame.to_planar_root`, a
-  ``planar_root`` flag on ``ModelCombiner.combine`` / ``load_combined``). The
-  3D-lineage MSKs (``myolegs26`` and the 80-muscle ``myolegs``) float on a
-  ``freejoint`` and mount the pelvis **yawed 90 deg about vertical** relative to
-  ``myolegs22``. That is invisible to joint-angle readouts but not to anything
-  reading the pelvis *orientation* in world, so a controller calibrated to the
-  ``myolegs22`` frame cannot pose, seat, or sense them. With ``planar_root`` set
-  (the controller-optimization build only -- RL leaves it off and keeps the
-  floating freejoint), the pipeline re-orients the pelvis to the ``myolegs22``
-  frame (a rigid, physically benign yaw) and swaps the freejoint for the six
-  named ``pelvis_tx/ty/tz/tilt/list/rotation`` DOF joints with the ``myolegs22``
-  axes, making the model a structural + frame drop-in. It also adds the
-  knee/hip/ankle ``jointlimitfrc`` sensors the reflex controller reads but the
-  80-muscle model omits. No-op on the planar ``myolegs22``.
-- **Canonical leg keyframes** injected when a base MSK ships none. The
-  3D-lineage MSKs (`myolegs26`, `myolegs`) carry no `stand` / `walk_left` /
-  `walk_right` / `squat` / `lunge` keyframes the way `myolegs22` does, so the
-  combined model had zero keyframes and any downstream consumer that seats or
-  poses from a named keyframe failed outright. `ModelCombiner._rebuild_keyframes`
-  now falls back to a canonical per-joint pose table (`canonical_keyframes.py`)
-  when the base MSK has no keyframes and the model is a leg (it carries
-  `hip_flexion_r`). The table holds the `myolegs22` angles and is applied by
-  joint *name*, so a freejoint-root model takes the shared hinge angles and
-  leaves its root / frontal DOFs at `qpos0` (the standing height is re-seated
-  downstream by the myoassist compose step); a non-leg MSK is left untouched.
 - **Surgical muscle re-anchoring** (myodesis/myoplasty). `tendon_modifications`
   now runs **before** the removals, so a biarticular muscle that the amputation
   preserves moves onto the residual bone while its wrap points still exist.
@@ -259,6 +288,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   at compile. A move of the named element therefore also moves the wrap. The
   code edits elements and does not rebuild tendons, which keeps the tendon and
   actuator objects in place and keeps the `ctrl` order.
+
 - **`actuator_overrides`** sets the `lengthrange` of a muscle, as the re-anchor
   feature above requires. The compiler keeps authored lengthrange values
   (`LRopt.useexisting=1`), so a re-anchored muscle would otherwise describe a
@@ -268,12 +298,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   margin supplies the new values, and it reproduces the authored intact ranges
   to within 3% of span. Muscles that keep their original path also keep their
   authored values.
+
 - **`body_removals` per musculoskeletal (MSK) model.** The section takes the
   `default:` + `<msk_key>:` dispatch form, the same as the sections near it.
+
 - **`tests/test_tendon_reanchor.py`**: 16 tests. They cover all four wrap
   operations, a re-anchored tendon that survives the cascade, and the actuator
   order. They also cover the lengthrange consequence, the error for a retired
   operation, and the error for an unknown reference.
+
 - **`load_msk(msk_key, export_xml=..., cache_dir=...)`** is the counterpart to
   `load_combined` that uses no device. It gives a bare MSK model to a
   downstream consumer. Almost all of `ModelCombiner.combine` does device work,
@@ -304,15 +337,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   hamstrings of the 80-muscle lineage cross condylar wrap cylinders. If one
   cylinder stays on a body that the pipeline removes, the cascade removes the
   tendon, even when every site moved.
+
 - **`drop_site` is retired** and raises an error. It needs an editable wrap
   list, and `MjsTendon` does not expose one. An immediate error is better than
   a skipped surgical edit that the author expects the code to apply. The error
   message names the replacement operations.
+
 - **`tendon_modifications` validates its targets.** It already raised an error
   for an unknown tendon. It now also raises an error for an unknown target site
   or geom, and for an unknown `new_body`. Each error gives a "did you mean"
   list. `assist-sim validate` makes the same three checks statically, and also
   checks every `actuator_overrides` name.
+
 - **`tests/test_smoke_combinations.py` freezes the 16 amputee smoke signatures
   again**: the four amputee devices (`KFoot_L1`, `NEUankle_L1`,
   `OpenSourceLeg_A_L1`, `OpenSourceLeg_KA_L1`) across all four MSK models.
@@ -329,14 +365,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   carries a mass-per-length fit that stops at the cut plane (y = −0.283012):
   6.59257 kg on 22/26, and 6.06705 kg on the 80-muscle lineage. The
   `diaginertia`, `ipos` and `iquat` values agree with the new mass.
+
 - **`patella_r` stayed in the model after the knee removal on the 80-muscle
   lineage.** It is a *sibling* of `tibia_r`, so the cascade did not reach it and
   left 3 unconstrained DOFs inside the socket. The config now removes it for
   `OSL_KA` on `myolegs` / `myofullbody`.
+
 - **`femur2_col_r` collided with the prosthesis.** That collider extends to
   y = −0.457 with `contype=1`, which is 0.174 m of active geometry beyond the
   transfemoral cut. The config now removes it. The 22/26 lineage has no
   equivalent geom.
+
 - **The transfemoral model lost the sensors on the prosthetic side.** The
   cascade reduced `myolegs26` from twelve sensors to seven, and the intact side
   kept all of its sensors. The config now restores them for `OSL_KA`, which
@@ -344,6 +383,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   models, and the two `jointlimitfrc` sensors on 22/26. The 80-muscle lineage
   contains no `jointlimitfrc` sensor, so a restored sensor there would be the
   only sensor of that type in the model.
+
 - **The configs removed muscles with no justification.** `OSL_KA` now keeps
   `addmagDist_r`, `addmagMid_r` and `addmagProx_r`, which do not cross the
   removed knee. It also keeps `grac_r`, `sart_r` and `tfl_r`, which act at the
@@ -353,6 +393,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   wrap point on a removed body. `hamstrings_r`, `bflh_r`, `semimem_r`,
   `semiten_r`, `recfem_r`, `addmagIsch_r` and the `gastroc` / `gasmed_r` /
   `gaslat_r` group change from removal to re-anchoring.
+
 - **`assist-sim validate` printed the repr of an `MjSpec` object.**
   `resolve_model_path` returns `(MjSpec, Path)` and not a path, because the
   pipeline composes the human model in memory. The command now reports the MSK
@@ -664,5 +705,11 @@ for PyPI distribution.
   inside the wheel under `assist_sim/models/`. `pip install assist_sim`
   gives a user the full bundled device set with no extra setup.
 
-[Unreleased]: https://github.com/neumovelab/assist_sim/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/neumovelab/assist_sim/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/neumovelab/assist_sim/compare/v0.7.0...v0.8.0
+[0.7.0]: https://github.com/neumovelab/assist_sim/compare/v0.6.1...v0.7.0
+[0.6.1]: https://github.com/neumovelab/assist_sim/compare/v0.6.0...v0.6.1
+[0.6.0]: https://github.com/neumovelab/assist_sim/compare/v0.3.0...v0.6.0
+[0.3.0]: https://github.com/neumovelab/assist_sim/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/neumovelab/assist_sim/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/neumovelab/assist_sim/releases/tag/v0.1.0
