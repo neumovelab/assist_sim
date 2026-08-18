@@ -795,16 +795,20 @@ class ModelCombiner:
 
         tendon_root = root.find("tendon")
         if tendon_root is not None:
-            for spatial in tendon_root.findall("spatial"):
-                src_name = spatial.get("name", "")
+            for elem in tendon_root:
+                if elem.tag not in ("spatial", "fixed"):
+                    raise ValueError(
+                        f"{Path(device_xml_path).name}: unsupported <tendon> child <{elem.tag}>; expected 'spatial' or 'fixed'."
+                    )
+                src_name = elem.get("name", "")
                 if not src_name:
-                    continue
-                new_name = prefix + src_name
-                tendon = human_spec.add_tendon(name=new_name)
-                _apply_tendon_attrs(tendon, spatial)
-                for child in spatial:
-                    if child.tag == "site":
-                        tendon.wrap_site(prefix + child.get("site", ""))
+                    raise ValueError(
+                        f"{Path(device_xml_path).name}: a <{elem.tag}> tendon has no 'name', so nothing "
+                        f"can reference it once prefixed. Name every device tendon."
+                    )
+                tendon = human_spec.add_tendon(name=prefix + src_name)
+                _apply_tendon_attrs(tendon, elem, spatial=elem.tag == "spatial")
+                _import_tendon_wraps(tendon, elem, prefix, Path(device_xml_path).name)
 
         actuator_root = root.find("actuator")
         if actuator_root is not None:
@@ -998,20 +1002,56 @@ def _bool(text: Optional[str]) -> Optional[bool]:
     return text.lower() in ("true", "1")
 
 
-def _apply_tendon_attrs(tendon, spatial_elem: ET.Element) -> None:
-    """Copy supported attributes from a device-XML <spatial> onto a MjSpec tendon.
+def _import_tendon_wraps(tendon, tendon_elem: ET.Element, prefix: str, source: str) -> None:
+    """Recreate every wrap of a device-XML tendon, in document order.
+
+    Wrap order is the tendon's routing, so each child is dispatched in sequence.  All
+    four MJCF wrap kinds are supported, because ``MjsTendon`` exposes all four; an earlier
+    version copied only ``<site>`` wraps and dropped the rest in silence, which changed the
+    tendon's path and length scaling with no error -- a ``<pulley>`` divides the length
+    contribution of everything after it, and a ``<geom>`` wrap bends the path around a
+    cylinder or sphere.
+
+    Names are device-local, so each is prefixed.  An unrecognised child raises rather than
+    being skipped.
+    """
+    for child in tendon_elem:
+        if child.tag == "site":
+            tendon.wrap_site(prefix + child.get("site", ""))
+        elif child.tag == "geom":
+            # sidesite is optional in MJCF; "" means "no side site".
+            sidesite = child.get("sidesite")
+            tendon.wrap_geom(prefix + child.get("geom", ""), prefix + sidesite if sidesite else "")
+        elif child.tag == "pulley":
+            tendon.wrap_pulley(float(child.get("divisor", 1.0)))
+        elif child.tag == "joint":
+            tendon.wrap_joint(prefix + child.get("joint", ""), float(child.get("coef", 1.0)))
+        else:
+            raise ValueError(
+                f"{source}: tendon '{tendon_elem.get('name')}' has an unsupported wrap "
+                f"<{child.tag}>; expected 'site', 'geom', 'pulley' or 'joint'."
+            )
+
+
+def _apply_tendon_attrs(tendon, spatial_elem: ET.Element, spatial: bool = True) -> None:
+    """Copy supported attributes from a device-XML tendon element onto a MjSpec tendon.
 
     Only attributes that round-trip cleanly via MjSpec properties are set.
     Unknown attributes are ignored (with no warning) since device authors may
     use class-driven defaults.
-    """
-    rgba = _floats(spatial_elem.get("rgba"))
-    if rgba is not None and len(rgba) == 4:
-        tendon.rgba = rgba
 
-    width = spatial_elem.get("width")
-    if width is not None:
-        tendon.width = float(width)
+    ``spatial`` selects whether the visual attributes apply.  MJCF accepts ``width`` /
+    ``rgba`` / ``material`` on ``<spatial>`` only, so setting them for a ``<fixed>`` tendon
+    would emit attributes that fail to reload on export.
+    """
+    if spatial:
+        rgba = _floats(spatial_elem.get("rgba"))
+        if rgba is not None and len(rgba) == 4:
+            tendon.rgba = rgba
+
+        width = spatial_elem.get("width")
+        if width is not None:
+            tendon.width = float(width)
 
     limited = _bool(spatial_elem.get("limited"))
     if limited is not None:
