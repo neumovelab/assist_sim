@@ -177,11 +177,11 @@ def test_gastroc_survives_transtibial_amputation():
 def test_reanchoring_preserves_the_dominant_moment_arm(msk, device, muscles):
     """A re-anchored muscle must still act the same way at the joint it keeps.
 
-    Moment arm is ``-ten_J``.  For each muscle, take the joint with the largest
-    intact arm *among the joints the amputation keeps*, since the largest arm
-    overall usually belongs to the joint that surgery removes.  That joint must
-    still carry the largest arm, with the same sign and a similar magnitude.
-    A clean compile does not prove this.
+    Moment arm is ``-d(tendon length)/dq``.  For each muscle, take the joint with
+    the largest intact arm *among the joints the amputation keeps*, since the
+    largest arm overall usually belongs to the joint that surgery removes.  That
+    joint must still carry the largest arm, with the same sign and a similar
+    magnitude.  A clean compile does not prove this.
 
     Only the dominant action is pinned.  Hip rotation arms are 0.5 mm to 5 mm
     against 40 mm to 55 mm primary arms, and four of them change sign; see
@@ -189,13 +189,36 @@ def test_reanchoring_preserves_the_dominant_moment_arm(msk, device, muscles):
     """
 
     def arms(model, data, tendon):
+        """Moment arm at each right-side joint, by central difference on ``ten_length``.
+
+        Read from ``ten_length`` rather than the ``ten_J`` Jacobian: ``ten_J`` is a
+        dense ``(ntendon, nv)`` array up to mujoco 3.5 and sparse from 3.6 on (its
+        index arrays also left ``MjData``), so indexing it by dof breaks across
+        versions, whereas ``ten_length`` means the same thing in every version.
+        Validated against ``ten_J`` on mujoco 3.4: agreement to 4e-11.
+
+        Note this perturbs ``qpos``, so it indexes with ``jnt_qposadr`` -- not the
+        ``jnt_dofadr`` that ``ten_J`` columns use.  The two coincide only on a model
+        with no free joint.
+        """
         tid = mj.mj_name2id(model, mj.mjtObj.mjOBJ_TENDON, tendon)
-        mj.mj_forward(model, data)
+        eps = 1e-6
         out = {}
         for j in range(model.njnt):
             name = mj.mj_id2name(model, mj.mjtObj.mjOBJ_JOINT, j)
-            if name and name.endswith("_r"):
-                out[name] = -float(data.ten_J[tid, model.jnt_dofadr[j]])
+            if not (name and name.endswith("_r")):
+                continue
+            adr = int(model.jnt_qposadr[j])
+            q0 = float(data.qpos[adr])
+            data.qpos[adr] = q0 + eps
+            mj.mj_forward(model, data)
+            plus = float(data.ten_length[tid])
+            data.qpos[adr] = q0 - eps
+            mj.mj_forward(model, data)
+            minus = float(data.ten_length[tid])
+            data.qpos[adr] = q0
+            out[name] = -(plus - minus) / (2 * eps)
+        mj.mj_forward(model, data)
         return out
 
     baseline = _resolve_msk(msk).compile()

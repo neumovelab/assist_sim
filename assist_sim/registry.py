@@ -56,10 +56,10 @@ class _MskSource(NamedTuple):
 
     ``myo_sim_model`` is the ``myo_sim.load_spec`` name, or ``None`` when no
     source exists yet (planned work).  ``min_mujoco`` is the lowest MuJoCo
-    version that can *build* it -- the passive-torso models need ``MjSpec.delete``
-    (3.3.4+).  ``note`` explains a gated/planned state in the error the caller sees.
-    ``reduce_to_22`` marks a key whose composed spec is post-processed by the
-    26->22 planar reduction before the scene strip (only ``myolegs22`` today).
+    version that can *build* it.  ``note`` explains a gated/planned state in the
+    error the caller sees.  ``reduce_to_22`` marks a key whose composed spec is
+    post-processed by the 26->22 planar reduction before the scene strip (only
+    ``myolegs22`` today).
     """
 
     myo_sim_model: Optional[str]
@@ -68,21 +68,23 @@ class _MskSource(NamedTuple):
     reduce_to_22: bool = False
 
 
+# The MuJoCo floor every current key needs: MjSpec.delete for the in-memory surgery.
+# It equals the package floor (``mujoco>=3.4`` in pyproject.toml), so the version gate
+# in _resolve_msk / _msk_available cannot trip on a resolvable install.  The mechanism
+# is kept deliberately, for a future MSK that needs a *newer* MuJoCo than the package
+# floor -- gating one key is then better than raising the floor for everyone.  (The
+# earlier per-key 3.3.3 / 3.3.4 values predated the 3.4 floor and were unreachable:
+# MjSpec.delete landed in 3.3.4, but nothing can install with a MuJoCo that old.)
+_MIN_MUJOCO: Tuple[int, int, int] = (3, 4, 0)
+_MIN_MUJOCO_NOTE = "the in-memory surgery uses MjSpec.delete, which needs mujoco>=3.4"
+
 # Curated, not autodiscovered.  Keys are assist_sim-facing aliases; values bind
 # them to the myo_sim composed models that back them.
 _COMPATIBLE_MSK_KEYS: Dict[str, _MskSource] = {
-    "myolegs22": _MskSource("myolegs26", (3, 3, 3), "", reduce_to_22=True),
-    "myolegs26": _MskSource("myolegs26", (3, 3, 3), ""),
-    "myolegs": _MskSource(
-        "myolegs",
-        (3, 3, 4),
-        "the 80-muscle model's passive-torso conversion uses MjSpec.delete, which needs mujoco>=3.3.4",
-    ),
-    "myofullbody": _MskSource(
-        "myofullbody",
-        (3, 3, 4),
-        "the full-body model's scene strip uses MjSpec.delete, which needs mujoco>=3.3.4",
-    ),
+    "myolegs22": _MskSource("myolegs26", _MIN_MUJOCO, _MIN_MUJOCO_NOTE, reduce_to_22=True),
+    "myolegs26": _MskSource("myolegs26", _MIN_MUJOCO, _MIN_MUJOCO_NOTE),
+    "myolegs": _MskSource("myolegs", _MIN_MUJOCO, _MIN_MUJOCO_NOTE),
+    "myofullbody": _MskSource("myofullbody", _MIN_MUJOCO, _MIN_MUJOCO_NOTE),
 }
 
 _HAS_MYO_SIM = importlib.util.find_spec("myo_sim") is not None

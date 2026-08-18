@@ -130,8 +130,18 @@ not work around the gate. If a test needs MSK model files, add the marker to it.
 ## Pull requests
 
 Make your branch from `main`. Keep each commit focused. On each push and pull
-request, CI (`.github/workflows/test.yml`) runs `pytest` against Python 3.10,
-3.11 and 3.12. CI also verifies that the wheel builds without an error.
+request, CI (`.github/workflows/test.yml`) runs four jobs:
+
+- `lint` — `ruff check` and `ruff format --check`, once.
+- `test` — `pytest` on the pinned stack from `requirements.txt`: Python 3.10 to
+  3.13 on Linux, and the two ends of that span on Windows and macOS.
+- `mujoco-range` — `pytest` at both ends of the MuJoCo range that
+  `pyproject.toml` declares, installed **without** the pin file. This is the only
+  job that tests what a plain `pip install assist-sim` gives a user. If it fails
+  on a new MuJoCo release, fix the incompatibility and then raise the ceiling in
+  `pyproject.toml`. Do not relax the job.
+- `package` — builds the wheel and verifies that it carries the device configs,
+  the meshes and the `py.typed` marker.
 
 ## Questions
 

@@ -1001,18 +1001,39 @@ def _apply_tendon_attrs(tendon, spatial_elem: ET.Element) -> None:
 
     for attr in ("stiffness", "damping", "frictionloss", "margin"):
         v = spatial_elem.get(attr)
-        if v is not None:
+        if v is None:
+            continue
+        # These are scalars in MJCF, but MjsTendon widened them to fixed-width
+        # vectors in newer mujoco -- ``stiffness`` became a 3-vector in 3.7, which
+        # made every device with an authored tendon stiffness fail to combine.
+        # Assign the scalar, and on the type error write it into index 0 of the
+        # existing vector (the linear term), leaving the rest at their defaults.
+        # Mirrors the guard _apply_joint_overrides applies to joint damping.
+        try:
             setattr(tendon, attr, float(v))
+        except (TypeError, ValueError):
+            widened = list(getattr(tendon, attr))
+            widened[0] = float(v)
+            setattr(tendon, attr, widened)
 
-    material = spatial_elem.get("material")
-    if material:
-        tendon.material = material
+    if spatial:
+        material = spatial_elem.get("material")
+        if material:
+            tendon.material = material
 
 
 def _xml_actuator_kwargs(act_elem: ET.Element, prefix: str) -> dict:
     """Convert a device-XML <actuator>/<general|motor|...> with tendon target
     into ``MjSpec.add_actuator`` kwargs (prefixed name + tendon)."""
-    kwargs: dict = {"name": prefix + act_elem.get("name", "")}
+    name = act_elem.get("name")
+    if not name:
+        # Without this, the actuator is named exactly the device prefix (e.g. "STRIDE_L2_"),
+        # which no config or controller can address, and a second unnamed one collides.
+        raise ValueError(
+            f"a device tendon actuator (<{act_elem.tag} tendon='{act_elem.get('tendon')}'>) has no "
+            f"'name'. Name it, so the combined model exposes a usable ctrl index."
+        )
+    kwargs: dict = {"name": prefix + name}
     kwargs["trntype"] = mj.mjtTrn.mjTRN_TENDON
     kwargs["target"] = prefix + act_elem.get("tendon", "")
 
