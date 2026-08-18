@@ -117,9 +117,18 @@ a copy with no meshes. To keep both copies, set `keep_temp=True`, which
 load_combined_model(..., keep_temp=True)
 ```
 
-The two files go next to the device XML as `<device_stem>__dev_full_*.xml`
-and `<device_stem>__dev_nomesh_*.xml`. Use them when a device tendon,
-actuator or mesh is absent from the combined model.
+The two files go to the system temp directory as
+`<device_stem>__dev_full_*.xml` and `<device_stem>__dev_nomesh_*.xml`. They do
+not go next to the device XML, because the package directory is read-only on a
+container or a shared cluster node. Print the directory to find them:
+
+```bash
+python -c "import tempfile; print(tempfile.gettempdir())"
+```
+
+Use the two files when a device tendon, actuator or mesh is absent from the
+combined model. Each copy carries absolute mesh paths, so it also loads on its
+own in `simulate`.
 
 ## Step 4: Examine the model in the viewer
 

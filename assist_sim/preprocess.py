@@ -31,15 +31,58 @@ class KeyframeData:
 
 
 def _write_temp_xml(root: ET.Element, src_path: Path, tag: str) -> str:
-    """Serialize *root* to a temp XML next to *src_path*; return its path."""
-    fd, tmp_path = tempfile.mkstemp(suffix=".xml", prefix=f"{src_path.stem}__{tag}_", dir=str(src_path.parent))
+    """Serialize *root* to a temp XML in the system temp dir; return its path.
+
+    The staged copy deliberately does *not* live next to *src_path*.  For a
+    pip-installed package that directory is inside ``site-packages``, which is
+    read-only or root-owned in containers and on shared HPC nodes, and staging
+    runs on the critical path of every combine.  Writing there would also drop
+    stray files into the package whenever a process dies before the cleanup in
+    :meth:`ModelCombiner.combine` runs.  :func:`_absolutize_asset_paths` makes
+    every asset reference absolute first, so the copy resolves its meshes from
+    any location.
+    """
+    fd, tmp_path = tempfile.mkstemp(suffix=".xml", prefix=f"{src_path.stem}__{tag}_")
     os.close(fd)
     ET.ElementTree(root).write(tmp_path, encoding="utf-8", xml_declaration=False)
     return tmp_path
 
 
+def _absolutize_asset_paths(root: ET.Element, base: Path) -> None:
+    """Pin every path MuJoCo resolves against the model file to *base*.
+
+    *base* is the folder that holds the original device XML.  The staged copy
+    goes to a temp dir, so ``meshdir`` / ``texturedir`` / ``assetdir`` and any
+    ``<include>`` path have to be absolute before the copy is written.  An
+    authored value stays relative to *base*; an absent ``meshdir`` /
+    ``texturedir`` would otherwise fall back to the temp dir, so both get set
+    unless ``assetdir`` already supplies the default.
+    """
+    compiler = root.find("compiler")
+    if compiler is None:  # pragma: no cover - the caller guarantees one
+        return
+
+    for attr in ("assetdir", "meshdir", "texturedir"):
+        authored = compiler.get(attr)
+        if authored is not None:
+            compiler.set(attr, str((base / authored).resolve()))
+
+    if compiler.get("assetdir") is None:
+        for attr in ("meshdir", "texturedir"):
+            if compiler.get(attr) is None:
+                compiler.set(attr, str(base))
+
+    for inc in root.iter("include"):
+        target = inc.get("file")
+        if target and not Path(target).is_absolute():
+            inc.set("file", str((base / target).resolve()))
+
+
 def prepare_device_xml(device_xml: str, strip_meshes: bool = False) -> str:
     """Write a temp copy of the device XML for attachment.
+
+    The copy goes to the system temp dir (see :func:`_write_temp_xml`), not into
+    the package, and carries absolute asset paths so its meshes still resolve.
 
     Always strips ``<keyframe>`` (devices must not contribute keys).  When
     ``strip_meshes`` is True, also removes ``<mesh>`` assets -- used for every
@@ -58,9 +101,9 @@ def prepare_device_xml(device_xml: str, strip_meshes: bool = False) -> str:
         compiler = ET.SubElement(root, "compiler")
     if compiler.get("angle") is None:
         compiler.set("angle", "radian")
-    # Keep device meshes local when the human MSK sets a global meshdir.
-    if (src.parent / "mesh").is_dir():
-        compiler.set("meshdir", str(src.parent))
+    # The staged copy lives in a temp dir, and this also keeps device meshes
+    # local when the human MSK sets a global meshdir.
+    _absolutize_asset_paths(root, src.parent)
 
     for kf in root.findall("keyframe"):
         root.remove(kf)

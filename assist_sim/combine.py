@@ -214,11 +214,16 @@ class ModelCombiner:
         # Surgery: all removals happen here, in-memory.
         self._apply_removals(human_spec, device_config, msk_key)
 
-        device_full = prepare_device_xml(device_xml, strip_meshes=False)
-        device_stripped = prepare_device_xml(device_xml, strip_meshes=True)
-        temps = [device_full, device_stripped]
+        # Register each staged file the moment it exists: building the list
+        # after both calls would leak the first copy if the second one raised.
+        temps: list[str] = []
 
         try:
+            device_full = prepare_device_xml(device_xml, strip_meshes=False)
+            temps.append(device_full)
+            device_stripped = prepare_device_xml(device_xml, strip_meshes=True)
+            temps.append(device_stripped)
+
             device_full_spec = mj.MjSpec.from_file(device_full)
             device_stripped_spec = mj.MjSpec.from_file(device_stripped)
 

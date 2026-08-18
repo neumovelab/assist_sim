@@ -31,11 +31,16 @@ on `3.3.3`. An unknown key raises a clear error. There is no fallback.
 - **Free root.** The root is a `freejoint` on the torso scaffold, which is the
   myosuite convention. It is not a pair of `pelvis_tx`/`pelvis_ty` slide
   joints. The pipeline skips a device keyframe override that targets
-  `pelvis_ty`, and gives no message, because that joint does not exist.
-- **No keyframe.** The model loads at `qpos0`, which is the assembled standing
-  pose. The upstream reference configuration contains that pose. Like
-  `myolegs`, the model loads a small distance above the ground. There is no
-  `stand` keyframe.
+  `pelvis_ty`, and gives no message, because that joint does not exist. Pass
+  `planar_root=True` to get the named sagittal DOFs instead, which is what the
+  controller-optimization path uses (see [usage.md](usage.md)).
+- **No keyframe in the base model.** The model that `myo_sim` composes carries
+  no keyframe, so `load_msk("myolegs26")` gives `nkey=0` and the model loads at
+  `qpos0`, the assembled standing pose. The upstream reference configuration
+  contains that pose. Like `myolegs`, the model loads a small distance above the
+  ground. A combine injects the five canonical poses, so a *combined*
+  `myolegs26` has `nkey=5`, including `stand`. See
+  [Keyframes: shipped by one model, injected for the rest](#keyframes-shipped-by-one-model-injected-for-the-rest).
 
 ### Important MSK notes (myolegs22)
 

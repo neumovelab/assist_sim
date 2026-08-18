@@ -18,8 +18,11 @@ dependency (`myo-sim>=0.2.1`), so `pip install -e .` already brings it in from P
 full suite runs:
 
 ```bash
-pytest                # 278 collected: 277 pass, 1 skip (~3 min)
+pytest                # 286 collected: 284 pass, 2 skip (~3 min)
 ```
+
+One skip is platform-gated: `test_staging_works_from_a_read_only_device_directory` needs POSIX
+file modes, so it runs on Linux and macOS and skips on Windows.
 
 If you deliberately install without it, most tests skip on the `needs_myo_sim` gate and three
 modules (`test_msk_only.py`, `test_tendon_reanchor.py`, `test_upper_body_export.py`) skip
