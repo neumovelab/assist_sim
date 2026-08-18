@@ -226,6 +226,12 @@ exports/
 # MuJoCo writes this at runtime when it emits warnings
 MUJOCO_LOG.TXT
 
+# preprocess.prepare_device_xml stages a temp copy of each device XML *next to the
+# original*, inside the package. They are removed in a finally, but a crashed or
+# interrupted run leaves them behind and they otherwise show up in git status.
+assist_sim/models/*/*__dev_full_*.xml
+assist_sim/models/*/*__dev_nomesh_*.xml
+
 # Session working notes (not part of the package)
 WHATS_NEXT.md
 

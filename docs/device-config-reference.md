@@ -632,9 +632,15 @@ moves to the combined model.
 > each side of `STRIDE_L2`. The cost is that device parts make no contact with
 > each other, and this includes left against right.
 
-> **An `exclude` cancels a `pair` with no warning.** An exclude acts at body
-> level and has priority. If a forced pair makes no contacts, examine whether
-> an exclude applies to the bodies that own the geoms.
+> **An `exclude` does not cancel a `pair`.** The two act at different stages. MuJoCo
+> always evaluates a predefined `pair`; an `exclude` only filters the body pairs that
+> the broadphase would otherwise generate. Measured on MuJoCo 3.4 and 3.11: two bodies
+> with an explicit pair between their geoms give one contact whether or not an exclude
+> names those bodies. So if a forced pair makes no contact, look at the geometry, the
+> `margin` and the `condim` rather than at your excludes.
+>
+> An earlier version of this page said the opposite. If you removed an exclude to make
+> a pair work, the exclude was not the cause.
 
 > **A welded device body takes the weld group of its host.** Thus MuJoCo
 > automatically excludes a part on the shank from the *femur*, which is the
@@ -701,32 +707,61 @@ There are two different uses:
 
 These sections support the `default:` and `<msk_key>:` dispatch:
 
-| Section | Per-MSK? |
-|---|---|
-| `attachments` | ✓ |
-| `equality` | ✓ |
-| `joint_overrides` | ✓ |
-| `actuators` | flat form only |
-| `keyframe_overrides` | ✓ |
-| `keyframes` (legacy) | flat form only |
-| `body_removals` | ✓ |
-| `mesh_replacements` | ✓ |
-| `actuator_removals` | ✓ |
-| `tendon_removals` | ✓ |
-| `tendon_modifications` | ✓ |
-| `geom_removals` | ✓ |
-| `body_overrides` | ✓ |
-| `actuator_overrides` | ✓ |
-| `contact` (`pairs` + `excludes`) | ✓ |
-| `sensors` | ✓ |
-| `sensor_removals` | ✓ |
+| Section | Per-MSK? | An MSK block... |
+|---|---|---|
+| `attachments` | ✓ | replaces `default` |
+| `equality` | ✓ | replaces `default` |
+| `joint_overrides` | ✓ | replaces `default` |
+| `actuators` | flat form only | — |
+| `keyframe_overrides` | ✓ | **merges onto `default`** |
+| `keyframes` (legacy) | flat form only | — |
+| `body_removals` | ✓ | replaces `default` |
+| `mesh_replacements` | ✓ | replaces `default` |
+| `actuator_removals` | ✓ | replaces `default` |
+| `tendon_removals` | ✓ | replaces `default` |
+| `tendon_modifications` | ✓ | replaces `default` |
+| `geom_removals` | ✓ | replaces `default` |
+| `body_overrides` | ✓ | replaces `default` |
+| `actuator_overrides` | ✓ | replaces `default` |
+| `contact` (`pairs` + `excludes`) | ✓ | replaces `default` |
+| `sensors` | ✓ | replaces `default` |
+| `sensor_removals` | ✓ | replaces `default` |
+
+`keyframe_overrides` is the one section that **merges** rather than replaces, joint by joint.
+It is already a patch rather than a definition, and a lineage usually needs one joint of one
+pose changed -- most often the lunge knee, whose sign differs between the negative-flexion
+(`myolegs22`, `myolegs26`) and positive-flexion (`myolegs`, `myofullbody`) models. Under
+replace semantics that meant restating every pose per MSK. So this is enough:
+
+```yaml
+keyframe_overrides:
+  default:
+    lunge: {pelvis_ty: 0.675, knee_angle_l: -1.25}
+  myolegs:
+    lunge: {knee_angle_l: 1.25}      # pelvis_ty still comes from default
+  myofullbody:
+    lunge: {knee_angle_l: 1.25}
+```
+
+The trade-off is that a per-MSK block can add or change a joint but never drop one that
+`default` sets.
 
 The `actuators` section and the legacy `keyframes` section take the flat form
-only. The project adds per-MSK support step by step, when a config needs it.
+only. Handing `actuators` the dict form raises, naming the section.
 
 A section in the per-MSK form with no `default:` entry resolves to nothing, for
 each MSK key that it does not name. `attachments` is the one exception, because
 the dict form needs a `default:` entry.
+
+### The loader rejects what it cannot use
+
+Every key in this reference is checked at load time. A config that names something the parser
+does not read raises `ValueError` with a "did you mean", rather than loading clean and doing
+nothing. That covers an unknown top-level section, an unknown key in the `device` block, an
+unknown key inside an entry (`position` where `pos` was meant), an unknown key in a wrap edit,
+a per-MSK block keyed by a name that is not an MSK key (`myolegz26`), and an actuator `type`
+the pipeline does not implement. If you are editing an existing config, an error here means the
+key was previously being ignored.
 
 ## General rules for authors
 

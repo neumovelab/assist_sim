@@ -85,6 +85,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Every canonical squat and lunge stood the right foot on 20 degrees of toe extension.**
+  `reduce_legs._KEYFRAMES` was transcribed from the rigid 26->22 conversion stage, and that
+  stage had shifted the right leg's distal pair by one slot: `ankle_angle_r` held 0 and
+  `mtp_angle_r` held the ankle's value. `canonical_keyframes` was transcribed from the same
+  stage, so once keyframe injection shipped the defect reached **all four MSK keys**, not
+  just `myolegs22`. A squat put 0.349 rad on the right MTP with a neutral right ankle while
+  the left leg had 0.349 on the ankle and 0.125 on the toe, which made a pose that is
+  symmetric in every other DOF visibly asymmetric at the feet.
+
+  The four affected poses in both tables are corrected against the MyoAssist 0.1 reference
+  (`myoLeg22_2D_BASELINE.xml`, recovered from the myoassist history), which is symmetric in
+  `stand` and `squat`, mirrors `walk_left` / `walk_right`, and is asymmetric only in `lunge`.
+  Right-leg `(ankle_angle_r, mtp_angle_r)` becomes `(-0.0143, 0)` for `stand`,
+  `(-0.0737, 0)` for `walk_right`, `(0.349, 0.125)` for `squat` and `(0.349, 0.2)` for
+  `lunge`; `walk_left` was already correct. No joint range is exceeded, and a
+  before/after render confirms the two feet now align.
+
+  This supersedes the 0.6.0 *Known issues* note, which was wrong twice over: the shift is in
+  this repository rather than upstream in `myo_sim`, and it stopped being `myolegs22`-only
+  when the injection landed. `tests/test_keyframe_pose_fidelity.py` adds 21 tests that pin
+  the reference values, left/right symmetry for `stand` and `squat`, the `walk_left` /
+  `walk_right` mirror, and the joint ranges. 17 of the 21 fail against the old tables.
+
+- **Staging a device XML wrote inside the installed package.** `preprocess._write_temp_xml`
+  passed `dir=src_path.parent` to `tempfile.mkstemp`, so the two massaged copies of the device
+  XML that every combine attaches (`__dev_full_*.xml` and `__dev_nomesh_*.xml`) landed in
+  `site-packages/assist_sim/models/<Device>/`. That directory is read-only or root-owned in a
+  container and on a shared cluster node, and staging sits on the critical path of *every*
+  combine, so a perfectly normal `pip install assist-sim` could not compose a single model
+  there. It also dropped stray XML files into the package whenever a process died before the
+  cleanup ran, which is how the bug surfaced.
+
+  The copies now go to the system temp directory. The location was load-bearing only because
+  MuJoCo resolves relative asset paths against the model file, so the new
+  `preprocess._absolutize_asset_paths` pins `meshdir` / `texturedir` / `assetdir` and every
+  `<include file=...>` to the device folder before the copy is written. An authored value stays
+  relative to that folder, and an authored `assetdir` keeps its precedence. `keep_temp=True`
+  still works; see [docs/how-to/debug-a-combined-model.md](docs/how-to/debug-a-combined-model.md)
+  for where to find the files now.
+
+- **A failed second staging call leaked the first temp file.** `ModelCombiner.combine` built its
+  `temps` list after both `prepare_device_xml` calls, so nothing tracked the full copy if the
+  no-mesh copy raised. Each staged path is now registered the moment it exists, inside the
+  `try` that the `finally` cleans up.
+
 - **Exporting to a different filesystem root raised instead of exporting.** `_rewrite_mesh_paths`
   wrote each `<mesh file=...>` relative to the output directory, using `os.path.relpath` as the
   fallback for `Path.relative_to`. On Windows there is no relative path between drives and

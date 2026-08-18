@@ -13,19 +13,20 @@ pip install -r requirements-dev.txt
 pytest                # most tests skip without myo_sim
 ```
 
-To run the full test suite, you also need `myo_sim`. `myo_sim` composes the
-baseline musculoskeletal (MSK) models.
+`myo_sim` composes the baseline musculoskeletal (MSK) models and is a hard runtime
+dependency (`myo-sim>=0.2.1`), so `pip install -e .` already brings it in from PyPI and the
+full suite runs:
 
 ```bash
-pip install myo_sim                                          # when on PyPI
-# or, interim:
-pip install git+https://github.com/MyoHub/myo_sim.git@<tag>
-pytest                # 232 collected: 231 pass, 1 skip (~5 min)
+pytest                # 307 collected: 305 pass, 2 skip (~3 min)
 ```
 
-Without `myo_sim`, most tests skip on the `needs_myo_sim` gate. Three modules
-(`test_msk_only.py`, `test_tendon_reanchor.py`, `test_upper_body_export.py`)
-skip completely at import.
+One skip is platform-gated: `test_staging_works_from_a_read_only_device_directory` needs POSIX
+file modes, so it runs on Linux and macOS and skips on Windows.
+
+If you deliberately install without it, most tests skip on the `needs_myo_sim` gate and three
+modules (`test_msk_only.py`, `test_tendon_reanchor.py`, `test_upper_body_export.py`) skip
+completely at import.
 
 ## Repo layout (orientation)
 
@@ -36,11 +37,15 @@ assist_sim/                       ← the importable package
 ├── combine.py                    ← the pipeline (in-memory MjSpec surgery + attach)
 ├── preprocess.py                 ← device-XML prep + KeyframeData container
 ├── registry.py                   ← MSK + device key resolution
-├── config.py                     ← DeviceConfig dataclass + per-MSK resolvers
-├── utils.py                      ← XML export, myosuite-scene strip, mesh dedup
+├── config.py                     ← DeviceConfig dataclass, strict YAML loader, per-MSK resolvers
+├── utils.py                      ← XML export, myosuite-scene strip, default hoist, mesh dedup
 ├── validate.py                   ← standalone config validator
-├── cache.py                      ← opt-in local cache
-├── loading.py                    ← high-level load_combined / resolve_model_path
+├── cache.py                      ← opt-in local cache (keys, atomic publish, recovery)
+├── loading.py                    ← high-level load_combined / load_msk / resolve_model_path
+├── reduce_legs.py                ← in-spec 26 to 22 planar reduction (produces myolegs22)
+├── canonical_keyframes.py        ← fallback poses for an MSK that ships no keyframes
+├── root_frame.py                 ← to_planar_root, the CO-only freejoint to pelvis-DOF reframe
+├── upper_body.py                 ← composed upper-body envs (wheelchair, MPL, liftsuit, bionic)
 ├── errors.py                     ← error formatting helpers
 └── models/                       ← bundled device configs + meshes
     ├── DephyExoBoot/             ← one folder per device
@@ -84,9 +89,11 @@ the docs.
 ## Pipeline changes
 
 If you change the combination pipeline itself (`preprocess.py`, `combine.py`,
-`utils.py`, etc.), increase `__version__` in `assist_sim/__init__.py`. The cache
-key includes this string. Therefore an increase invalidates the old cached
-exports automatically.
+`utils.py`, etc.), bump `version` in `pyproject.toml` and add a `CHANGELOG.md` entry.
+`assist_sim.__version__` is read from installed package metadata, so do **not** look for it
+in `assist_sim/__init__.py`, and note that on an editable install it does not change until you
+reinstall. The cache key folds in the newest source mtime as well as the version, so your
+local edits invalidate cached exports even before you bump.
 
 Also update the smoke regression tuples in
 `tests/test_smoke_combinations.py` if your change affects a compiled
@@ -104,11 +111,13 @@ with `pytest -v`. Then copy the actual values into the test file.
   section flat.
 - **Keep the public surface minimal.** `assist_sim/__init__.py` exports the
   committed API. Internal helpers keep an underscore prefix.
-- **In-memory surgery (`mujoco>=3.3.4`).** The removals run on the live human
+- **In-memory surgery (`mujoco>=3.4,<3.12`).** The removals run on the live human
   `MjSpec` through `spec.delete`. `spec.delete` cascades to subtrees and to the
   elements that reference them. The pipeline removes contact `<pair>` elements
-  manually. The pipeline keeps the human model in memory and does not serialize
-  it to XML, because torso-composed models do not round-trip through `to_xml`.
+  manually. The pipeline keeps the human model in memory and does not serialize it
+  mid-flow, because torso-composed models do not round-trip through a bare `to_xml`.
+  Exporting is different: `utils.export_combined_xml` applies the default hoist/name fixups
+  that make those models reload, and all four MSK keys round-trip through it.
 - **Re-anchor before you remove.** `tendon_modifications` runs before every
   removal. Move a muscle that the surgery keeps onto the residual bone while its
   wrap sites still exist. After the removals run, the cascade already removed

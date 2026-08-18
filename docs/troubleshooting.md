@@ -15,21 +15,25 @@ which is not installed. Install it with `pip install myo_sim` ...
 ```
 
 `myo_sim` composes the musculoskeletal (MSK) models. `assist_sim` gets them
-through `myo_sim.build_spec(...)`. Install `myo_sim`:
+through `myo_sim.load_spec(...)`. Install `myo_sim`:
 
 ```bash
-pip install myo_sim   # once on PyPI
-# or, interim:
-pip install git+https://github.com/MyoHub/myo_sim.git@dev
+pip install "myo-sim>=0.2.1"
 ```
 
-### `ImportError: MSK model '...' requires ... mujoco>=3.3.4`
+It is a declared dependency of `assist_sim`, so this normally only happens in an
+environment where it was removed or shadowed.
 
-The pipeline does the model surgery in memory with `MjSpec.delete`. MuJoCo
-3.3.4 is the first version that has `MjSpec.delete`. Your environment has an
-older MuJoCo version. `assist_sim` pins `mujoco>=3.3.4`, but a shared
-environment can pin an older version. To upgrade, run
-`pip install "mujoco>=3.3.4"`.
+### `ImportError: MSK model '...' requires ... mujoco>=3.4`
+
+The pipeline does the model surgery in memory with `MjSpec.delete`. `assist_sim`
+declares `mujoco>=3.4,<3.12`, but a shared environment can hold an older version.
+To upgrade, run `pip install "mujoco>=3.4,<3.12"`.
+
+If instead you hit a `TypeError` or an `AttributeError` from inside MuJoCo, you are
+probably *above* the ceiling. MuJoCo keeps widening scalar `MjSpec` fields and moving
+`MjData` arrays; 3.4 through 3.11 are verified, and anything newer needs the
+`mujoco-range` CI job to pass before the ceiling moves.
 
 ### `ValueError: MSK model '...' is not available yet`
 
@@ -224,8 +228,8 @@ again.
 
 The expected `(nq, nu, nbody, nmesh)` tuples are frozen. If your change to the
 pipeline affects the compiled output, update the EXPECTED dict in the test file
-with the new numbers. Then increase `assist_sim.__version__` to invalidate the
-caches.
+with the new numbers. You do not need to touch a version to invalidate caches: the key
+folds in the newest source mtime, so your edit already did it.
 
 ## Pipeline internals
 

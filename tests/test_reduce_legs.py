@@ -1,6 +1,6 @@
 """Smoke test for the myolegs26 -> myolegs22 planar reduction.
 
-Builds ``myolegs22`` through the registry (``build_spec("myolegs26")`` ->
+Builds ``myolegs22`` through the registry (``load_spec("myolegs26")`` ->
 :func:`assist_sim.reduce_legs.reduce_myolegs26_to_22` -> scene strip) and pins
 the reduced model against the reference ``myoLeg22_2D_myolegs26_rigid`` shape:
 the compiled signature, the exact joint / actuator name lists, and that all five

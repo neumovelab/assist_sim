@@ -33,6 +33,7 @@ model, data = load_combined(
     device_key: str,                     # e.g. "DephyExoBoot_L1"
     export_xml: Optional[str] = None,    # if set, also writes the combined XML
     cache_dir: str | Path | None = None,
+    planar_root: bool = False,           # CO-only; see below
 ) -> tuple[mj.MjModel, mj.MjData]
 ```
 
@@ -41,6 +42,28 @@ musculoskeletal (MSK) model on demand, and local autodiscovery finds the device
 config. The function then runs the combination pipeline on the live spec. It
 passes `msk_key` automatically, so that the resolver can apply the per-MSK
 overrides. Use this entry point when `myo_sim` is installed.
+
+#### `planar_root`: re-frame a 3D-lineage MSK for the reflex controller
+
+`myolegs22` roots the skeleton on three *named* planar joints (`pelvis_tx`, `pelvis_ty`,
+`pelvis_tilt`) and mounts the pelvis in one frame. `myolegs26` and `myolegs` instead float on a
+`freejoint` and mount the pelvis yawed 90 degrees about vertical. Joint-angle readouts cannot
+see that difference, but anything reading the pelvis *orientation* in world can, so a
+controller calibrated against the `myolegs22` frame cannot pose, seat or sense them.
+
+`planar_root=True` rigidly yaws the whole skeleton into the `myolegs22` frame and swaps the
+`freejoint` for six named pelvis DOF joints (`tx`, `ty`, `tz`, `tilt`, `list`, `rotation`),
+making the model a structural and frame drop-in. It also adds the knee, hip and ankle
+`jointlimitfrc` sensors that the 80-muscle model omits.
+
+Use it for controller optimization. Leave it `False` for reinforcement learning, which wants
+the floating base. It is a no-op on `myolegs22`, which already has a named planar root, and on
+any model that is not a leg model.
+
+It changes what keyframe overrides can do. On the default freejoint build there is no
+`pelvis_ty` joint, so a device height override is skipped and the walk poses' forward
+`pelvis_tx` velocity has nowhere to land; height is re-seated downstream instead. With
+`planar_root=True` those joints exist, so both apply.
 
 ### `load_msk`: the baseline MSK model, with no device
 
@@ -131,7 +154,7 @@ python -m assist_sim combine myolegs26 DephyExoBoot_L1 -o combined.xml
 # List everything available
 python -m assist_sim list
 
-# Combine and cache (faster on subsequent runs)
+# Combine and cache (2-8x faster on a hit for the leg models; not for myofullbody)
 python -m assist_sim combine myolegs OpenSourceLeg_KA_L1 --cache-dir ./.cache
 ```
 
@@ -186,9 +209,12 @@ are no device files.
 **There is no global cache.** The package does not write to `~/.cache/...`. To
 clear the cache, use `rm -r <cache_dir>`.
 
-**A new pipeline version makes all entries invalid.** The version constant is
-`assist_sim.__version__`. Increase it in `assist_sim/__init__.py` when a change
-in pipeline behavior changes the compiled output.
+**A pipeline change makes all entries invalid.** The key folds in a per-package token that
+is the release version **plus** the newest source mtime, for both `assist_sim` and
+`myo_sim`. So an edit to either package invalidates immediately, without a version bump --
+which matters because `assist_sim.__version__` comes from installed package metadata and
+does not move on an editable install until you reinstall. When you do cut a release, bump
+`version` in `pyproject.toml`; it is not defined in `assist_sim/__init__.py`.
 
 ## Per-MSK overrides
 

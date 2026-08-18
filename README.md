@@ -133,12 +133,14 @@ file that you can reload. See
 git clone https://github.com/neumovelab/assist_sim.git
 cd assist_sim
 
-# Editable install + myo_sim dependency
+# Editable install. myo-sim is a declared dependency, so this pulls it from PyPI too.
 pip install -e .
-pip install git+https://github.com/MyoHub/myo_sim.git   # interim, until on PyPI
 ```
 
-Requirements: Python ≥ 3.10, MuJoCo ≥ 3.3.4 (for in-memory `MjSpec.delete`).
+Requirements: Python 3.10 to 3.13, MuJoCo `>=3.4,<3.12`. The floor is what `myo_sim`
+requires (`MjSpec.delete`, the in-memory surgery, landed in 3.3.4). The ceiling is
+measured, not defensive: 3.4 through 3.11 are verified, and MuJoCo keeps widening scalar
+`MjSpec` fields and moving `MjData` arrays between releases.
 
 For development:
 
@@ -146,6 +148,23 @@ For development:
 pip install -r requirements-dev.txt
 pytest
 ```
+
+## Caching (use it if you are training)
+
+Model building is opt-in cacheable, and the difference matters downstream. Pass `cache_dir=`
+to `load_combined` / `load_msk` / `load_combined_model`, or from `myoassist` set one variable:
+
+```bash
+export MYOASSIST_CACHE_DIR=~/.cache/myoassist
+```
+
+`myoassist` composes a model per CMA-ES candidate and per `SubprocVecEnv` worker, so a
+controller-optimization run composes tens of thousands of them. Uncached, the composed pipeline
+costs 13-15x more per environment than the static model files MyoAssist 0.1 shipped; cached, it
+is back to parity. A hit is 2-8x faster for the three leg models — but *slower* for
+`myofullbody`, whose 0.6 MB export costs more to parse than to compose, so leave that one
+uncached. Numbers and invalidation rules:
+[docs/how-to/export-and-load.md](docs/how-to/export-and-load.md).
 
 ## Documentation
 

@@ -94,7 +94,9 @@ python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 
-# Lint/format config -- mirrors myo_sim so tooling is consistent across both repos.
+# Lint/format config.  Close to myo_sim's so tooling is consistent across the repos, but
+# not identical: myo_sim also enables "I" (isort) with a known-first-party setting, which
+# this package does not, so import order is unenforced here.
 [tool.ruff]
 line-length = 128
 extend-exclude = [".claude", "external"]
