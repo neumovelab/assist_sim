@@ -1,8 +1,14 @@
-# Runtime dependencies. Mirrors pyproject.toml [project.dependencies].
-# Pinned for reproducibility; pyproject.toml declares the project's
-# install_requires range.
-
-# >=3.4 to match myo_sim and the verified stack (MjSpec.delete itself needs 3.3.4)
+# Reproducible dev/CI pin of the third-party runtime dependencies. This is NOT a
+# mirror of pyproject.toml [project.dependencies]: pyproject declares the supported
+# *range*, this file pins one point inside it so local runs and CI agree. The sibling
+# `myo-sim` is deliberately absent -- `pip install -e .` already brings it in, and
+# duplicating it here would let the two files drift.
+#
+# Installing this file AFTER `pip install -e .` downgrades mujoco to the pin below.
+# That is intended for the reproducible lanes, but it also means these lanes never
+# exercise the top of the declared range -- which is how an unbounded `mujoco>=3.4`
+# once shipped in a wheel that could not combine a device on any mujoco past 3.6.
+# The `mujoco-range` job in .github/workflows/test.yml covers both ends; keep it.
 mujoco==3.4.0
 PyYAML>=6.0.2
 numpy>=1.24

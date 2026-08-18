@@ -34,8 +34,6 @@ from .errors import closest_matches
 if TYPE_CHECKING:
     import mujoco
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
-
 # Device configs + meshes ship inside the package (so they're available after
 # a wheel install, not just editable installs).  Resolve via importlib.resources
 # so this works identically in editable, wheel, and zipped distributions.
@@ -56,10 +54,10 @@ class _MskSource(NamedTuple):
 
     ``myo_sim_model`` is the ``myo_sim.load_spec`` name, or ``None`` when no
     source exists yet (planned work).  ``min_mujoco`` is the lowest MuJoCo
-    version that can *build* it -- the passive-torso models need ``MjSpec.delete``
-    (3.3.4+).  ``note`` explains a gated/planned state in the error the caller sees.
-    ``reduce_to_22`` marks a key whose composed spec is post-processed by the
-    26->22 planar reduction before the scene strip (only ``myolegs22`` today).
+    version that can *build* it.  ``note`` explains a gated/planned state in the
+    error the caller sees.  ``reduce_to_22`` marks a key whose composed spec is
+    post-processed by the 26->22 planar reduction before the scene strip (only
+    ``myolegs22`` today).
     """
 
     myo_sim_model: Optional[str]
@@ -68,21 +66,23 @@ class _MskSource(NamedTuple):
     reduce_to_22: bool = False
 
 
+# The MuJoCo floor every current key needs: MjSpec.delete for the in-memory surgery.
+# It equals the package floor (``mujoco>=3.4`` in pyproject.toml), so the version gate
+# in _resolve_msk / _msk_available cannot trip on a resolvable install.  The mechanism
+# is kept deliberately, for a future MSK that needs a *newer* MuJoCo than the package
+# floor -- gating one key is then better than raising the floor for everyone.  (The
+# earlier per-key 3.3.3 / 3.3.4 values predated the 3.4 floor and were unreachable:
+# MjSpec.delete landed in 3.3.4, but nothing can install with a MuJoCo that old.)
+_MIN_MUJOCO: Tuple[int, int, int] = (3, 4, 0)
+_MIN_MUJOCO_NOTE = "the in-memory surgery uses MjSpec.delete, which needs mujoco>=3.4"
+
 # Curated, not autodiscovered.  Keys are assist_sim-facing aliases; values bind
 # them to the myo_sim composed models that back them.
 _COMPATIBLE_MSK_KEYS: Dict[str, _MskSource] = {
-    "myolegs22": _MskSource("myolegs26", (3, 3, 3), "", reduce_to_22=True),
-    "myolegs26": _MskSource("myolegs26", (3, 3, 3), ""),
-    "myolegs": _MskSource(
-        "myolegs",
-        (3, 3, 4),
-        "the 80-muscle model's passive-torso conversion uses MjSpec.delete, which needs mujoco>=3.3.4",
-    ),
-    "myofullbody": _MskSource(
-        "myofullbody",
-        (3, 3, 4),
-        "the full-body model's scene strip uses MjSpec.delete, which needs mujoco>=3.3.4",
-    ),
+    "myolegs22": _MskSource("myolegs26", _MIN_MUJOCO, _MIN_MUJOCO_NOTE, reduce_to_22=True),
+    "myolegs26": _MskSource("myolegs26", _MIN_MUJOCO, _MIN_MUJOCO_NOTE),
+    "myolegs": _MskSource("myolegs", _MIN_MUJOCO, _MIN_MUJOCO_NOTE),
+    "myofullbody": _MskSource("myofullbody", _MIN_MUJOCO, _MIN_MUJOCO_NOTE),
 }
 
 _HAS_MYO_SIM = importlib.util.find_spec("myo_sim") is not None
@@ -167,7 +167,29 @@ def _msk_available(key: str) -> bool:
         import myo_sim
     except ImportError:
         return False
-    return src.myo_sim_model in getattr(myo_sim, "_COMPOSED_MODELS", frozenset())
+    return src.myo_sim_model in _composed_models(myo_sim)
+
+
+def _composed_models(myo_sim) -> frozenset:
+    """The model names myo_sim can compose, read from its ``_COMPOSED_MODELS`` attribute.
+
+    That attribute is *private* to myo_sim, so it is a cross-repo contract that an
+    upstream rename can break.  Reading it through ``getattr(..., frozenset())`` made the
+    break invisible: every key looked unavailable, :func:`get_available_combinations`
+    returned ``{}``, and both the CLI and myoassist then reported "no combinations
+    buildable -- is myo_sim installed?" while myo_sim was installed and working fine.
+
+    Raise instead.  A missing attribute means an incompatible myo_sim, which is a
+    different thing from an empty registry, and assist_sim errors rather than degrading.
+    """
+    models = getattr(myo_sim, "_COMPOSED_MODELS", None)
+    if models is None:
+        raise ImportError(
+            f"The installed myo_sim ({getattr(myo_sim, '__version__', 'unknown')}) does not expose "
+            "'_COMPOSED_MODELS', which assist_sim reads to discover the composable MSK models. "
+            "The myo_sim interface has changed; install a compatible myo-sim (>=0.2.1)."
+        )
+    return frozenset(models)
 
 
 # ----------------------------------------------------------------------
@@ -180,6 +202,14 @@ DEVICE_CONFIGS: Dict[str, Path] = {}
 _DEVICE_NAMES: Dict[str, str] = {}
 _DEVICE_ALIASES: Dict[str, str] = {}
 _COMPATIBLE_MSK: Dict[str, Optional[List[str]]] = {}
+
+# device key -> the parse error its config raised during discovery.  Discovery runs at
+# import time and must not crash (a broken config would otherwise make `import
+# assist_sim` -- and so the CLI you would use to diagnose it -- fail).  So the error is
+# recorded here and raised when someone actually resolves that device, instead of being
+# swallowed: a malformed config used to register silently with compatible_msk=None, which
+# reads as "compatible with every MSK".
+_DEVICE_ERRORS: Dict[str, Exception] = {}
 
 
 def _device_key(config_path: Path) -> str:
@@ -199,6 +229,7 @@ def _scan_devices(models_root: Path) -> None:
     _DEVICE_NAMES.clear()
     _DEVICE_ALIASES.clear()
     _COMPATIBLE_MSK.clear()
+    _DEVICE_ERRORS.clear()
 
     if not models_root.exists():
         return
@@ -212,12 +243,26 @@ def _scan_devices(models_root: Path) -> None:
                 device = raw.get("device", {})
                 name = device.get("name")
                 compat = device.get("compatible_msk")
-            except Exception:  # noqa: BLE001 - discovery must not crash
+            except Exception as exc:  # noqa: BLE001 - discovery must not crash; see _DEVICE_ERRORS
+                _DEVICE_ERRORS[key] = exc
                 name, compat = None, None
             _COMPATIBLE_MSK[key] = compat
             if name:
                 _DEVICE_NAMES[key] = name
-                if name not in DEVICE_CONFIGS:
+                # ``device.name`` doubles as an alias and as the namespace prefix the combined
+                # model uses, so two devices sharing one is not a cosmetic clash: the second
+                # would silently lose its alias here, and both would prefix their elements
+                # identically.  Record it as a discovery error rather than dropping it, so
+                # resolving either device says so instead of one quietly winning.
+                clash = _DEVICE_ALIASES.get(name)
+                if clash is not None and clash != key:
+                    err = ValueError(
+                        f"devices '{clash}' and '{key}' both declare device.name '{name}', which is "
+                        f"also the namespace prefix for their elements. Give each a unique name."
+                    )
+                    _DEVICE_ERRORS.setdefault(clash, err)
+                    _DEVICE_ERRORS.setdefault(key, err)
+                elif name not in DEVICE_CONFIGS:
                     _DEVICE_ALIASES[name] = key
 
 
@@ -236,10 +281,19 @@ def refresh() -> None:
 
 
 def _resolve_device_key(device_key: str) -> str:
+    key = None
     if device_key in DEVICE_CONFIGS:
-        return device_key
-    if device_key in _DEVICE_ALIASES:
-        return _DEVICE_ALIASES[device_key]
+        key = device_key
+    elif device_key in _DEVICE_ALIASES:
+        key = _DEVICE_ALIASES[device_key]
+    if key is not None:
+        # Surface a config that failed to parse during discovery, at the point of use.
+        exc = _DEVICE_ERRORS.get(key)
+        if exc is not None:
+            raise ValueError(
+                f"Device '{key}' has an unreadable config at {DEVICE_CONFIGS[key]}: {type(exc).__name__}: {exc}"
+            ) from exc
+        return key
     candidates = list(DEVICE_CONFIGS) + list(_DEVICE_ALIASES)
     suggestions = closest_matches(device_key, candidates)
     hint = f" Did you mean {', '.join(repr(s) for s in suggestions)}?" if suggestions else ""
@@ -247,8 +301,42 @@ def _resolve_device_key(device_key: str) -> str:
 
 
 def _compatible(device_key: str, msk_key: str) -> bool:
+    """Whether *device_key* declares compatibility with *msk_key*.
+
+    ``compatible_msk`` absent (``None``) means "every MSK".  A bare string is rejected
+    rather than treated as a sequence: ``msk_key in "myolegs26"`` is a substring test, so
+    ``compatible_msk: myolegs26`` would also match ``myolegs``.
+    """
     compat = _COMPATIBLE_MSK.get(device_key)
-    return compat is None or msk_key in compat
+    if compat is None:
+        return True
+    if isinstance(compat, str):
+        raise ValueError(
+            f"Device '{device_key}' declares 'compatible_msk: {compat}' as a bare string; it must be a "
+            f"list, e.g. [{compat}]. A string would be matched by substring, so 'myolegs' would "
+            f"wrongly match 'myolegs26'."
+        )
+    return msk_key in compat
+
+
+def resolve_device_config(msk_key: str, device_key: str) -> Path:
+    """Validate ``(msk_key, device_key)`` and return the device config path.
+
+    The cheap half of :func:`resolve`: it checks that both keys are known, that the device's
+    config parsed during discovery, and that the pair is compatible -- **without** composing
+    the MSK.  The caching path in :mod:`assist_sim.loading` needs exactly this, so that a
+    cache hit does not pay for a compose it is about to throw away.
+    """
+    if msk_key not in _COMPATIBLE_MSK_KEYS:
+        suggestions = closest_matches(msk_key, _COMPATIBLE_MSK_KEYS)
+        hint = f" Did you mean {', '.join(repr(s) for s in suggestions)}?" if suggestions else ""
+        raise ValueError(f"Unknown MSK model '{msk_key}'. Available: {sorted(_COMPATIBLE_MSK_KEYS)}.{hint}")
+    key = _resolve_device_key(device_key)
+    if not _compatible(key, msk_key):
+        raise ValueError(
+            f"Device '{device_key}' is not compatible with MSK '{msk_key}'. Compatible MSKs: {_COMPATIBLE_MSK.get(key)}"
+        )
+    return DEVICE_CONFIGS[key]
 
 
 def resolve(msk_key: str, device_key: str) -> Tuple["mujoco.MjSpec", Path]:
@@ -264,13 +352,8 @@ def resolve(msk_key: str, device_key: str) -> Tuple["mujoco.MjSpec", Path]:
         ImportError: if the MSK requires myo_sim but it isn't installed, the
             installed MuJoCo is too old, or the build fails.
     """
-    key = _resolve_device_key(device_key)
-    if not _compatible(key, msk_key):
-        raise ValueError(
-            f"Device '{device_key}' is not compatible with MSK '{msk_key}'. Compatible MSKs: {_COMPATIBLE_MSK.get(key)}"
-        )
-    human_spec = _resolve_msk(msk_key)
-    return human_spec, DEVICE_CONFIGS[key]
+    config_path = resolve_device_config(msk_key, device_key)
+    return _resolve_msk(msk_key), config_path
 
 
 def get_available_combinations() -> Dict[str, List[str]]:
@@ -280,13 +363,18 @@ def get_available_combinations() -> Dict[str, List[str]]:
     installed, MuJoCo new enough, model known to myo_sim).  Gated/planned MSKs
     are silently omitted; call :func:`resolve` directly to surface the
     underlying error.  Uses a cheap availability check -- never composes a model.
+
+    Devices whose config failed to parse are omitted too, rather than listed as though
+    they worked; :func:`resolve` raises for those with the parse error (see
+    :data:`_DEVICE_ERRORS`).  An incompatible *myo_sim* is not degraded to an empty
+    result -- :func:`_composed_models` raises for that.
     """
     result: Dict[str, List[str]] = {}
+    usable = [dk for dk in sorted(DEVICE_CONFIGS) if dk not in _DEVICE_ERRORS]
     for msk_key in sorted(_COMPATIBLE_MSK_KEYS):
         if not _msk_available(msk_key):
             continue
-        devices = [dk for dk in sorted(DEVICE_CONFIGS) if _compatible(dk, msk_key)]
-        result[msk_key] = devices
+        result[msk_key] = [dk for dk in usable if _compatible(dk, msk_key)]
     return result
 
 

@@ -39,6 +39,7 @@ from typing import Dict, List, Optional, Tuple
 
 import mujoco as mj
 
+from .canonical_keyframes import KNEE_JOINTS, LEG_SENTINEL_JOINT, canonical_leg_keyframes
 from .config import _SENSOR_TYPES, ActuatorDef, DeviceConfig, EqualityConstraint
 from .errors import unknown_reference
 from .preprocess import KeyframeData, prepare_device_xml
@@ -158,6 +159,7 @@ class ModelCombiner:
         export_xml: Optional[str] = None,
         msk_key: Optional[str] = None,
         keep_temp: bool = False,
+        planar_root: bool = False,
     ) -> Tuple[mj.MjModel, mj.MjData]:
         """Combine a human musculoskeletal ``MjSpec`` with a device.
 
@@ -169,6 +171,10 @@ class ModelCombiner:
             export_xml: If provided, save the combined model XML to this path.
             msk_key: Optional MSK key for per-MSK config overrides.
             keep_temp: If True, leave the device temp files on disk (debug aid).
+            planar_root: CO-only. Re-orient a freejoint 3D-lineage leg MSK to the
+                ``myolegs22`` frame and swap the freejoint for the named pelvis
+                DOF joints (see :mod:`assist_sim.root_frame`). No-op on the planar
+                ``myolegs22``. Leave False for RL (keeps the floating freejoint).
 
         Returns:
             Tuple of (MjModel, MjData) ready for simulation.
@@ -185,6 +191,18 @@ class ModelCombiner:
         for key in human_spec.keys:
             key.qpos = []
             key.qvel = []
+
+        # CO-only frame reconciliation: align a freejoint 3D-lineage leg MSK to
+        # the myolegs22 frame + named planar root (a rigid yaw about vertical plus
+        # a freejoint -> named-DOF swap) so the reflex controller -- calibrated to
+        # the 2D frame -- can drive it.  No-op on the planar myolegs22; RL never
+        # sets this, so its floating-base models are unchanged.  Runs before the
+        # surgery/attachments (all name-based, frame-independent) and before the
+        # keyframe rebuild (which then restores pelvis_ty/pelvis_tilt by name).
+        if planar_root:
+            from .root_frame import to_planar_root
+
+            to_planar_root(human_spec)
 
         # Re-anchor before surgery: a muscle the amputation preserves has to be
         # moved onto the residual bone while its wrap sites still exist.
@@ -384,12 +402,22 @@ class ModelCombiner:
         """Split each keyframe's qpos/qvel into per-joint slices, keyed by joint
         name, so authored values survive surgery that changes the qpos layout.
 
-        Compiles the spec once (pre-surgery) to read the keyframe arrays and the
-        joint layout; returns ``{keyframe_name: KeyframeData}``.
+        Compiles a *copy* (pre-surgery) to read the keyframe arrays and the joint layout;
+        returns ``{keyframe_name: KeyframeData}``.
+
+        The copy matters.  Compiling the working spec and then editing it corrupts
+        subsequent add/delete pairs -- measured on mujoco 3.4 and 3.11: after a compile, the
+        sequence "add three joints, then delete four others" loses one of the added joints
+        and leaves one of the delete targets in place, because a delete resolves to the
+        wrong element.  ``reduce_legs`` documents the same hazard and probes a copy for
+        exactly this reason.  No shipped combination trips it today (the add-then-delete the
+        pipeline performs after this point, in ``_reanchor_element``, moves sites and geoms
+        rather than joints), but it is one config away from mattering, so do not compile the
+        live spec here.
         """
         if not human_spec.keys:
             return {}
-        model = human_spec.compile()
+        model = human_spec.copy().compile()
         result: Dict[str, KeyframeData] = {}
         for key in human_spec.keys:
             kid = mj.mj_name2id(model, mj.mjtObj.mjOBJ_KEY, key.name)
@@ -767,16 +795,20 @@ class ModelCombiner:
 
         tendon_root = root.find("tendon")
         if tendon_root is not None:
-            for spatial in tendon_root.findall("spatial"):
-                src_name = spatial.get("name", "")
+            for elem in tendon_root:
+                if elem.tag not in ("spatial", "fixed"):
+                    raise ValueError(
+                        f"{Path(device_xml_path).name}: unsupported <tendon> child <{elem.tag}>; expected 'spatial' or 'fixed'."
+                    )
+                src_name = elem.get("name", "")
                 if not src_name:
-                    continue
-                new_name = prefix + src_name
-                tendon = human_spec.add_tendon(name=new_name)
-                _apply_tendon_attrs(tendon, spatial)
-                for child in spatial:
-                    if child.tag == "site":
-                        tendon.wrap_site(prefix + child.get("site", ""))
+                    raise ValueError(
+                        f"{Path(device_xml_path).name}: a <{elem.tag}> tendon has no 'name', so nothing "
+                        f"can reference it once prefixed. Name every device tendon."
+                    )
+                tendon = human_spec.add_tendon(name=prefix + src_name)
+                _apply_tendon_attrs(tendon, elem, spatial=elem.tag == "spatial")
+                _import_tendon_wraps(tendon, elem, prefix, Path(device_xml_path).name)
 
         actuator_root = root.find("actuator")
         if actuator_root is not None:
@@ -839,9 +871,50 @@ class ModelCombiner:
                 return
 
         if not parsed_keyframes:
-            return
+            # The base MSK shipped no keyframes (e.g. the 3D-lineage myolegs26 or
+            # the 80-muscle myolegs).  Fall back to the canonical leg keyframes so
+            # the standard poses exist.  They are applied by joint name, so a
+            # freejoint-root model just takes the shared hinge angles and keeps its
+            # root / frontal DOFs at qpos0 (height re-seated downstream).  Only
+            # inject on a leg model, never on a non-leg MSK.
+            if mj.mj_name2id(model, mj.mjtObj.mjOBJ_JOINT, LEG_SENTINEL_JOINT) < 0:
+                return
+            # The 80-muscle gait2392 knee flexes positive (range ``[0, +pi]``) while
+            # the myoLeg knee flexes negative; the shared canonical angles are
+            # authored myoLeg-negative, so flip them for a positive-convention knee
+            # (else a walk pose lands below the knee's range and a squat folds over).
+            #
+            # Probe every knee, not just the right one: a transfemoral amputation
+            # deletes the operated side's knee, so reading only ``knee_angle_r`` on an
+            # amputee config finds it absent, skips the flip, and hyperextends the
+            # *intact* left knee on the 80-muscle lineage.  The first surviving knee
+            # decides -- both sides share one convention within a model.
+            knee_positive = False
+            for knee in KNEE_JOINTS:
+                knee_jid = mj.mj_name2id(model, mj.mjtObj.mjOBJ_JOINT, knee)
+                if knee_jid >= 0 and model.jnt_limited[knee_jid]:
+                    knee_positive = bool(model.jnt_range[knee_jid][1] > abs(model.jnt_range[knee_jid][0]))
+                    break
+            parsed_keyframes = canonical_leg_keyframes(knee_sign=-1.0 if knee_positive else 1.0)
 
         overrides = config.resolve_keyframe_overrides(msk_key)
+
+        # A keyframe *name* that does not exist is unambiguously a typo: the pose names
+        # come from the base MSK or the canonical set, and are the same across every leg
+        # lineage.  Raise, so `stannd:` cannot sit in a config doing nothing.
+        #
+        # The joint names *inside* an override stay lenient on purpose -- lineages differ
+        # (a freejoint-rooted MSK has no pelvis_ty), so a skipped joint is expected rather
+        # than wrong.  That leniency is what hides a misspelled joint, so the static
+        # checker in `validate.py` is where a joint typo should be caught.
+        unknown_kf = sorted(set(overrides) - set(parsed_keyframes))
+        if unknown_kf:
+            raise unknown_reference(
+                unknown_kf[0],
+                sorted(parsed_keyframes),
+                section="keyframe_overrides",
+                kind="keyframe",
+            )
 
         for kf_name, kf_data in parsed_keyframes.items():
             qpos = list(model.qpos0)
@@ -929,20 +1002,56 @@ def _bool(text: Optional[str]) -> Optional[bool]:
     return text.lower() in ("true", "1")
 
 
-def _apply_tendon_attrs(tendon, spatial_elem: ET.Element) -> None:
-    """Copy supported attributes from a device-XML <spatial> onto a MjSpec tendon.
+def _import_tendon_wraps(tendon, tendon_elem: ET.Element, prefix: str, source: str) -> None:
+    """Recreate every wrap of a device-XML tendon, in document order.
+
+    Wrap order is the tendon's routing, so each child is dispatched in sequence.  All
+    four MJCF wrap kinds are supported, because ``MjsTendon`` exposes all four; an earlier
+    version copied only ``<site>`` wraps and dropped the rest in silence, which changed the
+    tendon's path and length scaling with no error -- a ``<pulley>`` divides the length
+    contribution of everything after it, and a ``<geom>`` wrap bends the path around a
+    cylinder or sphere.
+
+    Names are device-local, so each is prefixed.  An unrecognised child raises rather than
+    being skipped.
+    """
+    for child in tendon_elem:
+        if child.tag == "site":
+            tendon.wrap_site(prefix + child.get("site", ""))
+        elif child.tag == "geom":
+            # sidesite is optional in MJCF; "" means "no side site".
+            sidesite = child.get("sidesite")
+            tendon.wrap_geom(prefix + child.get("geom", ""), prefix + sidesite if sidesite else "")
+        elif child.tag == "pulley":
+            tendon.wrap_pulley(float(child.get("divisor", 1.0)))
+        elif child.tag == "joint":
+            tendon.wrap_joint(prefix + child.get("joint", ""), float(child.get("coef", 1.0)))
+        else:
+            raise ValueError(
+                f"{source}: tendon '{tendon_elem.get('name')}' has an unsupported wrap "
+                f"<{child.tag}>; expected 'site', 'geom', 'pulley' or 'joint'."
+            )
+
+
+def _apply_tendon_attrs(tendon, spatial_elem: ET.Element, spatial: bool = True) -> None:
+    """Copy supported attributes from a device-XML tendon element onto a MjSpec tendon.
 
     Only attributes that round-trip cleanly via MjSpec properties are set.
     Unknown attributes are ignored (with no warning) since device authors may
     use class-driven defaults.
-    """
-    rgba = _floats(spatial_elem.get("rgba"))
-    if rgba is not None and len(rgba) == 4:
-        tendon.rgba = rgba
 
-    width = spatial_elem.get("width")
-    if width is not None:
-        tendon.width = float(width)
+    ``spatial`` selects whether the visual attributes apply.  MJCF accepts ``width`` /
+    ``rgba`` / ``material`` on ``<spatial>`` only, so setting them for a ``<fixed>`` tendon
+    would emit attributes that fail to reload on export.
+    """
+    if spatial:
+        rgba = _floats(spatial_elem.get("rgba"))
+        if rgba is not None and len(rgba) == 4:
+            tendon.rgba = rgba
+
+        width = spatial_elem.get("width")
+        if width is not None:
+            tendon.width = float(width)
 
     limited = _bool(spatial_elem.get("limited"))
     if limited is not None:
@@ -965,18 +1074,39 @@ def _apply_tendon_attrs(tendon, spatial_elem: ET.Element) -> None:
 
     for attr in ("stiffness", "damping", "frictionloss", "margin"):
         v = spatial_elem.get(attr)
-        if v is not None:
+        if v is None:
+            continue
+        # These are scalars in MJCF, but MjsTendon widened them to fixed-width
+        # vectors in newer mujoco -- ``stiffness`` became a 3-vector in 3.7, which
+        # made every device with an authored tendon stiffness fail to combine.
+        # Assign the scalar, and on the type error write it into index 0 of the
+        # existing vector (the linear term), leaving the rest at their defaults.
+        # Mirrors the guard _apply_joint_overrides applies to joint damping.
+        try:
             setattr(tendon, attr, float(v))
+        except (TypeError, ValueError):
+            widened = list(getattr(tendon, attr))
+            widened[0] = float(v)
+            setattr(tendon, attr, widened)
 
-    material = spatial_elem.get("material")
-    if material:
-        tendon.material = material
+    if spatial:
+        material = spatial_elem.get("material")
+        if material:
+            tendon.material = material
 
 
 def _xml_actuator_kwargs(act_elem: ET.Element, prefix: str) -> dict:
     """Convert a device-XML <actuator>/<general|motor|...> with tendon target
     into ``MjSpec.add_actuator`` kwargs (prefixed name + tendon)."""
-    kwargs: dict = {"name": prefix + act_elem.get("name", "")}
+    name = act_elem.get("name")
+    if not name:
+        # Without this, the actuator is named exactly the device prefix (e.g. "STRIDE_L2_"),
+        # which no config or controller can address, and a second unnamed one collides.
+        raise ValueError(
+            f"a device tendon actuator (<{act_elem.tag} tendon='{act_elem.get('tendon')}'>) has no "
+            f"'name'. Name it, so the combined model exposes a usable ctrl index."
+        )
+    kwargs: dict = {"name": prefix + name}
     kwargs["trntype"] = mj.mjtTrn.mjTRN_TENDON
     kwargs["target"] = prefix + act_elem.get("tendon", "")
 
@@ -1037,19 +1167,27 @@ def _build_actuator_kwargs(
 ) -> dict:
     """Convert an ActuatorDef into kwargs for MjSpec.add_actuator().
 
-    If spec and prefix are given, resolves the joint target: use bare name
-    if it exists in the spec, otherwise try prefix + joint (for device joints).
+    When *spec* is given, the joint target is resolved bare-first then device-prefixed --
+    the same rule every other section uses -- and an unresolvable name raises with a
+    "did you mean" list.  Previously it fell through with the bare name and the failure
+    surfaced later as a raw MuJoCo compile error naming neither the section nor the
+    actuator, the one section that did not validate its own reference.
     """
     kwargs: dict = {"name": act_def.name}
 
     target = act_def.joint
-    if spec is not None and prefix:
-        if spec.joint(target) is not None:
-            pass
+    if spec is not None and spec.joint(target) is None:
+        prefixed = prefix + target
+        if prefix and spec.joint(prefixed) is not None:
+            target = prefixed
         else:
-            prefixed = prefix + target
-            if spec.joint(prefixed) is not None:
-                target = prefixed
+            available = [j.name for j in spec.joints if j.name]
+            raise unknown_reference(
+                act_def.joint,
+                available,
+                section=f"actuators[{act_def.name}].joint",
+                kind="joint",
+            )
 
     kwargs["trntype"] = mj.mjtTrn.mjTRN_JOINT
     kwargs["target"] = target

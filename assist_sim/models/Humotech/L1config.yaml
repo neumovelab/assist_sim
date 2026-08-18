@@ -95,27 +95,37 @@ sensors:
   - {name: "l_foot", type: touch, site: "l_sole_touch"}
   - {name: "l_toes", type: touch, site: "l_forefoot_touch"}
 
+# See the note in Tutorial/L1config.yaml: the myoLeg knee flexes negative, the 80-muscle
+# and full-body knees flex positive, so the authored lunge knee needs its sign per lineage.
+# Per-MSK blocks merge onto `default`.
 keyframe_overrides:
-  stand:
-    pelvis_ty: 0.96075
-    mtp_angle_r: 0.2
-    mtp_angle_l: 0.2
-  walk_left:
-    pelvis_ty: 0.9335
-    mtp_angle_r: 0.2
-    mtp_angle_l: 0.2
-  walk_right:
-    pelvis_ty: 0.9335
-    mtp_angle_r: 0.2
-    mtp_angle_l: 0.2
-  squat:
-    pelvis_ty: 0.78
-    mtp_angle_r: 0.325
-    mtp_angle_l: 0.325
-  lunge:
-    pelvis_ty: 0.725
-    pelvis_tilt: -0.55
-    mtp_angle_r: 0.4
-    knee_angle_l: -1.09
-    ankle_angle_l: 0.045
-    mtp_angle_l: 0.26
+  default:
+    stand:
+      pelvis_ty: 0.96075
+      mtp_angle_r: 0.2
+      mtp_angle_l: 0.2
+    walk_left:
+      pelvis_ty: 0.9335
+      mtp_angle_r: 0.2
+      mtp_angle_l: 0.2
+    walk_right:
+      pelvis_ty: 0.9335
+      mtp_angle_r: 0.2
+      mtp_angle_l: 0.2
+    squat:
+      pelvis_ty: 0.78
+      mtp_angle_r: 0.325
+      mtp_angle_l: 0.325
+    lunge:
+      pelvis_ty: 0.725
+      pelvis_tilt: -0.55
+      mtp_angle_r: 0.4
+      knee_angle_l: -1.09
+      ankle_angle_l: 0.045
+      mtp_angle_l: 0.26
+  myolegs:
+    lunge:
+      knee_angle_l: 1.09
+  myofullbody:
+    lunge:
+      knee_angle_l: 1.09

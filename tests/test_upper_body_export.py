@@ -33,6 +33,23 @@ from assist_sim.upper_body import (  # noqa: E402
 
 from .conftest import needs_myo_sim  # noqa: E402
 
+
+def _assert_multiccd_if_available(model) -> None:
+    """Assert the ``multiccd`` enable bit survived, where the bit still exists.
+
+    mujoco exposed multi-point convex contacts as the ``mjENBL_MULTICCD`` enable bit
+    through 3.7 and removed it in 3.8, where the behaviour is no longer opt-in.
+    ``upper_body.py`` already sets the flag conditionally (same ``getattr`` guard), so
+    mirror that here instead of hard-referencing an enum member that newer mujoco does
+    not define.  The 600-step drop in each caller is the real regression check -- that
+    the manip object rests on the pillar instead of falling through -- and it runs on
+    every version.
+    """
+    bit = getattr(mj.mjtEnableBit, "mjENBL_MULTICCD", None)
+    if bit is not None:
+        assert bool(model.opt.enableflags & int(bit))
+
+
 # (filename stem, spec builder, compiled builder) -- one per composed upper-body env.
 CASES = [
     ("wheelchair_both", lambda: build_wheelchair_spec("both"), lambda: build_wheelchair("both")),
@@ -89,7 +106,7 @@ def test_bionic_reload_holds_object(tmp_path):
     export_upper_body_xml(build_bionic_bimanual_spec(), str(out))
     m = mj.MjModel.from_xml_path(str(out))
     d = mj.MjData(m)
-    assert bool(m.opt.enableflags & mj.mjtEnableBit.mjENBL_MULTICCD)
+    _assert_multiccd_if_available(m)
     mj.mj_resetDataKeyframe(m, d, 0)
     for _ in range(600):
         mj.mj_step(m, d)
@@ -124,7 +141,7 @@ def test_bionic_bimanual_matches_baseline():
     assert not any(tok in j for j in joints for tok in leg_tokens)
     # The original enables multiccd so the box rests stably on a pillar; simulate from the
     # start keyframe and confirm the object does not fall through (regression on the flag).
-    assert bool(m.opt.enableflags & mj.mjtEnableBit.mjENBL_MULTICCD)
+    _assert_multiccd_if_available(m)
     mj.mj_resetDataKeyframe(m, d, 0)
     for _ in range(600):
         mj.mj_step(m, d)

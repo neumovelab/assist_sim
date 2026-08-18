@@ -102,7 +102,7 @@ _JOINT_RANGES: Dict[str, Tuple[float, float]] = {
     "iliopsoas_l_psoas_l-P3_z": (-0.000646401, 0.00653183),
 }
 
-# Five keyframes (name, qpos, qvel), sourced verbatim from the reference model.
+# Five keyframes (name, qpos, qvel), sourced verbatim from the reference model (MyoAssist 0.1).
 # The 39-long qpos arrays are ordered to the reduced-model joint order (which
 # this transform reproduces exactly), so they transfer by position.
 _KEYFRAMES: Tuple[Tuple[str, str, str], ...] = (
@@ -162,9 +162,15 @@ def reduce_myolegs26_to_22(spec: "mujoco.MjSpec") -> "mujoco.MjSpec":
     """
     import mujoco
 
-    # Which sites survive?  Compute from a *copy* -- compiling the working spec
-    # and then editing it corrupts subsequent add/delete (an MjSpec pointer
-    # gotcha), so the model we mutate is never compiled mid-transform.
+    # Which sites survive?  Compute from a *copy* -- compiling the working spec and then
+    # editing it corrupts subsequent add/delete, so the model we mutate is never compiled
+    # mid-transform.  This is load-bearing, not defensive: measured on mujoco 3.4 and 3.11,
+    # running this very transform on a pre-compiled spec drops ``pelvis_ty`` (one of the
+    # three planar-root joints it adds) and leaves ``hip_adduction_r`` in place (one of the
+    # four frontal-plane joints it deletes).  Both counts still come out at 39, so the
+    # result compiles and looks right while being a different model: no vertical slide, and
+    # a frontal hip DOF the planar model must not have.  ``combine._decompose_keyframes``
+    # probes a copy for the same reason.
     keep_sites = _surviving_site_names(spec.copy(), mujoco)
 
     # 1. Face +x / up +z: yaw the torso + leg root siblings, drop pelvis to ground.

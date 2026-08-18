@@ -7,13 +7,43 @@ on:
     branches: [main]
 
 jobs:
-  pytest:
-    name: pytest (Python ${{ matrix.python-version }})
+  lint:
+    # Ruff is Python-version independent, so run it once rather than per matrix leg.
+    name: lint (ruff)
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dev deps
+        # requirements-dev.txt pins ruff, so CI and local report the same findings.
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - run: ruff check .
+      - run: ruff format --check .
+
+  test:
+    # The reproducible lane: the pinned stack from requirements.txt. Full Python sweep
+    # on Linux; the ends of the range only on Windows and macOS, which is enough to
+    # catch path-separator and file-locking regressions without tripling the bill.
+    name: pytest (${{ matrix.os }}, py${{ matrix.python-version }})
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.10", "3.11", "3.12"]
+        os: [ubuntu-latest]
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+        include:
+          - { os: windows-latest, python-version: "3.10" }
+          - { os: windows-latest, python-version: "3.13" }
+          - { os: macos-latest, python-version: "3.10" }
+          - { os: macos-latest, python-version: "3.13" }
 
     steps:
       - uses: actions/checkout@v4
@@ -24,25 +54,76 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: pip
 
-      - name: Install assist_sim + dev deps
-        # myo-sim is now a published dependency, so `pip install -e .` pulls it
-        # and the @needs_myo_sim tests run as part of the suite.
+      - name: Install assist_sim + pinned dev deps
+        # myo-sim is a published dependency, so `pip install -e .` pulls it and the
+        # myo_sim-dependent tests run as part of the suite. requirements-dev.txt is
+        # installed second on purpose: it pins mujoco to the reproducible version.
         run: |
           python -m pip install --upgrade pip
           pip install -e .
           pip install -r requirements-dev.txt
 
-      - name: Lint and format check (ruff)
-        run: ruff check . && ruff format --check .
+      - name: Run tests
+        run: pytest -q --tb=short
+
+  mujoco-range:
+    # The lane the `test` job cannot be: requirements-dev.txt pins mujoco, so every
+    # reproducible leg silently downgrades whatever `pip install -e .` resolved. That
+    # means the *declared* range in pyproject.toml goes untested at the top -- which is
+    # how an unbounded `mujoco>=3.4` shipped in a wheel that could not combine a device
+    # on any mujoco past 3.6. This job installs without the pin file, so it tests what
+    # a plain `pip install assist-sim` user actually gets, at both ends of the range.
+    #
+    # If the ceiling leg fails on a newly released mujoco, that is the signal to fix the
+    # incompatibility and then raise the ceiling in pyproject.toml -- not to relax this job.
+    name: mujoco range (${{ matrix.bound }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Floor: the oldest mujoco the range allows.
+          - { bound: floor, pin: "mujoco==3.4.0" }
+          # Ceiling: whatever the range's upper bound admits today (no pin -> newest allowed).
+          - { bound: ceiling, pin: "" }
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install without the pin file
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e . pytest
+          if [ -n "${{ matrix.pin }}" ]; then pip install "${{ matrix.pin }}"; fi
+          python -c "import mujoco; print('resolved mujoco', mujoco.__version__)"
 
       - name: Run tests
         run: pytest -q --tb=short
 
-      - name: Verify package builds cleanly
-        if: matrix.python-version == '3.12'
+  package:
+    name: wheel contents
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Build wheel
         run: |
+          python -m pip install --upgrade pip
           pip install build
           python -m build --wheel
+
+      - name: Verify the wheel carries the device configs and assets
+        run: |
           python -c "
           import glob, zipfile
           whl = glob.glob('dist/assist_sim-*.whl')[0]

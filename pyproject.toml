@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "assist_sim"
-version = "0.7.0"
+version = "0.8.0"
 description = "Programmatic combination of musculoskeletal models and assistive devices for MyoAssist training"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -31,12 +31,21 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Scientific/Engineering",
 ]
 dependencies = [
     # MjSpec.delete (in-memory model surgery, no XML round-trip) needs 3.3.4, but the
     # floor is >=3.4 to match myo_sim (which requires it) and the verified stack.
-    "mujoco>=3.4",
+    #
+    # The ceiling is measured, not defensive.  MuJoCo keeps widening scalar MjSpec
+    # fields and moving MjData arrays: MjsTendon.stiffness became a 3-vector in 3.7,
+    # mjENBL_MULTICCD went away in 3.8, and MjData.ten_J turned sparse in 3.6.  3.4
+    # through 3.11 are verified green; the `mujoco-range` job in
+    # .github/workflows/test.yml tests both ends on every PR.  Raise the ceiling only
+    # after that job passes against the newer release -- an unbounded range shipped a
+    # wheel that could not combine a device on any mujoco past 3.6.
+    "mujoco>=3.4,<3.12",
     "PyYAML>=6.0.2",
     "numpy>=1.24",
     # Every MSK key resolves via myo_sim.load_spec(<model>); required at runtime.
