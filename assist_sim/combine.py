@@ -39,7 +39,7 @@ from typing import Dict, List, Optional, Tuple
 
 import mujoco as mj
 
-from .canonical_keyframes import LEG_SENTINEL_JOINT, canonical_leg_keyframes
+from .canonical_keyframes import KNEE_JOINTS, LEG_SENTINEL_JOINT, canonical_leg_keyframes
 from .config import _SENSOR_TYPES, ActuatorDef, DeviceConfig, EqualityConstraint
 from .errors import unknown_reference
 from .preprocess import KeyframeData, prepare_device_xml
@@ -402,12 +402,22 @@ class ModelCombiner:
         """Split each keyframe's qpos/qvel into per-joint slices, keyed by joint
         name, so authored values survive surgery that changes the qpos layout.
 
-        Compiles the spec once (pre-surgery) to read the keyframe arrays and the
-        joint layout; returns ``{keyframe_name: KeyframeData}``.
+        Compiles a *copy* (pre-surgery) to read the keyframe arrays and the joint layout;
+        returns ``{keyframe_name: KeyframeData}``.
+
+        The copy matters.  Compiling the working spec and then editing it corrupts
+        subsequent add/delete pairs -- measured on mujoco 3.4 and 3.11: after a compile, the
+        sequence "add three joints, then delete four others" loses one of the added joints
+        and leaves one of the delete targets in place, because a delete resolves to the
+        wrong element.  ``reduce_legs`` documents the same hazard and probes a copy for
+        exactly this reason.  No shipped combination trips it today (the add-then-delete the
+        pipeline performs after this point, in ``_reanchor_element``, moves sites and geoms
+        rather than joints), but it is one config away from mattering, so do not compile the
+        live spec here.
         """
         if not human_spec.keys:
             return {}
-        model = human_spec.compile()
+        model = human_spec.copy().compile()
         result: Dict[str, KeyframeData] = {}
         for key in human_spec.keys:
             kid = mj.mj_name2id(model, mj.mjtObj.mjOBJ_KEY, key.name)
@@ -869,15 +879,38 @@ class ModelCombiner:
             # the myoLeg knee flexes negative; the shared canonical angles are
             # authored myoLeg-negative, so flip them for a positive-convention knee
             # (else a walk pose lands below the knee's range and a squat folds over).
-            knee_jid = mj.mj_name2id(model, mj.mjtObj.mjOBJ_JOINT, "knee_angle_r")
-            knee_positive = (
-                knee_jid >= 0
-                and model.jnt_limited[knee_jid]
-                and model.jnt_range[knee_jid][1] > abs(model.jnt_range[knee_jid][0])
-            )
+            #
+            # Probe every knee, not just the right one: a transfemoral amputation
+            # deletes the operated side's knee, so reading only ``knee_angle_r`` on an
+            # amputee config finds it absent, skips the flip, and hyperextends the
+            # *intact* left knee on the 80-muscle lineage.  The first surviving knee
+            # decides -- both sides share one convention within a model.
+            knee_positive = False
+            for knee in KNEE_JOINTS:
+                knee_jid = mj.mj_name2id(model, mj.mjtObj.mjOBJ_JOINT, knee)
+                if knee_jid >= 0 and model.jnt_limited[knee_jid]:
+                    knee_positive = bool(model.jnt_range[knee_jid][1] > abs(model.jnt_range[knee_jid][0]))
+                    break
             parsed_keyframes = canonical_leg_keyframes(knee_sign=-1.0 if knee_positive else 1.0)
 
         overrides = config.resolve_keyframe_overrides(msk_key)
+
+        # A keyframe *name* that does not exist is unambiguously a typo: the pose names
+        # come from the base MSK or the canonical set, and are the same across every leg
+        # lineage.  Raise, so `stannd:` cannot sit in a config doing nothing.
+        #
+        # The joint names *inside* an override stay lenient on purpose -- lineages differ
+        # (a freejoint-rooted MSK has no pelvis_ty), so a skipped joint is expected rather
+        # than wrong.  That leniency is what hides a misspelled joint, so the static
+        # checker in `validate.py` is where a joint typo should be caught.
+        unknown_kf = sorted(set(overrides) - set(parsed_keyframes))
+        if unknown_kf:
+            raise unknown_reference(
+                unknown_kf[0],
+                sorted(parsed_keyframes),
+                section="keyframe_overrides",
+                kind="keyframe",
+            )
 
         for kf_name, kf_data in parsed_keyframes.items():
             qpos = list(model.qpos0)

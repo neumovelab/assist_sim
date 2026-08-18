@@ -113,10 +113,16 @@ LEG_SENTINEL_JOINT = "hip_flexion_r"
 def canonical_leg_keyframes(knee_sign: float = 1.0) -> Dict[str, KeyframeData]:
     """Standard leg keyframes as ``{name: KeyframeData}``.
 
-    ``knee_sign`` multiplies the knee angles: leave it ``+1`` for the myoLeg
-    (negative-flexion) knee, pass ``-1`` for a positive-flexion (gait2392) knee so
-    the shared poses do not hyperextend it.  Walking poses carry the forward
-    ``pelvis_tx`` initial velocity; static poses stay at zero.
+    ``knee_sign`` selects the host knee's flexion convention; it is a **flag, not a
+    multiplier**.  Any negative value flips the knee angles, any non-negative value leaves
+    them alone -- so pass ``+1`` for the myoLeg (negative-flexion) knee and ``-1`` for a
+    positive-flexion (gait2392) knee, and do not expect an intermediate value to scale
+    anything.  Without the flip, the shared poses hyperextend a positive-flexion knee.
+
+    Walking poses carry the forward ``pelvis_tx`` initial velocity; static poses stay at
+    zero.  Note ``pelvis_tx`` only exists on a planar-root model, so on a freejoint-rooted
+    MSK (the default RL build) that velocity has nowhere to land and the walk poses start
+    from rest; it applies under ``planar_root=True``, the CO build.
     """
 
     def _qpos(joints: Dict[str, float]) -> Dict[str, list]:
