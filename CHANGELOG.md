@@ -7,7 +7,221 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Per-MSK `keyframe_overrides` now merge onto `default` instead of replacing it.** Every
+  other per-MSK section replaces; this one is already a patch rather than a definition, and a
+  lineage typically needs one joint of one pose changed. Under replace semantics, correcting
+  the lunge knee for the positive-flexion models meant restating all five poses per MSK —
+  roughly sixty duplicated values across the shipped devices, every one free to drift from
+  its default. A block can now add or change a joint but not drop one; nothing needs that.
+
+### Fixed
+
+- **Two device-data conflicts where a config contradicted the poses it ships with.** Both
+  were caught by a joint-limit sweep over every MSK x device keyframe and both were invisible
+  at compile time: MuJoCo accepts a keyframe outside a joint limit without complaint. 20
+  violations, now zero.
+  - `DephyExoBoot_L1` restricts `mtp_angle_{r,l}` to `[-0.0145, 0.2]` — correct, the boot's
+    toe box is rigid — but shipped no pose overrides, so three of its five poses asked the
+    right toe for more travel than the boot allows (`walk_right` -0.0737, `squat` and `lunge`
+    +0.349), on all four MSKs. The poses are now clamped to the boot's range, which is what
+    `Humotech_L1` and `STRIDE_L2` already do for their shoes: both restrict mtp to
+    `[0.2, 0.5]` *and* override all five poses. No pipeline guard was added — widening the
+    device range would misrepresent the hardware, and the missing half was config, not code.
+  - `Tutorial_L1`, `OpenExo_L1` (`knee_angle_l: -1.25`), `Humotech_L1` and `STRIDE_L2`
+    (`-1.09`) author a lunge knee for the myoLeg convention, which flexes negative. The
+    80-muscle `myolegs` **and** `myofullbody` are gait2392 lineage and flex positive
+    (`[0, +2.09]`), so the same value hyperextended them: resetting to the pose ejected the
+    model from it, the limit constraint moving the knee ~1.1 rad within 50 steps and on past
+    +0.93 by 300. Each device now carries a per-MSK block for those two lineages, three lines
+    each thanks to the merge semantics above.
+
+- **The opt-in cache now actually caches.** Four things were wrong with it:
+  - *A hit cost the same as a miss.* `registry.resolve()` composed the MSK **before** the
+    cache lookup, so the expensive half ran either way and was then thrown away on a hit —
+    measured at 1.8 s miss / 1.8 s hit for `myofullbody`. The compose now happens only on a
+    miss, via a new `registry.resolve_device_config`, which validates the pair and locates
+    the device config without building anything.
+  - *The key never moved during development.* It was keyed on `__version__`, which for an
+    editable install is fixed at install time, so a cache happily served a model built by an
+    older pipeline. (`_myosim_token` claimed an mtime fallback for exactly this, but the
+    fallback was unreachable — myo_sim always defines `__version__`.) The key now folds in a
+    per-package token of version **plus** newest source mtime for both assist_sim and
+    myo_sim; verified that touching a source file creates a new entry. Costs ~18 ms per
+    lookup against hits worth hundreds of ms.
+  - *Entries were written non-atomically.* An interrupted run left a truncated XML that
+    every later call treated as a valid hit. Entries are now built under a per-writer
+    `<key>.<pid>.<rand>.partial` name and published with `os.replace`. The per-writer name
+    matters because the cache's main beneficiary is a multi-process launch: an RL run starts
+    N `SubprocVecEnv` workers that all miss a cold cache at once. Verified with 6 parallel
+    cold-cache builds — identical models, one committed entry, no leftover partials.
+  - *A corrupt entry was fatal.* `try_load` now treats an unreadable entry as a miss and
+    discards it, so the caller rebuilds instead of raising a MuJoCo parse error that gave no
+    hint that deleting the cache would fix it.
+
+  Measured hit vs miss after the fix: `myolegs22` **8.2x**, `myolegs26` **2.8x**,
+  `myolegs` **2.2x**, `myofullbody` **0.9x**. `myofullbody` is a genuine pessimisation —
+  its 0.6 MB export (418 actuators, 108 meshes) costs more to *parse* than to compose from
+  scratch, and the reload is XML text parsing, not mesh loading. The numbers are in the
+  `load_combined` docstring so callers can decide per model; caching stays opt-in.
+
+- **`_decompose_keyframes` no longer compiles the spec it is about to mutate.** Two modules
+  made opposite claims about this: `reduce_legs` warned that compiling the working spec and
+  then editing it "corrupts subsequent add/delete" and probed a `spec.copy()`, while
+  `combine._decompose_keyframes` compiled the live `human_spec` and let the pipeline delete
+  all over it. Measured, on both mujoco 3.4 and 3.11: `reduce_legs`' warning is right. After
+  a compile, the sequence "add three joints, then delete four others" loses one added joint
+  and leaves one delete target in place, because a delete resolves to the wrong element.
+  Running the planar reduction on a pre-compiled spec drops `pelvis_ty` — the vertical slide
+  of the planar root — and keeps `hip_adduction_r`, a frontal DOF the planar model must not
+  have. The joint count comes out at 39 either way, so it compiles and looks correct while
+  being a different model, which is what made it silent.
+
+  No shipped combination tripped it: the add-then-delete the pipeline performs after this
+  point (`_reanchor_element`) moves sites and geoms, not joints, and this was confirmed by
+  building `myolegs22` against `OpenSourceLeg_KA_L1`, `OpenSourceLeg_A_L1` and `Humotech_L1`
+  — the models are identical with and without the fix. It was one config away from
+  mattering, so the probe now compiles a copy, and `tests/test_spec_edit_safety.py` fails if
+  either copy-probe is removed.
+
+- **A public `DeviceConfig` field is no longer a decoy.** `_resolve` read
+  `_<section>_by_msk["default"]` before falling back to the public dataclass field, and
+  `from_yaml` always populates that key — so once a config was loaded, assigning
+  `config.body_removals = [...]` silently did nothing to the pipeline. Worse, the same
+  assignment *was* visible to `validate_config`, which reads the public fields, so the
+  validator and the combiner could disagree about the same config, and
+  `docs/how-to/debug-a-combined-model.md` suggests exactly that assignment for scoping the
+  validator. `_resolve` now returns an MSK-specific entry if one exists and otherwise the
+  public field, which is where `from_yaml` puts the `default:` list. Per-MSK precedence and
+  the documented "no `default:` resolves to nothing" behaviour are unchanged.
+  `tests/test_validator.py` no longer needs to poke the private map to make a mutation take
+  effect.
+- **`resolve_model_path` told the wrong type.** It is annotated and documented as returning
+  `(human_xml, device_config)` **paths**, but returns `(MjSpec, Path)` — an MSK registry key
+  has no XML on disk, myo_sim composes it in memory. The annotation and docstring now say
+  so. The name is kept deliberately: it is public API, and the in-memory spec stands in for
+  what the path used to point at. The docstring also notes that calling it composes the
+  whole MSK, so `validate_combination` is the cheaper way to test that a pair resolves.
+
+- **Device tendons are imported whole.** `_import_device_tendons_actuators` walked
+  `findall("spatial")` and, within each, copied only `<site>` children. A device's
+  `<fixed>` tendon therefore vanished entirely, and a `<pulley>` or `<geom>` wrap inside a
+  spatial tendon was dropped in silence — both change the mechanics, since a pulley scales
+  the length contribution of the run after it and a wrap geom bends the path around a
+  cylinder. The device ended up with a tendon it never authored and nothing was raised.
+  `MjsTendon` exposes all four wrap kinds, so all four are now recreated in document order
+  (order *is* the routing), with a wrap geom's `sidesite` prefixed like every other
+  device-local name. An unrecognised wrap child or an unnamed device tendon raises.
+  Verified by compiling the device XML on its own and comparing the wrap structure: the
+  combined model reproduces it exactly, where it previously collapsed a fixed tendon plus
+  two spatial tendons into one tendon of two site wraps. The shipped devices all use
+  site-only spatial tendons, so none of their models change.
+
+- **Silent no-ops in the device-config loader now raise.** The package rule is errors over
+  warnings, but `from_yaml` read known keys with `raw.get(...)` and ignored everything
+  else, so a whole class of authoring mistake loaded clean and did nothing. Each of these
+  is now a `ValueError` with a "did you mean" suggestion, and all 13 shipped configs pass
+  unchanged:
+  - an unknown top-level section (`bodyremovals`, `sensorss`);
+  - an unknown key in the `device` block (`compatible_mks`);
+  - an unknown key inside an entry — `position` instead of `pos` on an attachment seated
+    the device at the wrong place with no message;
+  - a per-MSK block keyed by a misspelled MSK name (`myolegz26`), which never applied, so
+    a surgical override the author believed was active simply did not happen;
+  - an unknown key in a `tendon_modifications` wrap edit;
+  - the per-MSK dict form on `actuators` or `keyframes`, which take a flat list only. This
+    used to surface as `TypeError: string indices must be integers` from inside the parser,
+    naming neither the section nor the file.
+- **Actuator `type` is validated instead of ignored.** The field was parsed and never
+  read. `general` and `motor` are accepted, because MJCF's `<motor>` *is* `general` with
+  gaintype=fixed / biastype=none / dyntype=none — this schema's defaults — which is why the
+  shipped `type: "motor"` entries were correct by coincidence. `position` or `velocity`
+  would need a different biastype and are now rejected rather than silently built as a
+  motor. A declared `motor` that also sets a contradicting gaintype/biastype/dyntype raises.
+- **`actuators[].joint` is resolved and validated** like every other section, bare-first
+  then device-prefixed, raising with a "did you mean". It previously fell through with the
+  bare name, so the failure arrived later as a raw MuJoCo compile error naming neither the
+  section nor the actuator.
+- **A typo'd keyframe *name* in `keyframe_overrides` raises.** Pose names come from the
+  base MSK or the canonical set and are identical across leg lineages, so an unknown one is
+  unambiguously a typo. The joint names *inside* an override stay lenient on purpose:
+  lineages differ, and a freejoint-rooted MSK genuinely has no `pelvis_ty`.
+- **An incompatible myo_sim no longer looks like an empty registry.** `_msk_available` read
+  the private `myo_sim._COMPOSED_MODELS` through `getattr(..., frozenset())`, so an upstream
+  rename made every MSK look unavailable: `get_available_combinations()` returned `{}` and
+  both the CLI and myoassist then reported "no combinations buildable -- is myo_sim
+  installed?" while myo_sim was installed and working. A missing attribute now raises an
+  `ImportError` that says the interface changed.
+- **A malformed device config is reported instead of swallowed.** Discovery runs at import
+  time and still must not crash — a broken config would otherwise break `import assist_sim`
+  and the CLI you would use to diagnose it. The parse error is now recorded, the device is
+  omitted from `get_available_combinations()` rather than listed as usable, `resolve` raises
+  with the file path and the parse error, and `python -m assist_sim list` names it under
+  "Devices skipped (unreadable config)". Previously it registered silently with
+  `compatible_msk=None`, which reads as "compatible with every MSK".
+- **`compatible_msk` given as a bare string raises.** `msk_key in "myolegs26"` is a
+  substring test, so `compatible_msk: myolegs26` would also match `myolegs`.
+
+- **MuJoCo range: declared, measured and tested.** `pyproject.toml` asked for
+  `mujoco>=3.4` with no ceiling, so a fresh `pip install assist-sim` resolved the newest
+  release (3.11.0) and hit 16 test failures — while CI only ever saw 3.4.0, because
+  `requirements-dev.txt` pulls in `requirements.txt` and its `mujoco==3.4.0` pin
+  silently downgrades whatever `pip install -e .` resolved. The tested configuration was
+  not the shipped one. Three incompatibilities gated the whole 3.4 to 3.11 window and are
+  now fixed, so the range is `mujoco>=3.4,<3.12` and verified green at both ends:
+  - `_apply_tendon_attrs` assigned a scalar to `MjsTendon.stiffness`, which became a
+    3-vector in mujoco 3.7. Any device with an authored tendon stiffness therefore failed
+    to combine on 3.7+ — `UTAnkleExo_L2` on all four MSKs. It now assigns the scalar and
+    falls back to index 0 of the widened vector, the same guard `_apply_joint_overrides`
+    already applied to joint damping. Verified to reproduce the reference value exactly:
+    `tendon_stiffness` is 25000.0 on both 3.4.0 and 3.11.0, not merely non-crashing.
+  - The moment-arm test read `MjData.ten_J`, which turned sparse in 3.6 (and lost its
+    index arrays from `MjData`). It now takes a central difference on `ten_length`, which
+    means the same thing in every version — validated against `ten_J` on 3.4 to 4e-11.
+  - The upper-body export tests referenced `mjtEnableBit.mjENBL_MULTICCD`, removed in
+    3.8. They now use the same `getattr` guard `upper_body.py` already had.
+- **Canonical knee-sign probe defeated by amputation.** The probe read only
+  `knee_angle_r` to decide whether the host knee flexes positive. A transfemoral
+  amputation deletes that joint, so the probe found it absent, skipped the flip, and drove
+  the *intact* left knee of the 80-muscle `myolegs` to -1.309 against a `[0, +2.09]`
+  range. It now probes every knee and lets the first survivor decide.
+
+### Changed
+
+- **CI restructured** into `lint` / `test` / `mujoco-range` / `package`. `test` runs the
+  pinned stack across Python 3.10 to 3.13 on Linux plus the ends of that span on Windows
+  and macOS. `mujoco-range` installs **without** the pin file and runs the suite at both
+  ends of the declared range — the lane whose absence let the unbounded range ship.
+  `lint` runs once instead of once per Python version.
+- **Python 3.13** added to the classifiers. The suite already passed on 3.13; only the
+  metadata and the matrix omitted it.
+- **Per-key MuJoCo gates in `registry.py`** were `(3, 3, 3)` / `(3, 3, 4)`, both below the
+  package floor and therefore unreachable. All four keys now sit at the real floor
+  `(3, 4, 0)`. The gate mechanism is kept for a future MSK that needs a *newer* MuJoCo
+  than the floor, which is the only case where gating one key beats raising the floor.
+- **`requirements.txt` header** no longer claims to mirror
+  `pyproject.toml [project.dependencies]`. It is a point-pin inside the declared range,
+  it deliberately omits the `myo-sim` sibling, and it now records why the pinned lanes
+  cannot be the only ones.
+
 ### Added
+
+- **Keyframe tests rewritten** (`tests/test_keyframe_pruning.py`). The module asserted
+  `nkey == 0` for a keyframe-less base MSK, which the canonical-keyframe fallback replaced;
+  the assertion was never updated, so the suite was red. It now pins the injection, the
+  per-model knee-flexion sign, the sign probe surviving amputation, and the RL/CO split —
+  a device's `pelvis_ty` override is skipped on the default freejoint build and applies
+  under `planar_root=True`, together with the 1.5 m/s forward walk velocity.
+- Two `xfail(strict=True)` markers recording open device-data conflicts, so they turn into
+  failures once the data is corrected:
+  - `DephyExoBoot_L1` narrows `mtp_angle_r` to `[-0.0145, 0.2]` through `joint_overrides`,
+    but the poses it ships use +0.349 (squat, lunge) and -0.0737 (walk_right).
+  - `keyframe_overrides` are applied verbatim, after the canonical pose and with no
+    knee-sign flip, so the myoLeg-negative lunge knee that `Tutorial_L1`, `OpenExo_L1`
+    (-1.25), `Humotech_L1` and `STRIDE_L2` (-1.09) author hyperextends the
+    positive-flexion 80-muscle knee. Resetting to that pose ejects the model from it: the
+    limit constraint moves the knee ~1.1 rad within 50 steps.
 
 - **CO frame reconciliation** (:func:`assist_sim.root_frame.to_planar_root`, a
   ``planar_root`` flag on ``ModelCombiner.combine`` / ``load_combined``). The
