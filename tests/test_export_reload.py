@@ -12,7 +12,9 @@ Requires ``myo_sim`` (the MSKs are composed at runtime); skipped otherwise.
 
 from __future__ import annotations
 
+import sys
 import xml.etree.ElementTree as ET
+from pathlib import Path
 
 import mujoco as mj
 import pytest
@@ -90,3 +92,61 @@ def test_cache_dir_round_trips(msk, device, tmp_path):
     m2, _ = load_combined(msk, device, cache_dir=tmp_path)
     assert next(tmp_path.glob("*.xml")).stat().st_mtime_ns == mtime
     assert (m1.nq, m1.nu, m1.nbody, m1.ngeom) == (m2.nq, m2.nu, m2.nbody, m2.ngeom)
+
+
+# ----------------------------------------------------------------------
+# Mesh-path rewriting across filesystem roots
+# ----------------------------------------------------------------------
+# The export rewrites every <mesh file=...> relative to the output directory. On Windows
+# there is no relative path between drives, and both ways of asking raise: Path.relative_to
+# rejects a non-subpath, and os.path.relpath raises "path is on mount 'D:', start on mount
+# 'C:'". os.path.relpath used to be the fallback for relative_to, so a cross-drive export
+# raised instead of exporting. That is exactly the GitHub Windows runner -- checkout on D:,
+# TEMP (so pytest's tmp_path) on C: -- and it went unseen because CI ran only on Linux, where
+# there is one mount tree, and because a same-drive Windows machine never reaches the branch.
+
+
+def test_portable_mesh_path_prefers_relative():
+    """A mesh under the output directory is written relative to it."""
+    from assist_sim.utils import _portable_mesh_path
+
+    got = _portable_mesh_path(Path("/out/mesh/x.stl").absolute(), Path("/out").absolute())
+    assert got.endswith("mesh/x.stl")
+    assert not got.startswith("/") and ":" not in got, f"expected a relative path, got {got!r}"
+
+
+def test_portable_mesh_path_walks_up_when_not_a_subpath():
+    """A sibling directory on the same root still gets a relative path."""
+    from assist_sim.utils import _portable_mesh_path
+
+    got = _portable_mesh_path(Path("/pkg/models/D/mesh/x.stl").absolute(), Path("/tmp/export").absolute())
+    assert ".." in got and got.endswith("mesh/x.stl"), got
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="only Windows has per-drive path roots")
+def test_portable_mesh_path_falls_back_to_absolute_across_drives():
+    """Across drives it must return an absolute path, not raise.
+
+    An absolute ``file=`` is valid MJCF and loads fine; only the portability of the exported
+    directory is lost, and it was never portable across drives to begin with.
+    """
+    from assist_sim.utils import _portable_mesh_path
+
+    got = _portable_mesh_path(
+        Path(r"D:\a\assist_sim\assist_sim\models\HMEDI\mesh\x.stl"),
+        Path(r"C:\Users\runneradmin\AppData\Local\Temp\pytest-0\test_x"),
+    )
+    assert got == "D:/a/assist_sim/assist_sim/models/HMEDI/mesh/x.stl", got
+
+
+def test_portable_mesh_path_never_raises():
+    """Whatever the two paths are, the export must not die on the rewrite."""
+    from assist_sim.utils import _portable_mesh_path
+
+    awkward = [
+        (Path(r"D:\x\y.stl"), Path(r"C:\a\b")),
+        (Path("/x/y.stl"), Path("/a/b")),
+        (Path(r"\server\share\y.stl"), Path(r"C:\a\b")),
+    ]
+    for resolved, out in awkward:
+        assert isinstance(_portable_mesh_path(resolved, out), str)

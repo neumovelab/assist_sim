@@ -257,7 +257,8 @@ def _rewrite_mesh_paths(
     file is found on disk.  Resolution mirrors MuJoCo's compiler: first
     ``modelfiledir / meshdir / file`` (when meshdir is set), then
     ``modelfiledir / file`` as a fallback for sources without meshdir.  The
-    found absolute path is then rewritten as a path relative to *output_dir*.
+    found absolute path is then rewritten relative to *output_dir* where that is
+    possible, and left absolute where it is not (see :func:`_portable_mesh_path`).
     """
     asset_elem = root.find("asset")
     if asset_elem is None:
@@ -272,12 +273,32 @@ def _rewrite_mesh_paths(
         if resolved is None:
             continue
 
-        try:
-            new_rel = resolved.relative_to(output_dir)
-        except ValueError:
-            new_rel = Path(os.path.relpath(resolved, output_dir))
+        mesh.set("file", _portable_mesh_path(resolved, output_dir))
 
-        mesh.set("file", str(new_rel).replace("\\", "/"))
+
+def _portable_mesh_path(resolved: Path, output_dir: Path) -> str:
+    """Express *resolved* for a ``<mesh file=...>`` written into *output_dir*.
+
+    Relative when the two share a root, absolute when they cannot.  On Windows there is no
+    relative path between drives, and *both* ways of asking raise: ``Path.relative_to``
+    rejects any non-subpath, and ``os.path.relpath`` raises
+    ``ValueError: path is on mount 'D:', start on mount 'C:'``.  The old code used the
+    second as the fallback for the first, so a cross-drive export raised instead of
+    exporting -- which is precisely the GitHub Windows runner, where the checkout is on
+    ``D:`` and ``TEMP`` (so pytest's ``tmp_path``) is on ``C:``.  Linux never sees it, having
+    one mount tree, and a same-drive Windows machine never sees it either.
+
+    An absolute ``file=`` is valid MJCF and loads fine; only the portability of the exported
+    directory is lost, and it was never portable across drives to begin with.
+    """
+    try:
+        return str(resolved.relative_to(output_dir)).replace("\\", "/")
+    except ValueError:
+        pass
+    try:
+        return str(Path(os.path.relpath(resolved, output_dir))).replace("\\", "/")
+    except ValueError:
+        return str(resolved).replace("\\", "/")
 
 
 def _resolve_resource(
