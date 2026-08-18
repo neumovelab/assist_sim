@@ -1,7 +1,7 @@
 """Core model combination logic using the MuJoCo mjSpec API.
 
-Single-phase, fully in-memory flow (requires ``mujoco>=3.3.4`` for
-``MjSpec.delete``):
+Single-phase, fully in-memory flow (needs ``MjSpec.delete``, so the declared range
+``mujoco>=3.4,<3.12``):
 
 1. **Re-anchor** -- apply ``tendon_modifications``, moving the wrap sites of
    muscles that surgery preserves onto the bone that survives.  This runs
@@ -26,9 +26,12 @@ against the combined model, where both device (prefixed) and human (bare) names
 are in scope.
 
 The human model is an ``MjSpec`` (composed on demand by ``myo_sim`` for a
-registry key, or loaded from an explicit XML path).  It is never serialized to
-XML and reloaded -- torso-composed models do not round-trip cleanly through
-``to_xml`` -- so all edits happen on the live spec.
+registry key, or loaded from an explicit XML path).  It is not serialized and
+reloaded *mid-pipeline* -- torso-composed models do not round-trip cleanly
+through a bare ``to_xml`` -- so all edits happen on the live spec.  Exporting is
+a separate matter: :func:`assist_sim.utils.export_combined_xml` applies the
+default hoist/name fixups that make those models reload, and every MSK key
+round-trips through it.
 """
 
 from __future__ import annotations
@@ -148,7 +151,7 @@ def _resolve_element_name(spec: mj.MjSpec, kind: str, name: str, prefix: str, se
 class ModelCombiner:
     """Combines a musculoskeletal ``MjSpec`` with a device model using mjSpec.
 
-    Removals run in-memory via ``spec.delete`` (requires ``mujoco>=3.3.4``);
+    Removals run in-memory via ``spec.delete`` (needs ``mujoco>=3.4``, the package floor);
     everything else is additive / in-place.
     """
 
@@ -656,10 +659,14 @@ class ModelCombiner:
         ``attach_body`` (it copies a body subtree, not top-level sections), which
         is why these are authored in YAML against the combined model.
 
-        Pairs are emitted before excludes purely for readability of the output;
-        MuJoCo applies excludes at the body level and pairs at the geom level, and
-        an exclude wins -- so an exclude covering a paired geom's bodies cancels
-        that pair.
+        Pairs are emitted before excludes purely for readability of the output; the order
+        carries no meaning to MuJoCo.
+
+        An ``<exclude>`` does **not** cancel a ``<pair>``.  They act on different stages: a
+        predefined pair is always evaluated, while an exclude only filters the body pairs
+        that the broadphase would otherwise generate.  Measured on mujoco 3.4 and 3.11 --
+        two bodies with an explicit pair between their geoms give ``ncon=1`` whether or not
+        an exclude names those bodies.  (This docstring used to claim the opposite.)
         """
         for pair_def in config.resolve_contact_pairs(msk_key):
             g1 = _resolve_element_name(human_spec, "geom", pair_def.geom1, prefix, "contact.pairs")

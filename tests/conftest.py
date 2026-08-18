@@ -24,16 +24,15 @@ from assist_sim.registry import MODELS_ROOT as MODELS  # noqa: E402
 # ----------------------------------------------------------------------
 # myo_sim availability gate
 # ----------------------------------------------------------------------
-# MSK models live in the myo_sim package (not in this repo). Tests that
-# need a real MSK file are skipped automatically when myo_sim isn't
-# installed -- avoids forcing every contributor / CI lane to have the
-# (currently unpublished) wheel before they can run anything.
+# MSK models live in the myo_sim package (not in this repo). myo-sim is a declared
+# dependency, so a normal install has it and these tests run; the gate exists for a
+# deliberately minimal environment, where it skips rather than erroring at collection.
 
 HAS_MYO_SIM = importlib.util.find_spec("myo_sim") is not None
 
 needs_myo_sim = pytest.mark.skipif(
     not HAS_MYO_SIM,
-    reason="requires myo_sim package (not yet installed)",
+    reason="requires the myo_sim package",
 )
 
 

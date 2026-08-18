@@ -606,8 +606,10 @@ class ContactPair:
     ``contype`` / ``conaffinity``, and lets the contact parameters be tuned.
     Names are resolved bare-first then prefixed.
 
-    Beware the interaction with :class:`ContactExclude`: an ``exclude`` on the
-    owning bodies cancels a ``pair`` between their geoms, silently.
+    A pair is independent of :class:`ContactExclude`: an exclude on the owning bodies does
+    **not** cancel it.  A predefined pair is always evaluated, while an exclude only filters
+    the body pairs the broadphase would generate.  Measured on mujoco 3.4 and 3.11 -- ``ncon``
+    is 1 either way.  (This docstring used to claim an exclude silently won.)
     """
 
     geom1: str

@@ -12,12 +12,12 @@ editable specs. A new MSK model therefore needs two items:
 
 - A composed model. Add a `BuildStrategy` and a `MODEL_REGISTRY` entry in
   `myo_sim/build/compose.py`.
-- Access through `myo_sim.build_spec(<name>)`. Add the model to
+- Access through `myo_sim.load_spec(<name>)`. Add the model to
   `GENERATE_SPEC_BUILDERS` or `FRAGMENT_SPEC_BUILDERS`, so that `assist_sim`
   can get an editable `MjSpec` for it. `myolegs26` is a worked example.
 
-During the interim development period, the published `myo_sim` package does
-not contain your MSK model. Install a fork or a branch:
+The published `myo_sim` package will not contain your new MSK model until it is merged
+upstream, so install your fork or branch over it:
 
 ```bash
 pip install git+https://github.com/<your-fork>/myo_sim.git@<branch>
@@ -29,7 +29,7 @@ package or a fork.
 ## Step 2: Register the MSK model in `assist_sim`
 
 Add an entry to `_COMPATIBLE_MSK_KEYS` in `assist_sim/registry.py`. The
-entry binds the key to the `myo_sim.build_spec` model name and to the
+entry binds the key to the `myo_sim.load_spec` model name and to the
 minimum MuJoCo version that can build the model:
 
 ```python
@@ -41,7 +41,7 @@ _COMPATIBLE_MSK_KEYS: Dict[str, _MskSource] = {
 
 The fields of `_MskSource(myo_sim_model, min_mujoco, note)` are:
 
-- `myo_sim_model` is the `build_spec` name. Use `None` for a planned key
+- `myo_sim_model` is the `load_spec` name. Use `None` for a planned key
   that has no source yet.
 - `min_mujoco` blocks a model that needs a newer MuJoCo. For example, the
   passive-torso conversions need `(3, 3, 4)`.
@@ -52,7 +52,7 @@ The fields of `_MskSource(myo_sim_model, min_mujoco, note)` are:
 a key that comes from another key through the 26->22 planar reduction. Only
 `myolegs22` uses it today.
 
-At resolve time, `assist_sim` calls `build_spec`. It then removes the
+At resolve time, `assist_sim` calls `load_spec`. It then removes the
 bundled myosuite scene from the returned `MjSpec`. It gives that live spec
 to the pipeline. The pipeline does not serialize the spec and does not
 cache it at this point.
@@ -93,7 +93,7 @@ python -m assist_sim msk MyNewMSK -o mynewmsk.xml
 ```
 
 An `ImportError` has three possible causes. `myo_sim` is not installed, the
-installed MuJoCo is older than `min_mujoco`, or `build_spec` gave an error.
+installed MuJoCo is older than `min_mujoco`, or `load_spec` gave an error.
 The message tells you which cause is correct. To confirm that `myo_sim`
 knows the model:
 

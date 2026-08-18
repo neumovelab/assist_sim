@@ -7,8 +7,10 @@ prerequisites.
 ## Prerequisites
 
 - Python ≥ 3.10
-- A MuJoCo ≥ 3.3.4 installation (`pip install "mujoco>=3.3.4"`). The pipeline
-  uses `MjSpec.delete`, which is available in 3.3.4.
+- MuJoCo in `>=3.4,<3.12` (`pip install "mujoco>=3.4,<3.12"`), which `pip install -e .`
+  already resolves for you. The pipeline uses `MjSpec.delete` for its in-memory surgery.
+  The ceiling is measured: 3.4 through 3.11 are verified, and CI runs the suite at both
+  ends of the range.
 - `myo_sim`, for the baseline musculoskeletal (MSK) models. See the
   installation step below.
 
@@ -20,34 +22,36 @@ cd assist_sim
 pip install -e .
 ```
 
-The editable installation gets `mujoco>=3.3.4`, `PyYAML` and `numpy` from
-`pyproject.toml`. It does **not** install `myo_sim` automatically, because
-`myo_sim` is published separately.
+The editable installation gets `mujoco>=3.4,<3.12`, `PyYAML`, `numpy` and `myo-sim` from
+`pyproject.toml`. `myo-sim` is a declared dependency, so you get the MSK models without a
+second install step.
 
 ### myo_sim
 
-`myo_sim` supplies the baseline MSK models. On the `dev` branch, `myo_sim`
-*composes* the leg models at run time, and `assist_sim` gets them with
-`myo_sim.build_spec(<model>)`. There are three installation options:
+`myo_sim` supplies the baseline MSK models. It *composes* the leg models at run time, and
+`assist_sim` gets them with `myo_sim.load_spec(<model>)`. It is published on PyPI and
+declared as `myo-sim>=0.2.1`, so `pip install -e .` above already installed it. You only
+need one of these if you want a different version:
 
 ```bash
-# (1) Once it is published to PyPI (preferred long-term):
-pip install myo_sim
+# A specific release:
+pip install "myo-sim>=0.2.1"
 
-# (2) From a git branch in the meantime:
-pip install git+https://github.com/MyoHub/myo_sim.git@dev
-
-# (3) Editable, for local development on myo_sim itself:
+# Editable, for local development on myo_sim itself:
 git clone https://github.com/MyoHub/myo_sim.git
 pip install -e ./myo_sim
 ```
+
+> Note the function name: the published `myo_sim` exposes `load_spec`. An earlier
+> development version called it `build_spec`, so a local checkout predating the rename will
+> fail to resolve any MSK key.
 
 Verify the installation:
 
 ```python
 import myo_sim
 print("myolegs26" in myo_sim._COMPOSED_MODELS)   # True
-print(myo_sim.build_spec("myolegs26"))           # an editable MjSpec
+print(myo_sim.load_spec("myolegs26"))           # an editable MjSpec
 ```
 
 If `myo_sim` is not installed, `assist_sim` imports correctly and most of the
@@ -94,8 +98,8 @@ section below describes it.
 ## Visual inspection
 
 The `examples/quickstart.py` script opens a paused MuJoCo viewer. The viewer
-shows the first keyframe of the combined model. If the model has no keyframe,
-the viewer shows `qpos0`. Only `myolegs22` has keyframes.
+shows the first keyframe of the combined model, which is `stand` for every leg model:
+`myolegs22` ships the five canonical poses and the other three have them injected.
 
 ```bash
 python examples/quickstart.py                                    # defaults: myolegs26 + DephyExoBoot_L1

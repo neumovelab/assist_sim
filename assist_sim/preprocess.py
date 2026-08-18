@@ -3,7 +3,7 @@
 Historically this module held an ElementTree "Phase 1" that applied every
 removal to the human model before it entered the MjSpec phase.  That is gone:
 model surgery now runs in-memory on the human ``MjSpec`` via ``spec.delete``
-(see :mod:`assist_sim.combine`), which needs ``mujoco>=3.3.4``.
+(see :mod:`assist_sim.combine`), which needs ``mujoco>=3.4``, the package floor.
 
 What remains here is the small amount of *device*-side XML massaging that still
 happens at the text level (device models are static XML files that round-trip

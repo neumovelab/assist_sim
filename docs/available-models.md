@@ -6,7 +6,7 @@ which combinations are compatible.
 ## MSK models (composed by `myo_sim`)
 
 `myo_sim` composes its leg models at run time. To resolve an MSK key,
-`assist_sim` calls `myo_sim.build_spec(<model>)`, then removes the bundled
+`assist_sim` calls `myo_sim.load_spec(<model>)`, then removes the bundled
 myosuite scene. See [concepts.md](concepts.md). The result is a live `MjSpec`,
 never a file. The `assist_sim` key is the same as the `myo_sim` model name:
 
@@ -17,7 +17,7 @@ never a file. The `assist_sim` key is the same as the `myo_sim` model name:
 | `myolegs`     | 35  | **Available**. 80 muscles, passive torso |
 | `myofullbody` | 129 | **Available**. Full body (torso muscles, arms and legs) |
 
-`myolegs`, `myofullbody` and `myolegs22` need `mujoco>=3.3.4`, because they use
+Every key needs `mujoco>=3.4,<3.12`, the range the package declares, because they use
 `MjSpec.delete` in memory. `myolegs22` reduces `myolegs26`. `myolegs26` builds
 on `3.3.3`. An unknown key raises a clear error. There is no fallback.
 
@@ -49,16 +49,28 @@ on `3.3.3`. An unknown key raises a clear error. There is no fallback.
   `walk_right`, `squat` and `lunge`. These keyframes remain after a device
   combination.
 
-### Keyframes are asymmetric across the four MSK models
+### Keyframes: shipped by one model, injected for the rest
 
-Only `myolegs22` has keyframes. The other three models compile with `nkey=0`:
+Only `myolegs22` *ships* keyframes. For the other three, `assist_sim` injects the same five
+canonical poses at combine time, so **every leg combination compiles with `nkey=5`** and
+`keyframe_overrides` applies to all four keys:
 
-| Key | Keyframes | `keyframe_overrides` |
-|---|---|---|
-| `myolegs22`   | 5 (`stand`, `walk_left`, `walk_right`, `squat`, `lunge`) | applies |
-| `myolegs26`   | none | **no effect** |
-| `myolegs`     | none | **no effect** |
-| `myofullbody` | none | **no effect** |
+| Key | Ships | After combine | `keyframe_overrides` |
+|---|---|---|---|
+| `myolegs22`   | 5 (`stand`, `walk_left`, `walk_right`, `squat`, `lunge`) | 5 | applies |
+| `myolegs26`   | none | 5 (injected) | applies |
+| `myolegs`     | none | 5 (injected) | applies |
+| `myofullbody` | none | 5 (injected) | applies |
+
+Two caveats follow from lineage rather than from the injection:
+
+- **A `pelvis_ty` override needs a `pelvis_ty` joint.** `myolegs22` roots on named planar
+  joints; the other three float on a `freejoint` and have none, so a height override is
+  skipped there unless you build with `planar_root=True`. Height is re-seated downstream
+  instead.
+- **The knee sign differs.** `myolegs22` and `myolegs26` flex negative; `myolegs` and
+  `myofullbody` flex positive. The injected table is flipped to match the host. A knee value
+  you write in `keyframe_overrides` is *not* flipped, so give it per-MSK.
 
 `keyframe_overrides` changes keyframes that already exist. It never creates a
 keyframe. Thus it has no effect on the three MSK models with no keyframes, and
@@ -173,5 +185,5 @@ print(get_available_combinations())
   [how-to/add-a-device.md](how-to/add-a-device.md).
 - **A new MSK model**: add an entry to `_COMPATIBLE_MSK_KEYS` in
   `assist_sim/registry.py`. The entry connects the key to a
-  `myo_sim.build_spec` model name and to its minimum MuJoCo version. See
+  `myo_sim.load_spec` model name and to its minimum MuJoCo version. See
   [how-to/add-an-msk-model.md](how-to/add-an-msk-model.md).

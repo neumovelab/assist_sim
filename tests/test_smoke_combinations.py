@@ -3,7 +3,7 @@
 Asserts the compiled ``(nq, nu, nbody, nmesh)`` for each combination matches a
 frozen expected tuple.  The MSK is composed at runtime by ``myo_sim`` and the
 whole pipeline runs in-memory (``spec.delete`` surgery, no XML round-trip), so
-these require ``mujoco>=3.3.4``; the ``needs_myo_sim`` gate skips them when
+these require ``mujoco>=3.4``, the package floor; the ``needs_myo_sim`` gate skips them when
 myo_sim isn't installed.
 
 All four MSK models share a passive anatomical torso scaffold over their leg
@@ -13,7 +13,7 @@ matrix is the full cross-product.  The devices that do pin ``compatible_msk``
 (``KFoot_L1``, ``NEUankle_L1``, ``STRIDE_L2``) list all four, so nothing is excluded.
 ``myolegs22`` is derived from ``myolegs26`` by the 26->22 reduction; its own
 reduction is pinned in :mod:`tests.test_reduce_legs`.  Signatures were captured on
-``mujoco==3.3.4`` (the pinned floor).
+``mujoco==3.4.0`` (the pinned floor).
 """
 
 from __future__ import annotations
@@ -107,7 +107,7 @@ def test_combination_is_simulatable(keys):
 
 
 @needs_myo_sim
-@pytest.mark.skipif(not _msk_available("myolegs"), reason="requires the torso'd myolegs (mujoco>=3.3.4)")
+@pytest.mark.skipif(not _msk_available("myolegs"), reason="requires the torso'd myolegs")
 def test_hmedi_cable_tendons_and_actuators_imported():
     """HMEDI's device-XML <tendon>/<actuator> sections (cable_r/l + Exo_R/L)
     must reach the combined model with the device prefix.  HMEDI needs a torso,

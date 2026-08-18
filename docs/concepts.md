@@ -12,7 +12,7 @@ downstream training frameworks. Four packages operate together:
 - **`myo_sim`** supplies the baseline MSK models and their meshes. On the `dev`
   branch, `myo_sim` *composes* these leg models at run time, with no static
   XML. `assist_sim` gets an editable `MjSpec` with
-  `myo_sim.build_spec(<model>)`, then removes the bundled myosuite scene from
+  `myo_sim.load_spec(<model>)`, then removes the bundled myosuite scene from
   that live spec. The pipeline serializes nothing between the stages, and the
   MSK keys of `assist_sim` are the same as the `myo_sim` model names. The
   package supports `myolegs26` (26 muscles, passive torso), `myolegs` (80
@@ -46,7 +46,7 @@ step, and an optional export of the combined XML. All steps operate on one live
 `MjSpec`. The pipeline does not serialize the human model to XML and reload it.
 See [Why in-memory](#why-in-memory).
 
-**Resolve.**  `registry._resolve_msk` calls `myo_sim.build_spec(<model>)`. It
+**Resolve.**  `registry._resolve_msk` calls `myo_sim.load_spec(<model>)`. It
 then removes the bundled myosuite scene from the live spec. That scene contains
 the floor, backdrop, pedestal and logo geoms directly under worldbody, the
 scene lights and cameras, and the meshes that only these elements use. The
@@ -55,7 +55,7 @@ nothing to disk between the two stages. The entry point that takes an explicit
 path loads the spec from the given XML file instead.
 
 **Combine** (`combine.py`).  This stage operates on that spec. It needs
-`mujoco>=3.3.4` for `MjSpec.delete`. The steps are:
+`mujoco>=3.4,<3.12`, the declared range, for `MjSpec.delete`. The steps are:
 
 - Decompose the qpos and qvel of each source keyframe into slices per joint, by
   *name*. This step needs a compile before the removals. Then clear the
@@ -89,7 +89,8 @@ resolve stage, which caches nothing.
 
 ### Why in-memory
 
-`MjSpec.delete` in MuJoCo 3.3.4 and later removes elements from the live spec,
+`MjSpec.delete` removes elements from the live spec (it arrived in MuJoCo 3.3.4,
+well below the 3.4 floor the package requires),
 so the pipeline needs no separate removal phase with ElementTree. The `myo_sim`
 models that compose a torso also make this necessary. Their serialized `to_xml`
 output does not round-trip: the merged default trees of the fragments give a
@@ -105,11 +106,12 @@ changes to the device side before the attachment.
 
 - **MSK keys**: `myolegs22`, `myolegs26`, `myolegs`, `myofullbody`.
   `assist_sim/registry.py:_COMPATIBLE_MSK_KEYS` holds the selected list. Each
-  key refers to a `myo_sim.build_spec` model name and to a minimum MuJoCo
+  key refers to a `myo_sim.load_spec` model name and to a minimum MuJoCo
   version. `myo_sim` composes the model on demand and gives it as a live spec,
   never as a cached XML file. A key with no `myo_sim` source raises a clear
   error when you resolve it. A key that needs a more recent MuJoCo does the
-  same; `myolegs` and `myofullbody` need 3.3.4.
+  same. Today all four keys sit at the package floor, so that gate cannot trip on a
+  resolvable install; it is kept for a future MSK needing a *newer* MuJoCo than the floor.
 - **Device keys**: the registry derives these from
   `models/<DeviceDir>/<variant>config.yaml`. For example,
   `models/DephyExoBoot/L1config.yaml` gives `DephyExoBoot_L1`, and

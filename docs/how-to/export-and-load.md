@@ -135,9 +135,9 @@ The exported XML uses relative paths to its mesh files. If you move
 Option 3 is the simplest. During the export, the pipeline makes the mesh
 paths relative to the `export_xml=` target.
 
-## Caching (faster repeat loads)
+## Caching
 
-The cache is optional. Set `cache_dir=` to use it. All three entry points
+The cache is optional and off by default. Set `cache_dir=` to use it. All three entry points
 accept it:
 
 ```python
@@ -146,14 +146,57 @@ model, data = load_msk("myolegs26", cache_dir="./.assist_sim_cache")
 model, data = load_combined_model(human_xml=..., device_config=..., cache_dir="./.assist_sim_cache")
 ```
 
-The first call runs the full pipeline. It writes a cached XML file and a
-`meta.json` file. The key of both files comes from the inputs.
+The first call runs the full pipeline and writes a cached XML plus a `meta.json`. A later call
+with the same inputs is a hit: it skips the MSK compose **and** the combine, and reloads the
+exported XML instead. If you change any input, the next call misses and rebuilds.
 
-The second call with the same inputs is a cache hit. It loads the cached
-XML directly, which is much faster.
+### Whether it pays depends on the model
 
-If you change any input file, the next call misses the cache and compiles
-again.
+A hit costs one XML parse, and parsing is what dominates. So the benefit scales inversely with
+the size of the exported model (best of five, one machine -- treat the ratios as the signal,
+not the absolute times):
+
+| MSK | miss | hit | |
+|---|--:|--:|---|
+| `myolegs22` | 0.64 s | 0.08 s | 8.2x faster |
+| `myolegs26` | 0.52 s | 0.19 s | 2.8x faster |
+| `myolegs` | 0.59 s | 0.27 s | 2.2x faster |
+| `myofullbody` | 0.99 s | 1.11 s | **0.9x -- slower** |
+
+`myofullbody` exports 0.6 MB of MJCF (418 actuators, 108 meshes), and parsing that costs more
+than composing it from scratch. **Do not set `cache_dir` for `myofullbody`.** For the three leg
+models, do.
+
+### If you are training, use it
+
+The model is composed far more often than once per run. `myoassist` builds one per
+CMA-ES candidate and one per `SubprocVecEnv` worker, so a controller-optimization run at its
+shipped `--popsize 32 --maxiter 1000` composes on the order of 32,000 models.
+
+Uncached, the composed pipeline costs **13-15x more per environment** than the static model
+files MyoAssist 0.1 shipped. Cached, it is back to parity:
+
+| per environment, `myolegs22` | |
+|---|--:|
+| MyoAssist 0.1, static XML on disk | 0.037 s |
+| composed, uncached | 0.691 s |
+| composed, cached | 0.045 s |
+
+Almost all of that remaining 0.045 s is the `MjModel.from_xml_string` the environment performs
+either way -- the same work the old path did as `from_xml_path`. The cache read itself is about
+0.2 ms.
+
+From `myoassist`, the switch is one environment variable, which covers both the RL and the
+controller-optimization paths because both compose through the same function:
+
+```bash
+export MYOASSIST_CACHE_DIR=~/.cache/myoassist
+```
+
+`compose_env_model(..., cache_dir=...)` takes it explicitly too, and overrides the variable.
+That cache stores the *merged* model (human + device + terrain), and its key folds in the
+source state of `assist_sim`, `myoassist_terrains` and the compose module itself, so editing
+any of the three invalidates it.
 
 The cache files are:
 
@@ -162,13 +205,18 @@ The cache files are:
   help you find which entry is which
 
 **Invalidation rules:**
-- A change to the mtime of any input file causes a cache miss.
-- A change to `assist_sim.__version__` causes a miss for all entries.
-- A composed MSK model has no file on disk. Its identity in the key is
-  therefore `(msk_key, assist_sim version, myo_sim version token)`. An
-  upgrade of `myo_sim` causes a miss. An edit to an editable `myo_sim`
-  install also causes a miss. For `load_msk`, those three items are the
-  whole key, because its list of input files is empty.
+- A change to the mtime of any input file (device config, device XML) causes a miss.
+- A change to either package's *source* causes a miss. The key folds in a token per
+  package that is the release version **plus** the newest `*.py` mtime under it, for both
+  `assist_sim` and `myo_sim`. Version alone was not enough: on an editable install it is
+  fixed at install time, so a version-only key served models built by an older pipeline.
+- A composed MSK model has no file on disk, so for `load_msk` the key is entirely
+  `(msk_key, assist_sim token, myo_sim token)`.
+- `planar_root=True` is a distinct key from `planar_root=False`.
+
+Entries are written to a per-writer `<key>.<pid>.<rand>.partial` and published with an
+atomic rename, so N processes racing a cold cache cannot leave a half-written file behind.
+An entry that will not load is treated as a miss and rebuilt rather than raised.
 
 **Eviction:** run `rm -r <cache_dir>` at any time. There is no background
 cleanup and no size limit. The cache is a local optimization for one user.

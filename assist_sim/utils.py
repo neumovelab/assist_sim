@@ -168,7 +168,7 @@ def strip_myosuite_scene_spec(spec) -> None:
     which are deleted structurally so unnamed scene primitives (e.g. the
     pedestal cylinder) are caught too.  Meshes no longer referenced by any
     surviving geom (the backdrop + logo meshes) are then deleted.  Requires
-    ``mujoco>=3.3.4`` for ``MjSpec.delete``.
+    ``mujoco>=3.4`` (the package floor) for ``MjSpec.delete``.
     """
     worldbody = spec.worldbody
     for collection in (worldbody.geoms, worldbody.lights, worldbody.cameras):

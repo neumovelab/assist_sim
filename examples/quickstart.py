@@ -37,14 +37,14 @@ DEFAULT_DEVICE = "DephyExoBoot_L1"
 def _abort_no_myo_sim() -> None:
     print(
         "ERROR: the `myo_sim` package is not installed in this environment.\n"
-        "       assist_sim resolves MSK model files (myolegs22, myolegs26, "
-        "myolegs) through that package.\n"
+        "       assist_sim composes every MSK model (myolegs22, myolegs26, myolegs,\n"
+        "       myofullbody) through that package.\n"
         "\n"
-        "Once it is published to PyPI:\n"
-        "    pip install myo_sim\n"
+        "It is a declared dependency, so a normal install already has it:\n"
+        "    pip install -e .\n"
         "\n"
-        "In the meantime, install from a git tag:\n"
-        "    pip install git+https://github.com/MyoHub/myo_sim.git@<tag>\n"
+        "Or install it on its own:\n"
+        '    pip install "myo-sim>=0.2.1"\n'
         "\n"
         "Without myo_sim, no combined model can be compiled.",
         file=sys.stderr,
@@ -62,7 +62,7 @@ def _list_combinations() -> None:
     print("Compatible MSKs (composed by myo_sim):")
     for key in sorted(_COMPATIBLE_MSK_KEYS):
         src = _COMPATIBLE_MSK_KEYS[key]
-        target = f"myo_sim.build_spec({src.myo_sim_model!r})" if src.myo_sim_model else "planned (no source yet)"
+        target = f"myo_sim.load_spec({src.myo_sim_model!r})" if src.myo_sim_model else "planned (no source yet)"
         print(f"  {key:14s}  <- {target}")
 
     print("\nDevice configs (autodiscovered from models/):")
