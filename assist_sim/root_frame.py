@@ -139,7 +139,19 @@ def to_planar_root(spec: mj.MjSpec) -> bool:
     mj.mj_forward(probe_model, probe_data)
     pelvis_world = probe_data.xquat[mj.mj_name2id(probe_model, mj.mjtObj.mjOBJ_BODY, "pelvis")].copy()
     delta = _mul(_PELVIS_QUAT, _inv(pelvis_world))
-    root_body.quat = list(_mul(delta, root_body.quat))
+
+    # Compose against the root body's *compiled world* orientation rather than its authored
+    # ``quat``, and force ``alt`` to the quat form before assigning.  ``MjsBody`` can carry
+    # an alternative orientation (euler / xyaxes / zaxis / axisangle) that the compiler uses
+    # *instead of* ``quat``: for such a body, reading ``quat`` returns a stale identity and
+    # assigning it is silently ignored -- ``reduce_legs._set_body_quat`` exists for that
+    # trap, and ``sacrum`` (every lineage) plus ``pelvis`` (80-muscle and full-body) do carry
+    # an euler ``alt``.  The freejoint root bodies happen to be quat-form today, so this is
+    # belt-and-braces, but the failure mode is a silently unrotated skeleton, which is
+    # exactly the 90-degree torso/leg split this function exists to prevent.
+    root_world = probe_data.xquat[mj.mj_name2id(probe_model, mj.mjtObj.mjOBJ_BODY, root_body.name)].copy()
+    root_body.alt.type = mj.mjtOrientation.mjORIENTATION_QUAT
+    root_body.quat = list(_mul(delta, root_world))
 
     # 2) replace the freejoint with the six named pelvis DOF joints.  Their axes
     #    are given in the myolegs22 (world) convention, so rotate each back into the

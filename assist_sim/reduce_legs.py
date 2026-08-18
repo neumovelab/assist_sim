@@ -102,7 +102,7 @@ _JOINT_RANGES: Dict[str, Tuple[float, float]] = {
     "iliopsoas_l_psoas_l-P3_z": (-0.000646401, 0.00653183),
 }
 
-# Five keyframes (name, qpos, qvel), sourced verbatim from the reference model.
+# Five keyframes (name, qpos, qvel), sourced verbatim from the reference model (MyoAssist 0.1).
 # The 39-long qpos arrays are ordered to the reduced-model joint order (which
 # this transform reproduces exactly), so they transfer by position.
 _KEYFRAMES: Tuple[Tuple[str, str, str], ...] = (

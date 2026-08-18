@@ -362,8 +362,22 @@ def _hoist_nested_defaults(root: ET.Element) -> None:
     children are re-parented onto the root, and the emptied block is removed.
     Class-less elements then inherit from the root exactly as they did in the live
     spec, named subclasses keep their inheritance chain, and the model
-    round-trips.  (Class-less elements come from a single leg fragment in the
-    composed models assist_sim exports, so merging is unambiguous.)
+    round-trips.
+
+    This pass is load-bearing, and measured: skip it and let
+    :func:`_name_nested_defaults` handle the block instead, and a reloaded
+    ``myolegs26`` export goes from 0 to 26 grey tendons and from 1 to 41
+    zero-armature DOFs.  The file still loads -- it is the inheritance that is lost,
+    not the syntax.
+
+    On the merge being unambiguous: ``myolegs22`` / ``myolegs26`` / ``myolegs`` emit a
+    single unnamed block, so nothing can collide.  ``myofullbody`` emits three, two of
+    which each define ``<geom>`` and ``<tendon>``, so "block wins" does discard one
+    copy -- but the two are attribute-for-attribute identical
+    (``geom contype=0 conaffinity=0``, ``tendon rgba="0.95 0.3 0.3 41" width="0.001"``),
+    so nothing is actually lost.  If a future fragment pair disagrees on the same
+    element tag, this silently keeps the later one; that is the case
+    :func:`_name_nested_defaults` describes as hoisting not being lossless.
     """
     default_root = root.find("default")
     if default_root is None:
@@ -392,14 +406,27 @@ def _name_nested_defaults(root: ET.Element) -> None:
     *nested* default must be named; only the single top-level default may be
     anonymous.
 
-    Naming these blocks is lossless, where hoisting their children up is not:
-    the inheritance chain (and each block's own element-level ``<geom>`` /
-    ``<tendon>`` / ... defaults) is preserved intact, and multi-fragment models
-    (``myofullbody``) don't collapse several blocks' element defaults into one
-    parent (which violates MuJoCo's "one element per default" schema).  Since an
-    unnamed default cannot be referenced by ``class=`` anyway, the synthetic name
-    changes nothing referentially.  This makes torso'd / multi-fragment composed
-    models round-trip.
+    This runs *after* :func:`_hoist_nested_defaults` and is the fallback for whatever
+    hoisting did not consume.  Hoisting only unwraps blocks sitting directly under the
+    root default, so a block nested deeper survives to here; naming it keeps its own
+    element-level defaults and its inheritance chain intact, and since an unnamed
+    default cannot be referenced by ``class=`` anyway, the synthetic name changes
+    nothing referentially.
+
+    Read the two passes together, because each is only right in its own scope:
+
+    - Naming preserves a block's chain, but for a *top-level* block it severs the
+      inheritance that class-less elements depend on -- measured, a ``myolegs26`` export
+      handled by naming alone reloads with 26 grey tendons and 41 zero-armature DOFs.
+      That is why hoisting runs first.
+    - Hoisting merges element defaults into the root with "block wins", which would
+      discard one copy if two fragments disagreed on the same element tag.  They do not
+      today (see :func:`_hoist_nested_defaults`), so nothing is lost.
+
+    On the shipped models this pass is currently a no-op: hoisting consumes every
+    unnamed block, and disabling naming changes no exported model.  It is kept as the
+    guard for a future composition that nests one deeper, where the alternative is the
+    "empty class name" reload failure.
     """
     counter = [0]
 

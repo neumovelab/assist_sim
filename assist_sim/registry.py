@@ -34,8 +34,6 @@ from .errors import closest_matches
 if TYPE_CHECKING:
     import mujoco
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
-
 # Device configs + meshes ship inside the package (so they're available after
 # a wheel install, not just editable installs).  Resolve via importlib.resources
 # so this works identically in editable, wheel, and zipped distributions.
