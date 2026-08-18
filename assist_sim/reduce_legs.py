@@ -102,13 +102,23 @@ _JOINT_RANGES: Dict[str, Tuple[float, float]] = {
     "iliopsoas_l_psoas_l-P3_z": (-0.000646401, 0.00653183),
 }
 
-# Five keyframes (name, qpos, qvel), sourced verbatim from the reference model (MyoAssist 0.1).
-# The 39-long qpos arrays are ordered to the reduced-model joint order (which
-# this transform reproduces exactly), so they transfer by position.
+# Five keyframes (name, qpos, qvel).  The 39-long qpos arrays are ordered to the
+# reduced-model joint order (which this transform reproduces exactly), so they
+# transfer by position.
+#
+# Provenance: the via-point and knee-translation values come from the rigid 26->22
+# conversion stage, and the hinge angles from the MyoAssist 0.1 reference model
+# (``myoLeg22_2D_BASELINE.xml``).  That conversion stage had shifted the *right*
+# leg's distal pair by one slot: ``ankle_angle_r`` held 0 and ``mtp_angle_r`` held
+# the ankle's value, which stood the right foot on up to 20 degrees of toe
+# extension with a neutral ankle and made ``stand`` and ``squat`` asymmetric.  The
+# four affected arrays are corrected back to the reference, which is symmetric in
+# ``stand`` and ``squat`` and mirrors ``walk_left`` / ``walk_right``.  ``lunge`` is
+# asymmetric by design.  ``tests/test_keyframe_pose_fidelity.py`` pins all of it.
 _KEYFRAMES: Tuple[Tuple[str, str, str], ...] = (
     (
         "stand",
-        "0 0.91 0 0 0 0 0 0 -0.0143 0 0 0 0 0 0 0 0 0 0 0 0 0 -0.0143 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0",
+        "0 0.91 0 0 0 0 0 -0.0143 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -0.0143 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0",
         "0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0",
     ),
     (
@@ -122,7 +132,7 @@ _KEYFRAMES: Tuple[Tuple[str, str, str], ...] = (
     ),
     (
         "walk_right",
-        "0 0.88 -0.262 0.436 0.000567571 -0.000340948 -0.0873 0 -0.0737 0.000459471 -0.000737542 "
+        "0 0.88 -0.262 0.436 0.000567571 -0.000340948 -0.0873 -0.0737 0 0.000459471 -0.000737542 "
         "-0.00357334 0.000947603 -0.00386577 0.000503933 -0.000582272 -0.000492261 -0.000121708 -0.174 "
         "0.00313046 -0.00258514 -0.436 0 0 0.00244588 -0.00392612 -0.0156618 0.00359686 -0.0167642 "
         "0.00177277 -0.00268494 -0.00226985 0.000561181 0.000973706 0.00457566 -0.00110991 -0.000274088 "
@@ -131,7 +141,7 @@ _KEYFRAMES: Tuple[Tuple[str, str, str], ...] = (
     ),
     (
         "squat",
-        "0 0.735 -0.611 1.309 0.00801825 -0.013877 -1.309 0 0.349 0.00678797 -0.0108957 -0.0307363 "
+        "0 0.735 -0.611 1.309 0.00801825 -0.013877 -1.309 0.349 0.125 0.00678797 -0.0108957 -0.0307363 "
         "0.00489804 -0.0319356 0.00257792 -0.00511918 -0.00432696 -0.00106944 1.309 0.00801825 -0.013877 "
         "-1.309 0.349 0.125 0.00678797 -0.0108957 -0.0307363 0.00489804 -0.0319356 0.00257792 -0.00511918 "
         "-0.00432696 0.00106944 0.0036846 0.0173131 -0.00419992 0.0036846 0.0173131 0.00419992",
@@ -139,7 +149,7 @@ _KEYFRAMES: Tuple[Tuple[str, str, str], ...] = (
     ),
     (
         "lunge",
-        "0 0.67 -0.558 0.698 0.00750741 -0.0181029 -1.56 0 0.349 0.00751197 -0.0120576 -0.0336899 "
+        "0 0.67 -0.558 0.698 0.00750741 -0.0181029 -1.56 0.349 0.2 0.00751197 -0.0120576 -0.0336899 "
         "0.00449775 -0.0347267 0.00244804 -0.00473821 -0.00400428 -0.000989454 1.57 0.00789372 -0.0124705 "
         "-1.222 0.174 0.06 0.00646838 -0.0103828 -0.0298205 0.00498543 -0.03108 0.00257653 -0.00512188 "
         "-0.0043294 0.0010701 0.00172256 0.00809451 -0.00196352 0.00447291 0.0210163 0.00509836",

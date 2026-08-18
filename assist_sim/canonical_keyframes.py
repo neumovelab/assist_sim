@@ -23,8 +23,14 @@ The two walking poses carry the ``myolegs22`` initial velocity -- a forward
 ``pelvis_tx`` of 1.5 m/s -- so the reflex controller starts mid-gait instead of
 from a standstill (the static poses stay at zero velocity).
 
-Values are the ``myolegs22`` keyframe angles (radians; ``pelvis_ty`` in metres).
-Device ``keyframe_overrides`` still apply on top per model.
+Values are the ``myolegs22`` keyframe angles (radians; ``pelvis_ty`` in metres),
+checked against the MyoAssist 0.1 reference model: ``stand`` and ``squat`` are
+left/right symmetric, ``walk_left`` and ``walk_right`` mirror each other, and only
+``lunge`` is asymmetric by design.  This table used to carry the same shifted
+right-leg pair as ``reduce_legs._KEYFRAMES`` (``ankle_angle_r`` at 0 with the
+ankle's value on ``mtp_angle_r``), which propagated the defect to every MSK that
+takes the injected poses.  Device ``keyframe_overrides`` still apply on top per
+model.
 """
 
 from typing import Dict
@@ -48,8 +54,8 @@ _CANONICAL_LEG_POSES: Dict[str, Dict[str, float]] = {
         "pelvis_tilt": 0.0,
         "hip_flexion_r": 0.0,
         "knee_angle_r": 0.0,
-        "ankle_angle_r": 0.0,
-        "mtp_angle_r": -0.0143,
+        "ankle_angle_r": -0.0143,
+        "mtp_angle_r": 0.0,
         "hip_flexion_l": 0.0,
         "knee_angle_l": 0.0,
         "ankle_angle_l": -0.0143,
@@ -72,8 +78,8 @@ _CANONICAL_LEG_POSES: Dict[str, Dict[str, float]] = {
         "pelvis_tilt": -0.262,
         "hip_flexion_r": 0.436,
         "knee_angle_r": -0.0873,
-        "ankle_angle_r": 0.0,
-        "mtp_angle_r": -0.0737,
+        "ankle_angle_r": -0.0737,
+        "mtp_angle_r": 0.0,
         "hip_flexion_l": -0.174,
         "knee_angle_l": -0.436,
         "ankle_angle_l": 0.0,
@@ -84,8 +90,8 @@ _CANONICAL_LEG_POSES: Dict[str, Dict[str, float]] = {
         "pelvis_tilt": -0.611,
         "hip_flexion_r": 1.309,
         "knee_angle_r": -1.309,
-        "ankle_angle_r": 0.0,
-        "mtp_angle_r": 0.349,
+        "ankle_angle_r": 0.349,
+        "mtp_angle_r": 0.125,
         "hip_flexion_l": 1.309,
         "knee_angle_l": -1.309,
         "ankle_angle_l": 0.349,
@@ -96,8 +102,8 @@ _CANONICAL_LEG_POSES: Dict[str, Dict[str, float]] = {
         "pelvis_tilt": -0.558,
         "hip_flexion_r": 0.698,
         "knee_angle_r": -1.56,
-        "ankle_angle_r": 0.0,
-        "mtp_angle_r": 0.349,
+        "ankle_angle_r": 0.349,
+        "mtp_angle_r": 0.2,
         "hip_flexion_l": 1.57,
         "knee_angle_l": -1.222,
         "ankle_angle_l": 0.174,
