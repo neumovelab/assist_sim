@@ -85,6 +85,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Exporting to a different filesystem root raised instead of exporting.** `_rewrite_mesh_paths`
+  wrote each `<mesh file=...>` relative to the output directory, using `os.path.relpath` as the
+  fallback for `Path.relative_to`. On Windows there is no relative path between drives and
+  *both* of those raise, so the fallback had no fallback: an export whose destination sat on
+  another drive died with `ValueError: path is on mount 'D:', start on mount 'C:'`. It now
+  falls back to the absolute path, which is valid MJCF and loads fine — only the portability of
+  the exported directory is lost, and it was never portable across drives to begin with.
+
+  This was pre-existing and invisible until the new Windows CI lane ran: Linux has one mount
+  tree so `relpath` always succeeds, and a same-drive Windows machine never reaches the branch.
+  The GitHub Windows runner checks out to `D:` with `TEMP` on `C:`, which failed 13 export and
+  upper-body tests on the first Windows run.
+
 - **Shod devices read zero ground contact.** A boot or shoe puts its own outsole between the
   foot and the ground, so the baseline `r_foot` / `r_toes` touch sensors — boxes on `calcn`
   and `toes` — no longer contained the contact points and reported nothing. `DephyExoBoot_L1`
