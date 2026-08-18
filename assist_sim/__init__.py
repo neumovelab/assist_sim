@@ -92,10 +92,13 @@ def load_combined_model(
 
     if cache_dir is not None:
         from . import cache as _cache
+        from .loading import _assist_sim_token
 
         cache_dir = Path(cache_dir)
         paths = _cache.input_paths(human_xml, device_config, str(config.model_xml_path))
-        key = _cache.compute_key(paths, __version__, msk_key)
+        # Token, not bare __version__: an editable install keeps one version across every
+        # local edit, so a version-only key serves models built by an older pipeline.
+        key = _cache.compute_key(paths, _assist_sim_token(), msk_key)
 
         hit = _cache.try_load(cache_dir, key)
         if hit is not None:
@@ -104,19 +107,20 @@ def load_combined_model(
             return hit
 
         cache_dir.mkdir(parents=True, exist_ok=True)
-        cached_xml = str(_cache.cached_xml_path(cache_dir, key))
+        staged = _cache.staging_xml_path(cache_dir, key)
         model, data = ModelCombiner().combine(
             mj.MjSpec.from_file(human_path),
             config,
-            export_xml=cached_xml,
+            export_xml=str(staged),
             msk_key=msk_key,
             keep_temp=keep_temp,
         )
+        cached_xml = str(_cache.commit(cache_dir, key, staged))
         _cache.write_meta(
             cache_dir,
             key,
             {
-                "assist_sim_version": __version__,
+                "assist_sim": _assist_sim_token(),
                 "human_xml": human_path,
                 "device_config": str(Path(device_config).resolve()),
                 "msk_key": msk_key,

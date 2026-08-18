@@ -354,13 +354,8 @@ def resolve(msk_key: str, device_key: str) -> Tuple["mujoco.MjSpec", Path]:
         ImportError: if the MSK requires myo_sim but it isn't installed, the
             installed MuJoCo is too old, or the build fails.
     """
-    key = _resolve_device_key(device_key)
-    if not _compatible(key, msk_key):
-        raise ValueError(
-            f"Device '{device_key}' is not compatible with MSK '{msk_key}'. Compatible MSKs: {_COMPATIBLE_MSK.get(key)}"
-        )
-    human_spec = _resolve_msk(msk_key)
-    return human_spec, DEVICE_CONFIGS[key]
+    config_path = resolve_device_config(msk_key, device_key)
+    return _resolve_msk(msk_key), config_path
 
 
 def get_available_combinations() -> Dict[str, List[str]]:
