@@ -6,6 +6,170 @@ from typing import Dict, List, Optional
 
 import yaml
 
+from .errors import closest_matches
+
+# Every section ``from_yaml`` reads.  A key outside this set is rejected rather than
+# ignored: a typo'd section (``bodyremovals``, ``sensorss``) used to load clean and do
+# nothing, which is the same class of unresolved reference the package raises on
+# everywhere else.
+_TOP_LEVEL_SECTIONS = frozenset(
+    {
+        "device",
+        "attachments",
+        "equality",
+        "joint_overrides",
+        "actuators",
+        "body_removals",
+        "mesh_replacements",
+        "actuator_removals",
+        "tendon_removals",
+        "geom_removals",
+        "tendon_modifications",
+        "body_overrides",
+        "actuator_overrides",
+        "sensors",
+        "sensor_removals",
+        "contact",
+        "keyframe_overrides",
+        "keyframes",
+    }
+)
+
+_DEVICE_KEYS = frozenset({"name", "model_xml", "compatible_msk"})
+
+# Per-item keys each section's parser reads.  Anything else in an entry is a typo that
+# would otherwise be dropped in silence -- ``position`` for ``pos`` on an attachment
+# seats the device at the wrong place with no message.
+_ITEM_KEYS: Dict[str, frozenset] = {
+    "attachments": frozenset({"device_body", "parent_body", "pos", "quat"}),
+    "equality": frozenset(
+        {
+            "type",
+            "device_body",
+            "parent_body",
+            "joint1",
+            "joint2",
+            "polycoef",
+            "anchor",
+            "relpose",
+            "torquescale",
+            "solref",
+            "solimp",
+            "active",
+        }
+    ),
+    "joint_overrides": frozenset({"name", "range", "damping", "axis", "pos"}),
+    "actuators": frozenset(
+        {
+            "name",
+            "type",
+            "joint",
+            "gaintype",
+            "gainprm",
+            "biastype",
+            "biasprm",
+            "dyntype",
+            "dynprm",
+            "ctrlrange",
+            "ctrllimited",
+            "gear",
+        }
+    ),
+    "mesh_replacements": frozenset({"geom", "mesh"}),
+    "body_overrides": frozenset({"name", "mass", "diaginertia", "fullinertia", "ipos", "iquat"}),
+    "actuator_overrides": frozenset({"name", "lengthrange"}),
+    "sensors": frozenset({"name", "type", "site", "joint", "actuator", "tendon", "body", "geom", "cutoff", "noise"}),
+    "tendon_modifications": frozenset({"name", "wraps"}),
+    "contact.pairs": frozenset({"geom1", "geom2", "condim", "margin", "gap", "friction", "solref", "solimp"}),
+    "contact.excludes": frozenset({"body1", "body2"}),
+}
+
+_WRAP_ITEM_KEYS = frozenset({"reposition_site", "replace_site", "reposition_geom", "replace_geom", "new_body", "pos"})
+
+# Actuator ``type`` values the pipeline actually implements.  Every actuator is emitted
+# as MuJoCo ``general``; ``motor`` is accepted because MJCF's <motor> *is* general with
+# gaintype=fixed / biastype=none / dyntype=none, which are this schema's defaults.  A
+# value like ``position`` or ``velocity`` would silently produce a motor instead, so it
+# is rejected rather than quietly mis-built.
+_ACTUATOR_TYPES = frozenset({"general", "motor"})
+_MOTOR_EQUIVALENT = {"gaintype": "fixed", "biastype": "none", "dyntype": "none"}
+
+# List-shaped sections that take a flat list only -- the per-MSK ``default:``/``<msk_key>:``
+# dict form is not implemented for them.  Handing them a dict used to raise
+# ``TypeError: string indices must be integers`` from deep inside the parser.
+#
+# The legacy ``keyframes`` section is *also* flat-only, but it is deliberately absent here:
+# it is a mapping (keyframe name -> {time, qpos, qvel}) in its valid form, so "is a dict"
+# cannot distinguish it from a per-MSK block without inspecting the nesting.  Rejecting on
+# shape would break every legitimate legacy-keyframe config.
+_FLAT_ONLY_SECTIONS = ("actuators",)
+
+
+def _reject_unknown_keys(mapping, allowed, where: str) -> None:
+    """Raise for any key in *mapping* outside *allowed*, with a 'did you mean'."""
+    if not isinstance(mapping, dict):
+        return
+    unknown = sorted(set(mapping) - set(allowed))
+    if not unknown:
+        return
+    hints = []
+    for key in unknown:
+        suggestions = closest_matches(key, sorted(allowed))
+        hints.append(f"'{key}'" + (f" (did you mean {', '.join(repr(s) for s in suggestions)}?)" if suggestions else ""))
+    raise ValueError(f"{where} has unknown key(s): {'; '.join(hints)}. Valid keys: {sorted(allowed)}.")
+
+
+def _valid_msk_keys() -> frozenset:
+    """The MSK registry keys a per-MSK block may name, plus ``default``.
+
+    Imported lazily: ``registry`` scans the models directory at import time, and this
+    keeps ``config`` usable on its own.
+    """
+    from .registry import _COMPATIBLE_MSK_KEYS
+
+    return frozenset(_COMPATIBLE_MSK_KEYS) | {"default"}
+
+
+def _reject_unknown_msk_keys(mapping, where: str) -> None:
+    """Raise for a per-MSK block keyed by something that is not an MSK key.
+
+    A misspelled key (``myolegz26``) used to load clean and never apply, so a surgical
+    override the author believed was active simply did not happen.
+    """
+    if isinstance(mapping, dict):
+        _reject_unknown_keys(mapping, _valid_msk_keys(), where)
+
+
+def _reject_unknown_item_keys(section: str, items) -> None:
+    """Validate each entry of a list-shaped section against its parser's key set."""
+    allowed = _ITEM_KEYS.get(section)
+    if allowed is None or not isinstance(items, list):
+        return
+    for i, item in enumerate(items):
+        _reject_unknown_keys(item, allowed, f"{section}[{i}]")
+
+
+def _reject_unknown_section_keys(section: str, raw_value) -> None:
+    """Validate a section in either shape: flat list, or per-MSK dict of lists."""
+    if isinstance(raw_value, dict):
+        _reject_unknown_msk_keys(raw_value, f"the per-MSK block of '{section}'")
+        for msk_key, items in raw_value.items():
+            _reject_unknown_item_keys(section, items)
+            if section == "tendon_modifications":
+                _reject_unknown_wrap_keys(items, f"{section}[{msk_key}]")
+    else:
+        _reject_unknown_item_keys(section, raw_value)
+        if section == "tendon_modifications":
+            _reject_unknown_wrap_keys(raw_value, section)
+
+
+def _reject_unknown_wrap_keys(items, where: str) -> None:
+    for item in items or []:
+        if isinstance(item, dict):
+            for wrap in item.get("wraps") or []:
+                _reject_unknown_keys(wrap, _WRAP_ITEM_KEYS, f"{where}[{item.get('name')}].wraps")
+
+
 # Wrap edits re-anchor a muscle onto the residual limb.  A wrap resolves its
 # site/geom by name at compile, so moving the element moves the wrap.
 _WRAP_OPS = ("reposition_site", "replace_site", "reposition_geom", "replace_geom")
@@ -78,6 +242,13 @@ def _parse_wrap_edit(raw: dict) -> "WrapEdit":
     pos = raw.get("pos")
     if op.startswith("replace_") and not new_body:
         raise ValueError(f"{op} '{target}' requires 'new_body'")
+    if op.startswith("reposition_") and new_body:
+        # ``reposition_*`` moves the element on the body it already sits on; combine never
+        # reads new_body for it, so accepting one would silently not re-anchor anything.
+        raise ValueError(
+            f"{op} '{target}' also sets 'new_body: {new_body}', which it ignores -- it moves the "
+            f"element on its current body. Use 'replace_{op.split('_', 1)[1]}' to move it to another body."
+        )
     if pos is None:
         raise ValueError(f"{op} '{target}' requires 'pos'")
     return WrapEdit(op=op, target=target, new_body=new_body, pos=pos)
@@ -96,6 +267,22 @@ def _parse_equality(raw: dict) -> "EqualityConstraint":
     eq_type = raw.get("type", "connect")
     if eq_type not in _EQUALITY_TYPES:
         raise ValueError(f"equality 'type' must be one of {_EQUALITY_TYPES}; got {eq_type!r}")
+
+    # Each form reads a disjoint set of keys, so a key belonging to the other form is a
+    # mistake the parser would otherwise drop: a 'joint' equality carrying device_body /
+    # parent_body / anchor looks like it ties two bodies and does not.
+    _WRONG_FORM_KEYS = {
+        "joint": ("device_body", "parent_body", "anchor", "relpose", "torquescale"),
+        "body": ("joint1", "joint2", "polycoef"),
+    }
+    form = "joint" if eq_type == "joint" else "body"
+    stray = [k for k in _WRONG_FORM_KEYS[form] if raw.get(k) is not None]
+    if stray:
+        other = "connect/weld" if form == "joint" else "joint"
+        raise ValueError(
+            f"equality of type {eq_type!r} also sets {stray}, which belong to the {other} form and "
+            f"are ignored here. Split it into two entries, or fix the 'type'."
+        )
 
     if eq_type == "joint":
         joint1 = raw.get("joint1")
@@ -201,6 +388,52 @@ def _parse_actuator_override(raw: dict) -> "ActuatorOverride":
     if len(lengthrange) != 2 or lengthrange[0] >= lengthrange[1]:
         raise ValueError(f"actuator override '{name}' needs 'lengthrange: [lo, hi]' with lo < hi; got {lengthrange}")
     return ActuatorOverride(name=name, lengthrange=[float(v) for v in lengthrange])
+
+
+def _parse_actuator(raw: dict) -> "ActuatorDef":
+    """Parse one entry of the ``actuators:`` section.
+
+    ``type`` is validated rather than ignored.  Every actuator is emitted as MuJoCo
+    ``general``, so only the values that ``general`` plus this schema's defaults actually
+    reproduce are accepted: ``general`` itself, and ``motor`` (MJCF's <motor> *is* general
+    with gaintype=fixed / biastype=none / dyntype=none).  ``position`` or ``velocity``
+    would need a different biastype, so accepting them would silently build a motor.
+    """
+    name, joint = raw.get("name"), raw.get("joint")
+    if not name or not joint:
+        raise ValueError(f"each actuator must have 'name' and 'joint'; got {raw}")
+
+    act_type = raw.get("type", "general")
+    if act_type not in _ACTUATOR_TYPES:
+        raise ValueError(
+            f"actuator '{name}' has type {act_type!r}, which the pipeline does not implement. "
+            f"Supported: {sorted(_ACTUATOR_TYPES)}. Every actuator is emitted as MuJoCo 'general'; "
+            f"shape it with 'gaintype' / 'biastype' / 'dyntype' instead."
+        )
+    if act_type == "motor":
+        # Catch a declared motor whose parameters say otherwise, rather than honouring one
+        # and ignoring the other.
+        contradictions = {k: raw[k] for k, want in _MOTOR_EQUIVALENT.items() if k in raw and raw[k] != want}
+        if contradictions:
+            raise ValueError(
+                f"actuator '{name}' declares type 'motor' but also sets {contradictions}, which a "
+                f"MuJoCo <motor> cannot express (a motor is {_MOTOR_EQUIVALENT}). Use type 'general'."
+            )
+
+    return ActuatorDef(
+        name=name,
+        type=act_type,
+        joint=joint,
+        gaintype=raw.get("gaintype", "fixed"),
+        gainprm=raw.get("gainprm", [1, 0, 0]),
+        biastype=raw.get("biastype", "none"),
+        biasprm=raw.get("biasprm", [0, 0, 0]),
+        dyntype=raw.get("dyntype", "none"),
+        dynprm=raw.get("dynprm", [1, 0, 0]),
+        ctrlrange=raw.get("ctrlrange"),
+        ctrllimited=raw.get("ctrllimited", False),
+        gear=raw.get("gear", [1.0]),
+    )
 
 
 def _parse_body_override(raw: dict) -> "BodyOverride":
@@ -734,6 +967,26 @@ class DeviceConfig:
         if raw is None:
             raise ValueError(f"Empty config file: {yaml_path}")
 
+        # --- reject anything the parser would otherwise ignore -------------------
+        # Every check below turns a silent no-op into an error at load time: an unknown
+        # section, an unknown key inside an entry, a per-MSK block keyed by a misspelled
+        # MSK name, or the per-MSK dict form on a section that only takes a flat list.
+        _reject_unknown_keys(raw, _TOP_LEVEL_SECTIONS, f"{yaml_path.name}")
+        _reject_unknown_keys(raw.get("device") or {}, _DEVICE_KEYS, f"{yaml_path.name} 'device'")
+        for section in _FLAT_ONLY_SECTIONS:
+            if isinstance(raw.get(section), dict):
+                raise ValueError(
+                    f"{yaml_path.name}: section '{section}' takes a flat list, not the per-MSK "
+                    f"'default:/<msk_key>:' dict form. Move the entries to a plain list."
+                )
+        for section in _ITEM_KEYS:
+            if "." in section:
+                continue  # contact.* handled with the contact block below
+            if section in raw:
+                _reject_unknown_section_keys(section, raw[section])
+        for section in ("body_removals", "actuator_removals", "tendon_removals", "geom_removals", "sensor_removals"):
+            _reject_unknown_msk_keys(raw.get(section), f"the per-MSK block of '{section}'")
+
         config_dir = yaml_path.parent
 
         # --- device section ---
@@ -792,23 +1045,7 @@ class DeviceConfig:
         joint_overrides, joint_overrides_by_msk = _parse_per_msk_list(raw.get("joint_overrides", []), _parse_joint_override)
 
         # --- actuators ---
-        actuators = [
-            ActuatorDef(
-                name=a["name"],
-                type=a.get("type", "general"),
-                joint=a["joint"],
-                gaintype=a.get("gaintype", "fixed"),
-                gainprm=a.get("gainprm", [1, 0, 0]),
-                biastype=a.get("biastype", "none"),
-                biasprm=a.get("biasprm", [0, 0, 0]),
-                dyntype=a.get("dyntype", "none"),
-                dynprm=a.get("dynprm", [1, 0, 0]),
-                ctrlrange=a.get("ctrlrange"),
-                ctrllimited=a.get("ctrllimited", False),
-                gear=a.get("gear", [1.0]),
-            )
-            for a in raw.get("actuators", [])
-        ]
+        actuators = [_parse_actuator(a) for a in raw.get("actuators", [])]
 
         # --- prosthetic: body removals ---
         body_removals, body_removals_by_msk = _parse_per_msk_list(raw.get("body_removals", []), lambda s: s)
@@ -858,11 +1095,16 @@ class DeviceConfig:
         unknown = set(raw_contact) - {"excludes", "pairs"}
         if unknown:
             raise ValueError(f"unknown key(s) in 'contact': {sorted(unknown)}; expected 'excludes' and/or 'pairs'")
+        for sub in ("excludes", "pairs"):
+            _reject_unknown_section_keys(f"contact.{sub}", raw_contact.get(sub, []))
         contact_excludes, contact_excludes_by_msk = _parse_per_msk_list(raw_contact.get("excludes", []), _parse_exclude)
         contact_pairs, contact_pairs_by_msk = _parse_per_msk_list(raw_contact.get("pairs", []), _parse_pair)
 
         # --- keyframe overrides (model-agnostic, default or per-MSK) ---
-        keyframe_overrides, keyframe_overrides_by_msk = _parse_keyframe_overrides(raw.get("keyframe_overrides", {}))
+        raw_kf_overrides = raw.get("keyframe_overrides", {}) or {}
+        if _is_per_msk_keyframe_overrides(raw_kf_overrides):
+            _reject_unknown_msk_keys(raw_kf_overrides, "the per-MSK block of 'keyframe_overrides'")
+        keyframe_overrides, keyframe_overrides_by_msk = _parse_keyframe_overrides(raw_kf_overrides)
 
         # --- keyframes (legacy full-array mode, backward compat) ---
         keyframes: Dict[str, KeyframeDef] = {}

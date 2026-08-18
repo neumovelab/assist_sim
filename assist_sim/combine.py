@@ -1167,19 +1167,27 @@ def _build_actuator_kwargs(
 ) -> dict:
     """Convert an ActuatorDef into kwargs for MjSpec.add_actuator().
 
-    If spec and prefix are given, resolves the joint target: use bare name
-    if it exists in the spec, otherwise try prefix + joint (for device joints).
+    When *spec* is given, the joint target is resolved bare-first then device-prefixed --
+    the same rule every other section uses -- and an unresolvable name raises with a
+    "did you mean" list.  Previously it fell through with the bare name and the failure
+    surfaced later as a raw MuJoCo compile error naming neither the section nor the
+    actuator, the one section that did not validate its own reference.
     """
     kwargs: dict = {"name": act_def.name}
 
     target = act_def.joint
-    if spec is not None and prefix:
-        if spec.joint(target) is not None:
-            pass
+    if spec is not None and spec.joint(target) is None:
+        prefixed = prefix + target
+        if prefix and spec.joint(prefixed) is not None:
+            target = prefixed
         else:
-            prefixed = prefix + target
-            if spec.joint(prefixed) is not None:
-                target = prefixed
+            available = [j.name for j in spec.joints if j.name]
+            raise unknown_reference(
+                act_def.joint,
+                available,
+                section=f"actuators[{act_def.name}].joint",
+                kind="joint",
+            )
 
     kwargs["trntype"] = mj.mjtTrn.mjTRN_JOINT
     kwargs["target"] = target

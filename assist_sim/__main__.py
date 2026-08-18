@@ -25,7 +25,7 @@ from . import (
 
 
 def _cmd_list(_: argparse.Namespace) -> int:
-    from .registry import DEVICE_CONFIGS, _COMPATIBLE_MSK_KEYS, _msk_available
+    from .registry import DEVICE_CONFIGS, _COMPATIBLE_MSK_KEYS, _DEVICE_ERRORS, _msk_available
 
     combos = get_available_combinations()
     if combos:
@@ -33,6 +33,14 @@ def _cmd_list(_: argparse.Namespace) -> int:
             print(f"{msk_key}:")
             for device in devices:
                 print(f"    - {device}")
+        # Devices whose config failed to parse are omitted from the lists above rather
+        # than shown as usable, so name them here -- otherwise a broken config just
+        # disappears from the listing with no explanation.
+        if _DEVICE_ERRORS:
+            print()
+            print("Devices skipped (unreadable config):")
+            for key, exc in sorted(_DEVICE_ERRORS.items()):
+                print(f"    - {key}: {type(exc).__name__}: {exc}")
         return 0
 
     # No MSKs buildable -- either myo_sim isn't installed or every MSK is gated
