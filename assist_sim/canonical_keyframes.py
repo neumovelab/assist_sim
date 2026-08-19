@@ -7,7 +7,7 @@ pipeline restores keyframes by joint *name* and defaults everything else to the
 compiled ``qpos0``, so one per-joint pose table works across all leg lineages:
 
 * ``myolegs26`` takes the ``myolegs22`` hinge angles directly (same knee sign).
-* ``myolegs`` (80-muscle, gait2392 lineage) shares the angles too, but its knee
+* ``myolegs`` (80-muscle) shares the angles too, but its knee
   flexes with the **opposite sign** (positive flexion, joint range ``[0, +pi]``)
   where the myoLeg knee is negative.  Feeding the raw myoLeg angles hyperextends
   it (a walk pose lands the knee below its range, a squat folds the model over),
@@ -37,7 +37,7 @@ from typing import Dict
 
 from .preprocess import KeyframeData
 
-# Knee joints whose sign is flipped for a positive-flexion (gait2392) knee.
+# Knee joints whose sign is flipped for a positive-flexion knee.
 KNEE_JOINTS = ("knee_angle_r", "knee_angle_l")
 # myolegs22 walking initial velocity: forward pelvis translation (m/s).
 _WALK_FWD_VEL = 1.5
@@ -122,7 +122,7 @@ def canonical_leg_keyframes(knee_sign: float = 1.0) -> Dict[str, KeyframeData]:
     ``knee_sign`` selects the host knee's flexion convention; it is a **flag, not a
     multiplier**.  Any negative value flips the knee angles, any non-negative value leaves
     them alone -- so pass ``+1`` for the myoLeg (negative-flexion) knee and ``-1`` for a
-    positive-flexion (gait2392) knee, and do not expect an intermediate value to scale
+    positive-flexion knee, and do not expect an intermediate value to scale
     anything.  Without the flip, the shared poses hyperextend a positive-flexion knee.
 
     Walking poses carry the forward ``pelvis_tx`` initial velocity; static poses stay at

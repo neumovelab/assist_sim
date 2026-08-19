@@ -47,7 +47,7 @@ actuators:
     gear: [1.0]
 
 # The lunge knee is authored for the myoLeg convention, where the knee flexes negative
-# (range [-2.53, 0]).  The 80-muscle `myolegs` and `myofullbody` are gait2392 lineage and
+# (range [-2.53, 0]).  The 80-muscle `myolegs` and `myofullbody`
 # flex positive (range [0, +2.09]), so the same value hyperextends them: resetting to the
 # pose ejected the model from it, the limit constraint moving the knee ~1.1 rad within 50
 # steps.  Per-MSK blocks merge onto `default`, so only the joint that differs is restated.

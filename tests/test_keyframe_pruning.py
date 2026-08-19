@@ -88,7 +88,7 @@ def test_canonical_poses_respect_the_joint_limits():
     """Every injected pose must sit inside the host model's own joint ranges.
 
     The canonical angles are authored against the myoLeg knee, which flexes negative.
-    The 80-muscle ``myolegs`` (gait2392 lineage) flexes positive, so feeding it the raw
+    The 80-muscle ``myolegs`` flexes positive, so feeding it the raw
     table hyperextended the knee -- a walk pose landed below the range and a squat folded
     the model over.  A clean compile does not catch that: MuJoCo happily compiles a
     keyframe outside a joint limit.  ``myofullbody`` shares the positive-flexion knee, so it
