@@ -12,7 +12,7 @@ is symmetric in ``stand`` and ``squat``, mirrors ``walk_left`` / ``walk_right``,
 asymmetric only in ``lunge``. These tests pin the values and the three invariants, any
 one of which would have caught the shift.
 
-Not covered here: ``knee_angle_translation*`` on the gait2392 lineage (``myolegs``,
+Not covered here: ``knee_angle_translation*`` (``myolegs``,
 ``myofullbody``). Those are coupled DOFs whose ranges exclude 0, and the model's own
 ``qpos0`` is 0, so an injected keyframe is no worse than a fresh load. That is a separate,
 pre-existing issue.
