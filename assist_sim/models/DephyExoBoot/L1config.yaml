@@ -1,5 +1,5 @@
 device:
-  name: "DephyExoBootL1"
+  name: "DephyExoBoot_L1"
   model_xml: "L1model.xml"
 
 attachments:
