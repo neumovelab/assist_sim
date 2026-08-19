@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0] — First stable release
+
+Coordinated 1.0.0 across the MyoAssist framework. The public API (`load_combined`,
+`load_combined_model`, `load_msk`, the registry, and the device-config schema) is stable.
+
+### Changed
+
+- **Publishing is tag-triggered and test-gated.** `publish.yml` builds and publishes only on a
+  `v*` tag, reuses `test.yml` as a release gate, and checks the tag matches the packaged version,
+  so a stray `workflow_dispatch` can no longer publish an untested or unbumped tree.
+- **Naming and config cleanup.** Renamed internal "gait2392" references to "myolegs", and brought
+  the DephyExoBoot device name in line with the `_L1` convention.
+
 ## [0.8.0] — MuJoCo range, cache repair, config strictness, CO frame + canonical keyframes
 
 ### Added
