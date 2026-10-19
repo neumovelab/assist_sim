@@ -216,3 +216,16 @@ def test_wheelchair_caster_forks_swivel_60_degrees(fork):
     lo, hi = m.jnt_range[m.joint(fork).id]
     assert m.jnt_limited[m.joint(fork).id] == 1
     assert (lo, hi) == pytest.approx((-1.0472, 1.0472))
+
+
+@needs_myo_sim
+def test_auxivo_exosuit_mass_follows_myoback():
+    """The exosuit is 0.90 kg: the MyoBack geom masses, and a massless wrap cylinder.
+
+    Each exo part is its own welded body with no inertial, so a geom without a mass took
+    its mass from its volume at the default density: 34.1 kg in total, 9.0 kg of it from
+    the spring-tendon wrap cylinder alone.
+    """
+    m, _ = build_auxivo_liftsuit()
+    masses = {b: m.body_mass[m.body(b).id] for b in ("exo_pelvis", "exo_lumbar4", "exo_torso")}
+    assert masses == pytest.approx({"exo_pelvis": 0.178, "exo_lumbar4": 0.094, "exo_torso": 0.627})

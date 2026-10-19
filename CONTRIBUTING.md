@@ -18,7 +18,7 @@ dependency (`myo-sim>=0.2.3`), so `pip install -e .` already brings it in from P
 full suite runs:
 
 ```bash
-pytest                # 383 collected: 380 pass, 2 skip, 1 xfail (~6 min alone)
+pytest                # 384 collected: 381 pass, 2 skip, 1 xfail (~6 min alone)
 ```
 
 One skip is platform-gated: `test_staging_works_from_a_read_only_device_directory` needs POSIX

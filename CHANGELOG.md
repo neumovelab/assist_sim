@@ -34,6 +34,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The Auxivo LiftSuit weighs 0.90 kg, not 34.1 kg.** Its exo parts are separate welded bodies
+  without inertials, and only the belt geom carried a mass, so MuJoCo inferred the rest from
+  volume at 1000 kg/m^3: 21.4 kg for the upper panel, 9.0 kg for the spring-tendon wrap cylinder
+  and 3.6 kg for the leg straps. The leg-strap (0.178 kg) and upper-panel (0.627 kg) masses now
+  come from the MyoBack model (Walia et al., 2025), and the wrap class sets `mass="0"`. The env
+  total drops from 71.29 to 38.05 kg.
 - **The Wheelchair caster forks swivel +/-60 deg, not +/-60 rad.** The source chain wrote
   `range="-60 60"` for a standalone wheelchair model that compiled in degrees (the MuJoCo
   default). The collaborator env, and this model, declare `angle="radian"`, so the same text
