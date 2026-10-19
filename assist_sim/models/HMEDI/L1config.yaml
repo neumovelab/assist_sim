@@ -6,9 +6,13 @@ device:
   # share the same passive torso scaffold -- as does myofullbody.
   compatible_msk: [myolegs22, myolegs26, myolegs, myofullbody]
 
-# HMEDI's hip-flexion assistance is driven by two spatial-tendon "cable"
+# HMEDI's hip-extension assistance is driven by two spatial-tendon "cable"
 # actuators (Exo_R/Exo_L) that wrap over sites on the torso + thigh
-# subassemblies. Both the cables and their tendon-transmission actuators
+# subassemblies. Each cable runs from the torso piece down to the femur flap,
+# behind the hip joint (the sites are 0.10-0.17 m posterior of the hip centre),
+# so it lengthens as the hip flexes (+0.09 to +0.10 m/rad). The actuators pull
+# only (ctrlrange [-1, 0], 100 N at -1), which gives about 10 N*m of hip
+# extension torque on all four MSKs. Both the cables and their tendon-transmission actuators
 # are authored in L1model.xml (<tendon> and <actuator> sections) and
 # imported into the combined model by the pipeline with the device prefix.
 # Joint-transmission actuators (none for HMEDI) would be authored here in

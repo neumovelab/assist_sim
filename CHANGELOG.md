@@ -26,6 +26,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `ngeom` are unchanged). The other differences come from myo-sim: the `chest_r` mass, the
   lunate inertia, the `back_cylinder_l` wrap radius (0.17 to 0.166 m) and 11 hand tendon
   lengths per arm.
+- **`HMEDI_L1` is described as a hip-extension exo.** The config header and
+  `docs/available-models.md` said hip flexion. The cables run behind the hip and the actuators
+  only pull, so full command gives about 10 N·m of extension torque on all four MSKs. The model
+  is unchanged; only the description was wrong.
 - **Device parts no longer start inside human colliders on the freejoint lineages.**
   MuJoCo only auto-excludes parent/child bodies, and `myolegs` / `myofullbody` carry extra
   foot and shank colliders plus, on `myofullbody`, a torso five spine joints above the pelvis.
