@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`tests/test_device_contact_overlap.py`**: asserts no device geom starts more than 2 mm
+  inside a human collider at the `stand` pose, for every MSK x device combination. It fails on
+  the ten combinations under Fixed without the excludes.
 - **`forcerange` / `forcelimited` on YAML actuators.** A joint motor can now be force-limited
   from its device config. Before, the schema rejected `forcerange`, and a device-XML joint
   actuator was skipped (see Fixed), so no file could limit a joint motor. The range clamps the
@@ -65,29 +68,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `docs/available-models.md` said hip flexion. The cables run behind the hip and the actuators
   only pull, so full command gives about 10 N·m of extension torque on all four MSKs. The model
   is unchanged; only the description was wrong.
+- **`Hippo_L1` thigh segments stay on their motors.** The AK10-9 motor axes sit 54-56 mm
+  (`myolegs22`, `myolegs26`) and 73-75 mm (`myolegs`, `myofullbody`) behind and above the hip
+  joint centres, so the femur-welded braces swung off the motors as the hip flexed: 36-49 mm at
+  +30 deg and 59-73 mm at +60 deg, and 13-30 mm even at the authored pose. Each thigh segment
+  (brace and cuff, one rigid assembly) now hangs from its motor on a single hinge at the
+  motor-disc centre, as on the hardware, which has no other joint between the motor and the cuff.
+  A femur-side strap body slides along the thigh axis, and a `connect` equality holds it to the
+  cuff centre, so the cuff slides and tilts on the thigh like a strapped cuff on soft tissue. The
+  hub stays on the motor axis in every pose; the cuff slides -11 to +16 mm along the thigh over the
+  canonical poses and walking-range flexion. The pelvis-side parts keep their authored placement,
+  and the actuators are unchanged (ideal torques on `hip_flexion`). Per-MSK keyframe overrides
+  close the loops in the five canonical poses. On `myofullbody`, the waist parts are excluded
+  against the torso, which they sit inside by design, and the keyframes abduct the arms by 10 deg
+  so that the forearms clear the motor housing (they started up to 50 mm inside it). Signatures
+  change: `nq` +4, `nbody` +2 (the straps) on all four MSKs; device mass 4.902 kg (the straps add
+  1 g each).
+- **`Hippo_L1` restricts hip adduction and rotation.** The thigh segment
+  cannot follow either, so on `myolegs26`, `myolegs` and `myofullbody` the config sets explicit
+  joint ranges: adduction -3.5 to +3.5 deg and rotation -10 to +10 deg (was -50 to +30 and -40 to
+  +40). A quasi-static sweep set them: the cuff moves 2.6-2.9 mm on the thigh per degree of
+  adduction, so it reaches 10 mm at about 3.5 deg, where the `connect` pushes back 10-12.5 N*m.
+  The point `connect` barely resists rotation (under 3 mm and 0.2 N*m at 30 deg), so rotation is
+  limited where the cuff has twisted 10 mm on a 53-mm thigh.
+  `myolegs22` is planar and has neither joint. New `tests/test_hippo_loops.py` checks that every
+  keyframe closes the cuff loops to 0.1 mm and lies inside these ranges.
 - **Device parts no longer start inside human colliders on the freejoint lineages.**
   MuJoCo only auto-excludes parent/child bodies, and `myolegs` / `myofullbody` carry extra
   foot and shank colliders plus, on `myofullbody`, a torso five spine joints above the pelvis.
   Ten combinations started interpenetrated by 16-196 mm, which the solver resolved at up to
-  ~68 kN on the first step while still compiling and stepping cleanly. Nine are fixed (the
-  tenth, `Hippo_L1` on `myofullbody`, is under Known issues). Added per-MSK
+  ~68 kN on the first step while still compiling and stepping cleanly. Added per-MSK
   `contact.excludes` to `DephyExoBoot_L1` (boot shank/mid vs calcn/tibia; belt and batteries vs
   torso), `Humotech_L1`, `Anatomics_L1`, `OpenExo_L1` (shoe and exo parts vs calcn/tibia) and
-  `HMEDI_L1` (waistband and femur flaps vs torso). The overlaps are not new: assist_sim 0.7.0
-  on myo-sim 0.2.1 has the same ten at `qpos0`, at the same depths. The human colliders
-  involved are in geom group 4, which the viewer hides by default, so renders did not show them.
-
-### Added
-
-- **`tests/test_device_contact_overlap.py`**: asserts no device geom starts more than 2 mm
-  inside a human collider at the `stand` pose, for every MSK x device combination. It fails on
-  the ten combinations above without the excludes.
-
-### Known issues
-
-- **`Hippo_L1` on `myofullbody` still starts inside the body.** The waist parts sit up to
-  196 mm inside the torso, and the arms hang through the hip shells. The overlap test marks
-  this combination as a strict expected failure until the device placement is fixed.
+  `HMEDI_L1` (waistband and femur flaps vs torso). The `Hippo_L1` rework above fixes the
+  tenth, `Hippo_L1` on `myofullbody`. The overlaps are not new: assist_sim 0.7.0 on myo-sim 0.2.1
+  has the same ten at `qpos0`, at the same depths. The human colliders involved are in geom
+  group 4, which the viewer hides by default, so renders did not show them.
 
 ## [1.0.0] — First stable release
 

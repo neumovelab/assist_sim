@@ -20,7 +20,9 @@
     </asset>
 
     <worldbody>
-        <!-- Pelvis-mounted backplate + hip shell + waistband + actuator housing -->
+        <!-- Pelvis-mounted backplate + hip shell + waistband + actuator housing (AK10-9 motors).
+             The motor axes sit behind and above the hip joint centres, so each thigh segment
+             below hangs from its motor rather than riding the femur (see L1config.yaml). -->
         <body name="hippo_backplate" pos="-0.2 0.15 -0.1225">
             <inertial pos="0.011455 -0.007843 0.136530" quat="0.015506 0.742451 0.002291 -0.669717" mass="0.929764" diaginertia="1.096709e-03 2.764456e-03 3.656918e-03" />
             <geom name="hippo_backplate_geom" mesh="hippo_backplate_geom" type="mesh" rgba="0.5 0.5 0.5 1" />
@@ -38,8 +40,12 @@
             </body>
         </body>
 
-        <!-- Right thigh brace + cuff -->
-        <body name="hippo_thigh_r" pos="0.01 -0.065 -0.05" euler="0 0 0.15">
+        <!-- Right thigh segment: the brace and its cuff are one rigid assembly that hangs from
+             the motor on a single hinge at the motor-disc centre (hippo_flex_r). The connect
+             equality in L1config.yaml holds the cuff centre to the thigh strap below. The
+             per-MSK attachment frame places the brace. -->
+        <body name="hippo_thigh_r">
+            <joint name="hippo_flex_r" type="hinge" pos="-0.027255 0.103194 0.131292" axis="0 0 1" limited="true" range="-1.2 2.6" damping="0.01" armature="1e-4" />
             <inertial pos="0.005559 -0.015836 0.105363" quat="0.715784 -0.390541 0.425916 -0.392080" mass="0.347605" diaginertia="2.692459e-04 3.450847e-03 3.570638e-03" />
             <geom name="hippo_thigh_r_geom" mesh="hippo_thigh_r_geom" type="mesh" rgba="0.486 0.424 0.82 1" />
             <body name="hippo_thigh_cuff_r" pos="-0.025 -0.11 -0.014">
@@ -47,15 +53,33 @@
                 <geom name="hippo_thigh_cuff_r_geom" mesh="hippo_thigh_cuff_r_geom" type="mesh" rgba="0.5 0.5 0.5 0.5" />
             </body>
         </body>
+        <!-- Right thigh strap: the cuff's grip on the thigh. It slides along the thigh axis
+             (hippo_strap_slide_r) like a strapped cuff on soft tissue and carries no geometry. The
+             per-MSK attachment frame puts it at the cuff centre on the femur. -->
+        <body name="hippo_strap_r">
+            <joint name="hippo_strap_slide_r" type="slide" pos="0 0 0" axis="0 -1 0" limited="true" range="-0.08 0.08" damping="1" armature="1e-3" />
+            <inertial pos="0 0 0" mass="0.001" diaginertia="1e-7 1e-7 1e-7" />
+        </body>
 
-        <!-- Left thigh brace + cuff -->
-        <body name="hippo_thigh_l" pos="0.01 -0.065 -0.0975" euler="0 0 0.15">
+        <!-- Left thigh segment: the brace and its cuff are one rigid assembly that hangs from
+             the motor on a single hinge at the motor-disc centre (hippo_flex_l). The connect
+             equality in L1config.yaml holds the cuff centre to the thigh strap below. The
+             per-MSK attachment frame places the brace. -->
+        <body name="hippo_thigh_l">
+            <joint name="hippo_flex_l" type="hinge" pos="-0.027255 0.103194 0.012344" axis="0 0 1" limited="true" range="-1.2 2.6" damping="0.01" armature="1e-4" />
             <inertial pos="0.005552 -0.015804 0.038271" quat="0.425884 0.392146 0.715784 0.390509" mass="0.347640" diaginertia="2.692519e-04 3.452489e-03 3.572286e-03" />
             <geom name="hippo_thigh_l_geom" mesh="hippo_thigh_l_geom" type="mesh" rgba="0.486 0.424 0.82 1" />
             <body name="hippo_thigh_cuff_l" pos="-0.025 -0.11 0.015">
                 <inertial pos="-0.011141 0.000001 0.071288" quat="-0.495223 0.495208 0.504755 0.504724" mass="0.163742" diaginertia="2.281899e-04 5.054322e-04 6.726042e-04" />
                 <geom name="hippo_thigh_cuff_l_geom" mesh="hippo_thigh_cuff_l_geom" type="mesh" rgba="0.5 0.5 0.5 0.5" />
             </body>
+        </body>
+        <!-- Left thigh strap: the cuff's grip on the thigh. It slides along the thigh axis
+             (hippo_strap_slide_l) like a strapped cuff on soft tissue and carries no geometry. The
+             per-MSK attachment frame puts it at the cuff centre on the femur. -->
+        <body name="hippo_strap_l">
+            <joint name="hippo_strap_slide_l" type="slide" pos="0 0 0" axis="0 -1 0" limited="true" range="-0.08 0.08" damping="1" armature="1e-3" />
+            <inertial pos="0 0 0" mass="0.001" diaginertia="1e-7 1e-7 1e-7" />
         </body>
     </worldbody>
 </mujoco>

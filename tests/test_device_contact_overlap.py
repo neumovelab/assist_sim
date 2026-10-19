@@ -27,12 +27,7 @@ MAX_PENETRATION_M = 0.002
 
 # Combinations that still start interpenetrated. Strict, so the test fails once the overlap
 # is fixed and the entry must go.
-KNOWN_OVERLAPS = {
-    ("myofullbody", "Hippo_L1"): (
-        "Hippo waist parts start up to 196 mm inside the torso and the arms hang through the hip "
-        "shells; the PR #11 excludes and motor offset were not kept, and the fix is open."
-    ),
-}
+KNOWN_OVERLAPS: dict[tuple[str, str], str] = {}
 
 
 def _params():

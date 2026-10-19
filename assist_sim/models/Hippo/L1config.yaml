@@ -3,16 +3,66 @@ device:
   model_xml: "L1model.xml"
   compatible_msk: ["myolegs22", "myolegs26", "myolegs", "myofullbody"]
 
-# Rigid grafts: each device body keeps its own XML frame as the offset from its
-# parent (no pos/quat override needed -- the source positions are relative to
-# the same pelvis/femur bone frames myo_sim uses).
+# --- Kinematics ---
+# The pelvis-side parts (backplate, hip shell, waist bands, AK10-9 motors) are rigid on the pelvis at
+# their authored placement. The motor axes do not pass through the hip joint centres: they sit 54-56 mm
+# (myolegs22, myolegs26) and 73-75 mm (myolegs, myofullbody) behind and above them. A thigh brace welded
+# to the femur therefore swings off its motor as the hip flexes (46 mm at +30 deg on myolegs), and moving
+# the whole device to centre the motors pushes the waist parts off the pelvis.
+#
+# Each thigh segment (brace and cuff, one rigid assembly) instead hangs from its motor on a single hinge
+# at the motor-disc centre (hippo_flex_*), as on the hardware, which has no other joint between the
+# motor and the cuff. The motor-to-hip offset is taken up where a strapped cuff takes it up, on the
+# thigh: a femur-side strap body (hippo_strap_*) slides along the thigh axis (hippo_strap_slide_*), and
+# the connect equalities below hold it to the cuff centre. The connect constrains a point only, so the
+# cuff is free to tilt on the thigh as the hip flexes. The hub stays on the motor axis in every pose.
+# The actuators stay ideal torques on hip_flexion; the thigh segment carries none.
+#
+# The segment cannot follow hip adduction or rotation (its hinge only flexes), so it restricts them, as
+# the hardware does. The connect alone would let them through as constraint softness; the
+# joint_overrides below set explicit limits instead.
+#
+# The attachment frames place the thigh segments and the straps (the device XML gives them an identity
+# placement): each segment sits with its hub centred on its motor and its hub-to-cuff line through the
+# thigh, which puts the cuff 12-15 mm (myolegs22, myolegs26) or 26-29 mm (myolegs, myofullbody) higher on
+# the thigh than the femur-welded design; each strap sits at its cuff centre. myolegs26 shares the
+# myolegs22 frames (default) and myofullbody shares the myolegs frames.
 attachments:
-  - device_body: "hippo_backplate"
-    parent_body: "pelvis"
-  - device_body: "hippo_thigh_r"
-    parent_body: "femur_r"
-  - device_body: "hippo_thigh_l"
-    parent_body: "femur_l"
+  default:
+    - device_body: "hippo_backplate"
+      parent_body: "pelvis"
+    - device_body: "hippo_thigh_r"
+      parent_body: "pelvis"
+      pos: [-0.059925, -0.119405, 0.0335]
+      quat: [0.9979339, 0, 0, 0.0642483]
+    - device_body: "hippo_thigh_l"
+      parent_body: "pelvis"
+      pos: [-0.059882, -0.11641, -0.181]
+      quat: [0.9980482, 0, 0, 0.0624478]
+    - device_body: "hippo_strap_r"
+      parent_body: "femur_r"
+      pos: [-0.00035, -0.165971, 0.007175]
+    - device_body: "hippo_strap_l"
+      parent_body: "femur_l"
+      pos: [-0.000713, -0.162935, -0.011325]
+  myolegs: &hippo_legs80
+    - device_body: "hippo_backplate"
+      parent_body: "pelvis"
+    - device_body: "hippo_thigh_r"
+      parent_body: "pelvis"
+      pos: [-0.054795, -0.117157, 0.02726]
+      quat: [0.9959046, 0, 0, 0.0904106]
+    - device_body: "hippo_thigh_l"
+      parent_body: "pelvis"
+      pos: [-0.054784, -0.114199, -0.17476]
+      quat: [0.9960844, 0, 0, 0.0884074]
+    - device_body: "hippo_strap_r"
+      parent_body: "femur_r"
+      pos: [-0.003698, -0.151762, 0.007163]
+    - device_body: "hippo_strap_l"
+      parent_body: "femur_l"
+      pos: [-0.004187, -0.148783, -0.011337]
+  myofullbody: *hippo_legs80
 
 # Ideal hip-flexion actuators (fixed-gain joint transmission, bidirectional); the sign
 # follows the MSK hip_flexion convention (positive = flexion).
@@ -51,3 +101,276 @@ actuators:
     ctrllimited: true
     # forcerange: [-48, 48]  # to spec: limit at 48 N*m, gain unchanged
     gear: [1.0]
+
+# --- Cuff loops ---
+# The anchor is the cuff centre in the cuff frame. MuJoCo computes the strap-side anchor from qpos0,
+# where the attachment frames put the two together. solref 0.004 s (twice the 0.002 s time step) keeps
+# each loop within 2 mm in walking-range flexion. The default 0.02 s is about 25 times softer and lets
+# the cuff sag 46 mm (myolegs) to 117 mm (myofullbody) under the segment's own weight.
+equality:
+  - type: "connect"
+    device_body: "hippo_thigh_cuff_r"
+    parent_body: "hippo_strap_r"
+    anchor: [-0.00048, -0.000309, 0.071175]
+    solref: [0.004, 1]
+  - type: "connect"
+    device_body: "hippo_thigh_cuff_l"
+    parent_body: "hippo_strap_l"
+    anchor: [-0.00048, -0.000309, 0.071175]
+    solref: [0.004, 1]
+
+# --- Hip range of motion ---
+# The thigh segment only flexes, so the hardware restricts hip adduction and rotation. These limits make
+# that explicit instead of leaving it to the connect's softness. A quasi-static sweep set them (cuff
+# displacement on the thigh, connect force and restoring torque against the swept angle):
+# - adduction -3.5 to +3.5 deg: the cuff moves 2.6-2.9 mm on the thigh per degree,
+#   so it has moved 10 mm (a plausible strap and soft-tissue slack) at the limit;
+# - rotation -10 to +10 deg: a point connect barely resists axial rotation, so the
+#   limit is where the cuff surface (thigh radius 53 mm) has twisted 10 mm on the skin.
+# myolegs22 is planar and has neither joint, so it keeps the empty default. Ranges in rad.
+joint_overrides:
+  default: []
+  myolegs26: &hippo_rom
+    - name: "hip_adduction_r"
+      range: [-0.0611, 0.0611]
+    - name: "hip_rotation_r"
+      range: [-0.1745, 0.1745]
+    - name: "hip_adduction_l"
+      range: [-0.0611, 0.0611]
+    - name: "hip_rotation_l"
+      range: [-0.1745, 0.1745]
+  myolegs: *hippo_rom
+  myofullbody: *hippo_rom
+
+# --- Contacts ---
+# MuJoCo only auto-excludes a body and its parent. Each thigh segment hangs from the pelvis, so it would
+# collide with the parts it mates with (backplate, hip shell, waist bands, motor housing) and, with its
+# cuff, with the femur it rides on. On myofullbody the waist parts also sit inside the torso colliders by
+# design: the torso is five spine joints above the pelvis there (as for DephyExoBoot_L1 and HMEDI_L1).
+contact:
+  excludes:
+    default:
+      - ["hippo_thigh_r", "hippo_backplate"]
+      - ["hippo_thigh_r", "hippo_hipshell_lr"]
+      - ["hippo_thigh_r", "hippo_waist_bands"]
+      - ["hippo_thigh_r", "hippo_ak10_9"]
+      - ["hippo_thigh_r", "femur_r"]
+      - ["hippo_thigh_cuff_r", "femur_r"]
+      - ["hippo_thigh_l", "hippo_backplate"]
+      - ["hippo_thigh_l", "hippo_hipshell_lr"]
+      - ["hippo_thigh_l", "hippo_waist_bands"]
+      - ["hippo_thigh_l", "hippo_ak10_9"]
+      - ["hippo_thigh_l", "femur_l"]
+      - ["hippo_thigh_cuff_l", "femur_l"]
+    myofullbody:
+      - ["hippo_thigh_r", "hippo_backplate"]
+      - ["hippo_thigh_r", "hippo_hipshell_lr"]
+      - ["hippo_thigh_r", "hippo_waist_bands"]
+      - ["hippo_thigh_r", "hippo_ak10_9"]
+      - ["hippo_thigh_r", "femur_r"]
+      - ["hippo_thigh_cuff_r", "femur_r"]
+      - ["hippo_thigh_l", "hippo_backplate"]
+      - ["hippo_thigh_l", "hippo_hipshell_lr"]
+      - ["hippo_thigh_l", "hippo_waist_bands"]
+      - ["hippo_thigh_l", "hippo_ak10_9"]
+      - ["hippo_thigh_l", "femur_l"]
+      - ["hippo_thigh_cuff_l", "femur_l"]
+      - ["hippo_backplate", "torso"]
+      - ["hippo_hipshell_lr", "torso"]
+      - ["hippo_waist_bands", "torso"]
+      - ["hippo_ak10_9", "torso"]
+
+# --- Keyframes ---
+# Thigh-segment hinge and strap slide values that close the cuff loops in each canonical pose, solved
+# numerically per lineage, so a reset from any keyframe starts with the loops closed. On myofullbody the
+# arms are also abducted by 10 deg (shoulder_elv, plus the shoulder-rhythm joints that are coupled to it):
+# at 0 deg the forearms start up to 50 mm inside the motor housing and the hip shell.
+keyframe_overrides:
+  default:
+    stand:
+      hippo_flex_r: 0
+      hippo_strap_slide_r: 0
+      hippo_flex_l: 0
+      hippo_strap_slide_l: 0
+    walk_left:
+      hippo_flex_r: -0.138736
+      hippo_strap_slide_r: 0.004634
+      hippo_flex_l: 0.326572
+      hippo_strap_slide_l: -0.005897
+    walk_right:
+      hippo_flex_r: 0.332578
+      hippo_strap_slide_r: -0.006315
+      hippo_flex_l: -0.136144
+      hippo_strap_slide_l: 0.004545
+    squat:
+      hippo_flex_r: 0.999317
+      hippo_strap_slide_r: 0.004091
+      hippo_flex_l: 0.986261
+      hippo_strap_slide_l: 0.006059
+    lunge:
+      hippo_flex_r: 0.528181
+      hippo_strap_slide_r: -0.006418
+      hippo_flex_l: 1.20336
+      hippo_strap_slide_l: 0.015662
+  myolegs:
+    stand:
+      hippo_flex_r: 0
+      hippo_strap_slide_r: 0
+      hippo_flex_l: 0
+      hippo_strap_slide_l: 0
+    walk_left:
+      hippo_flex_r: -0.129125
+      hippo_strap_slide_r: 0.006463
+      hippo_flex_l: 0.295092
+      hippo_strap_slide_l: -0.009216
+    walk_right:
+      hippo_flex_r: 0.301069
+      hippo_strap_slide_r: -0.009624
+      hippo_flex_l: -0.126519
+      hippo_strap_slide_l: 0.006351
+    squat:
+      hippo_flex_r: 0.891372
+      hippo_strap_slide_r: -0.001197
+      hippo_flex_l: 0.878145
+      hippo_strap_slide_l: 0.000492
+    lunge:
+      hippo_flex_r: 0.474384
+      hippo_strap_slide_r: -0.010981
+      hippo_flex_l: 1.074318
+      hippo_strap_slide_l: 0.01097
+  myofullbody:
+    stand:
+      hippo_flex_r: 0
+      hippo_strap_slide_r: 0
+      hippo_flex_l: 0
+      hippo_strap_slide_l: 0
+      shoulder_elv_r: 0.174533
+      sternoclavicular_r2_r: -0.042237
+      sternoclavicular_r3_r: 0.01789
+      unrotscap_r2_r: 0.042237
+      unrotscap_r3_r: -0.01789
+      acromioclavicular_r1_r: 0.031067
+      acromioclavicular_r2_r: -0.008552
+      acromioclavicular_r3_r: 0.069115
+      unrothum_r1_r: -0.031067
+      unrothum_r2_r: 0.008552
+      unrothum_r3_r: -0.069115
+      shoulder_elv_l: 0.174533
+      sternoclavicular_r2_l: -0.042237
+      sternoclavicular_r3_l: 0.01789
+      unrotscap_r2_l: 0.042237
+      unrotscap_r3_l: -0.01789
+      acromioclavicular_r1_l: 0.031067
+      acromioclavicular_r2_l: -0.008552
+      acromioclavicular_r3_l: 0.069115
+      unrothum_r1_l: -0.031067
+      unrothum_r2_l: 0.008552
+      unrothum_r3_l: -0.069115
+    walk_left:
+      hippo_flex_r: -0.129125
+      hippo_strap_slide_r: 0.006463
+      hippo_flex_l: 0.295092
+      hippo_strap_slide_l: -0.009216
+      shoulder_elv_r: 0.174533
+      sternoclavicular_r2_r: -0.042237
+      sternoclavicular_r3_r: 0.01789
+      unrotscap_r2_r: 0.042237
+      unrotscap_r3_r: -0.01789
+      acromioclavicular_r1_r: 0.031067
+      acromioclavicular_r2_r: -0.008552
+      acromioclavicular_r3_r: 0.069115
+      unrothum_r1_r: -0.031067
+      unrothum_r2_r: 0.008552
+      unrothum_r3_r: -0.069115
+      shoulder_elv_l: 0.174533
+      sternoclavicular_r2_l: -0.042237
+      sternoclavicular_r3_l: 0.01789
+      unrotscap_r2_l: 0.042237
+      unrotscap_r3_l: -0.01789
+      acromioclavicular_r1_l: 0.031067
+      acromioclavicular_r2_l: -0.008552
+      acromioclavicular_r3_l: 0.069115
+      unrothum_r1_l: -0.031067
+      unrothum_r2_l: 0.008552
+      unrothum_r3_l: -0.069115
+    walk_right:
+      hippo_flex_r: 0.301069
+      hippo_strap_slide_r: -0.009624
+      hippo_flex_l: -0.126519
+      hippo_strap_slide_l: 0.006351
+      shoulder_elv_r: 0.174533
+      sternoclavicular_r2_r: -0.042237
+      sternoclavicular_r3_r: 0.01789
+      unrotscap_r2_r: 0.042237
+      unrotscap_r3_r: -0.01789
+      acromioclavicular_r1_r: 0.031067
+      acromioclavicular_r2_r: -0.008552
+      acromioclavicular_r3_r: 0.069115
+      unrothum_r1_r: -0.031067
+      unrothum_r2_r: 0.008552
+      unrothum_r3_r: -0.069115
+      shoulder_elv_l: 0.174533
+      sternoclavicular_r2_l: -0.042237
+      sternoclavicular_r3_l: 0.01789
+      unrotscap_r2_l: 0.042237
+      unrotscap_r3_l: -0.01789
+      acromioclavicular_r1_l: 0.031067
+      acromioclavicular_r2_l: -0.008552
+      acromioclavicular_r3_l: 0.069115
+      unrothum_r1_l: -0.031067
+      unrothum_r2_l: 0.008552
+      unrothum_r3_l: -0.069115
+    squat:
+      hippo_flex_r: 0.891372
+      hippo_strap_slide_r: -0.001197
+      hippo_flex_l: 0.878145
+      hippo_strap_slide_l: 0.000492
+      shoulder_elv_r: 0.174533
+      sternoclavicular_r2_r: -0.042237
+      sternoclavicular_r3_r: 0.01789
+      unrotscap_r2_r: 0.042237
+      unrotscap_r3_r: -0.01789
+      acromioclavicular_r1_r: 0.031067
+      acromioclavicular_r2_r: -0.008552
+      acromioclavicular_r3_r: 0.069115
+      unrothum_r1_r: -0.031067
+      unrothum_r2_r: 0.008552
+      unrothum_r3_r: -0.069115
+      shoulder_elv_l: 0.174533
+      sternoclavicular_r2_l: -0.042237
+      sternoclavicular_r3_l: 0.01789
+      unrotscap_r2_l: 0.042237
+      unrotscap_r3_l: -0.01789
+      acromioclavicular_r1_l: 0.031067
+      acromioclavicular_r2_l: -0.008552
+      acromioclavicular_r3_l: 0.069115
+      unrothum_r1_l: -0.031067
+      unrothum_r2_l: 0.008552
+      unrothum_r3_l: -0.069115
+    lunge:
+      hippo_flex_r: 0.474384
+      hippo_strap_slide_r: -0.010981
+      hippo_flex_l: 1.074318
+      hippo_strap_slide_l: 0.01097
+      shoulder_elv_r: 0.174533
+      sternoclavicular_r2_r: -0.042237
+      sternoclavicular_r3_r: 0.01789
+      unrotscap_r2_r: 0.042237
+      unrotscap_r3_r: -0.01789
+      acromioclavicular_r1_r: 0.031067
+      acromioclavicular_r2_r: -0.008552
+      acromioclavicular_r3_r: 0.069115
+      unrothum_r1_r: -0.031067
+      unrothum_r2_r: 0.008552
+      unrothum_r3_r: -0.069115
+      shoulder_elv_l: 0.174533
+      sternoclavicular_r2_l: -0.042237
+      sternoclavicular_r3_l: 0.01789
+      unrotscap_r2_l: 0.042237
+      unrotscap_r3_l: -0.01789
+      acromioclavicular_r1_l: 0.031067
+      acromioclavicular_r2_l: -0.008552
+      acromioclavicular_r3_l: 0.069115
+      unrothum_r1_l: -0.031067
+      unrothum_r2_l: 0.008552
+      unrothum_r3_l: -0.069115
