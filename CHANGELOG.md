@@ -15,15 +15,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Ten combinations started interpenetrated by 16-196 mm, which the solver resolved at up to
   ~68 kN on the first step while still compiling and stepping cleanly. Added per-MSK
   `contact.excludes` to `DephyExoBoot_L1` (boot shank/mid vs calcn/tibia; belt and batteries vs
-  torso), `Humotech_L1`, `Anatomics_L1`, `OpenExo_L1` (shoe and exo parts vs calcn/tibia),
-  `HMEDI_L1` (waistband and femur flaps vs torso) and `Hippo_L1` (waist parts vs torso, and
-  every Hippo body vs the arm and hand bodies, which hang through the hip shells).
+  torso), `Humotech_L1`, `Anatomics_L1`, `OpenExo_L1` (shoe and exo parts vs calcn/tibia) and
+  `HMEDI_L1` (waistband and femur flaps vs torso). The overlaps are not new: assist_sim 0.7.0
+  on myo-sim 0.2.1 has the same ten at `qpos0`, at the same depths. The human colliders
+  involved are in geom group 4, which the viewer hides by default, so renders did not show them.
 
 ### Added
 
 - **`tests/test_device_contact_overlap.py`**: asserts no device geom starts more than 2 mm
   inside a human collider at the `stand` pose, for every MSK x device combination. It fails on
   the ten combinations above without the excludes.
+
+### Known issues
+
+- **`Hippo_L1` on `myofullbody` still starts inside the body.** The waist parts sit up to
+  196 mm inside the torso, and the arms hang through the hip shells. The overlap test marks
+  this combination as a strict expected failure until the device placement is fixed.
 
 ## [1.0.0] — First stable release
 

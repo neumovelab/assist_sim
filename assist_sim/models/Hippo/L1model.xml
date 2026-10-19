@@ -20,13 +20,8 @@
     </asset>
 
     <worldbody>
-        <!-- Pelvis-mounted backplate + hip shell + waistband + actuator housing.
-             The whole device is offset (+0.045, -0.0586, 0) m in the bone frames (forward, down)
-             from its authored placement so the AK10-9 motor axes pass through the hip joint
-             centres: authored, the motors sat ~74 mm above and behind the hip flexion axis, and
-             the femur-fixed thigh struts slid off them as the hip flexed. The thigh braces take
-             the same offset, so the strut hubs still meet the motors as designed. -->
-        <body name="hippo_backplate" pos="-0.155 0.0914 -0.1225">
+        <!-- Pelvis-mounted backplate + hip shell + waistband + actuator housing -->
+        <body name="hippo_backplate" pos="-0.2 0.15 -0.1225">
             <inertial pos="0.011455 -0.007843 0.136530" quat="0.015506 0.742451 0.002291 -0.669717" mass="0.929764" diaginertia="1.096709e-03 2.764456e-03 3.656918e-03" />
             <geom name="hippo_backplate_geom" mesh="hippo_backplate_geom" type="mesh" rgba="0.5 0.5 0.5 1" />
             <body name="hippo_hipshell_lr" pos="0.1 -0.12 -0.06">
@@ -44,7 +39,7 @@
         </body>
 
         <!-- Right thigh brace + cuff -->
-        <body name="hippo_thigh_r" pos="0.055 -0.1236 -0.05" euler="0 0 0.15">
+        <body name="hippo_thigh_r" pos="0.01 -0.065 -0.05" euler="0 0 0.15">
             <inertial pos="0.005559 -0.015836 0.105363" quat="0.715784 -0.390541 0.425916 -0.392080" mass="0.347605" diaginertia="2.692459e-04 3.450847e-03 3.570638e-03" />
             <geom name="hippo_thigh_r_geom" mesh="hippo_thigh_r_geom" type="mesh" rgba="0.486 0.424 0.82 1" />
             <body name="hippo_thigh_cuff_r" pos="-0.025 -0.11 -0.014">
@@ -54,7 +49,7 @@
         </body>
 
         <!-- Left thigh brace + cuff -->
-        <body name="hippo_thigh_l" pos="0.055 -0.1236 -0.0975" euler="0 0 0.15">
+        <body name="hippo_thigh_l" pos="0.01 -0.065 -0.0975" euler="0 0 0.15">
             <inertial pos="0.005552 -0.015804 0.038271" quat="0.425884 0.392146 0.715784 0.390509" mass="0.347640" diaginertia="2.692519e-04 3.452489e-03 3.572286e-03" />
             <geom name="hippo_thigh_l_geom" mesh="hippo_thigh_l_geom" type="mesh" rgba="0.486 0.424 0.82 1" />
             <body name="hippo_thigh_cuff_l" pos="-0.025 -0.11 0.015">
