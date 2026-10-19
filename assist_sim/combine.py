@@ -85,6 +85,37 @@ _DYNTYPE_MAP = {
     "user": mj.mjtDyn.mjDYN_USER,
 }
 
+# What the device-XML actuator import carries across (_xml_actuator_kwargs). <motor> is
+# <general> with fixed gain 1 and no bias or dynamics, which are add_actuator's defaults.
+_XML_ACTUATOR_TAGS = frozenset({"general", "motor"})
+_XML_ACTUATOR_ATTRS = frozenset(
+    {
+        "name",
+        "tendon",
+        "gaintype",
+        "gainprm",
+        "biastype",
+        "biasprm",
+        "dyntype",
+        "dynprm",
+        "ctrlrange",
+        "ctrllimited",
+        "forcerange",
+        "forcelimited",
+        "gear",
+    }
+)
+_XML_NON_TENDON_TRN = ("joint", "jointinparent", "site", "body", "cranksite")
+
+
+def _enum(table: dict, value: str, where: str):
+    """Look up a gain/bias/dyn type name, or raise: an unknown name used to keep the default."""
+    enum = table.get(value.lower())
+    if enum is None:
+        raise ValueError(f"{where} is {value!r}; expected one of {sorted(table)}")
+    return enum
+
+
 _EQTYPE_MAP = {
     "connect": mj.mjtEq.mjEQ_CONNECT,
     "weld": mj.mjtEq.mjEQ_WELD,
@@ -825,9 +856,16 @@ class ModelCombiner:
         actuator_root = root.find("actuator")
         if actuator_root is not None:
             for act in actuator_root:
-                tendon_target = act.get("tendon")
-                if not tendon_target:
-                    continue  # joint-transmission actuators belong in YAML
+                if not act.get("tendon"):
+                    # Only tendon actuators come from the device XML. A joint (or site, body)
+                    # actuator here used to be skipped without a message, so a motor and its
+                    # force limit vanished from the combined model.
+                    trn = next((k for k in _XML_NON_TENDON_TRN if act.get(k)), None)
+                    raise ValueError(
+                        f"{Path(device_xml_path).name}: actuator '{act.get('name', '?')}' uses a "
+                        f"{trn or 'non-tendon'} transmission. The pipeline imports only tendon actuators "
+                        f"from the device XML; declare a joint actuator in the YAML 'actuators:' section."
+                    )
                 kwargs = _xml_actuator_kwargs(act, prefix)
                 human_spec.add_actuator(**kwargs)
 
@@ -1118,33 +1156,42 @@ def _xml_actuator_kwargs(act_elem: ET.Element, prefix: str) -> dict:
             f"a device tendon actuator (<{act_elem.tag} tendon='{act_elem.get('tendon')}'>) has no "
             f"'name'. Name it, so the combined model exposes a usable ctrl index."
         )
+    # Every attribute is either carried across or rejected. An attribute that is read by no
+    # code (class, kp, lengthrange, ...) used to change nothing in the combined model.
+    where = f"device tendon actuator '{name}'"
+    if act_elem.tag not in _XML_ACTUATOR_TAGS:
+        raise ValueError(
+            f"{where} is a <{act_elem.tag}>, which the pipeline does not import. Use <general> or "
+            f"<motor>, and shape it with gaintype/biastype/dyntype."
+        )
+    unsupported = sorted(set(act_elem.attrib) - _XML_ACTUATOR_ATTRS)
+    if unsupported:
+        raise ValueError(
+            f"{where} sets {unsupported}, which the pipeline does not import. "
+            f"Supported attributes: {sorted(_XML_ACTUATOR_ATTRS)}."
+        )
+
     kwargs: dict = {"name": prefix + name}
     kwargs["trntype"] = mj.mjtTrn.mjTRN_TENDON
     kwargs["target"] = prefix + act_elem.get("tendon", "")
 
     gaintype = act_elem.get("gaintype")
     if gaintype:
-        enum = _GAINTYPE_MAP.get(gaintype.lower())
-        if enum is not None:
-            kwargs["gaintype"] = enum
+        kwargs["gaintype"] = _enum(_GAINTYPE_MAP, gaintype, f"{where}: gaintype")
     gainprm = _floats(act_elem.get("gainprm"))
     if gainprm is not None:
         kwargs["gainprm"] = _pad(gainprm, 10)
 
     biastype = act_elem.get("biastype")
     if biastype:
-        enum = _BIASTYPE_MAP.get(biastype.lower())
-        if enum is not None:
-            kwargs["biastype"] = enum
+        kwargs["biastype"] = _enum(_BIASTYPE_MAP, biastype, f"{where}: biastype")
     biasprm = _floats(act_elem.get("biasprm"))
     if biasprm is not None:
         kwargs["biasprm"] = _pad(biasprm, 10)
 
     dyntype = act_elem.get("dyntype")
     if dyntype:
-        enum = _DYNTYPE_MAP.get(dyntype.lower())
-        if enum is not None:
-            kwargs["dyntype"] = enum
+        kwargs["dyntype"] = _enum(_DYNTYPE_MAP, dyntype, f"{where}: dyntype")
     dynprm = _floats(act_elem.get("dynprm"))
     if dynprm is not None:
         kwargs["dynprm"] = _pad(dynprm, 10)
@@ -1204,25 +1251,25 @@ def _build_actuator_kwargs(
     kwargs["trntype"] = mj.mjtTrn.mjTRN_JOINT
     kwargs["target"] = target
 
-    gaintype_enum = _GAINTYPE_MAP.get(act_def.gaintype.lower())
-    if gaintype_enum is not None:
-        kwargs["gaintype"] = gaintype_enum
+    where = f"actuators[{act_def.name}]"
+    kwargs["gaintype"] = _enum(_GAINTYPE_MAP, act_def.gaintype, f"{where}.gaintype")
     kwargs["gainprm"] = _pad(act_def.gainprm, 10)
 
-    biastype_enum = _BIASTYPE_MAP.get(act_def.biastype.lower())
-    if biastype_enum is not None:
-        kwargs["biastype"] = biastype_enum
+    kwargs["biastype"] = _enum(_BIASTYPE_MAP, act_def.biastype, f"{where}.biastype")
     kwargs["biasprm"] = _pad(act_def.biasprm, 10)
 
-    dyntype_enum = _DYNTYPE_MAP.get(act_def.dyntype.lower())
-    if dyntype_enum is not None:
-        kwargs["dyntype"] = dyntype_enum
+    kwargs["dyntype"] = _enum(_DYNTYPE_MAP, act_def.dyntype, f"{where}.dyntype")
     kwargs["dynprm"] = _pad(act_def.dynprm, 10)
 
     if act_def.ctrlrange is not None:
         kwargs["ctrlrange"] = act_def.ctrlrange
     if act_def.ctrllimited:
         kwargs["ctrllimited"] = 1
+
+    # Set forcelimited explicitly rather than relying on the compiler's autolimits default.
+    if act_def.forcerange is not None:
+        kwargs["forcerange"] = act_def.forcerange
+        kwargs["forcelimited"] = 1
 
     kwargs["gear"] = _pad(act_def.gear, 6)
 

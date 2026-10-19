@@ -261,16 +261,25 @@ actuators:
 |---|---|---|
 | `name` | yes | The actuator name. The pipeline does **not** add a prefix, so give the final name that you want. |
 | `joint` | yes | The target joint. If the pipeline does not find the name without a prefix, it tries `<prefix>_<joint>`. This applies to joints that the device adds, such as `osl_ankle_angle_r`. |
-| `type` | no | Reserved. The value is always "general". |
-| `gaintype` / `biastype` / `dyntype` | no | `"fixed"`, `"affine"`, `"muscle"`, `"user"`, `"none"`, `"integrator"`, `"filter"`, `"filterexact"`. The pipeline maps the value to the correct MuJoCo enum. |
+| `type` | no | `"general"` (default) or `"motor"`. The pipeline always emits a MuJoCo `general` actuator; `motor` means fixed gain, no bias and no dynamics, and contradicting it is an error. |
+| `gaintype` / `biastype` / `dyntype` | no | `"fixed"`, `"affine"`, `"muscle"`, `"user"`, `"none"`, `"integrator"`, `"filter"`, `"filterexact"`. The pipeline maps the value to the correct MuJoCo enum. An unknown value is an error. |
 | `gainprm` / `biasprm` / `dynprm` | no | Numeric arrays. The pipeline pads them to length 10. |
 | `ctrlrange` / `ctrllimited` | no | Standard MuJoCo. |
+| `forcerange` | no | `[lo, hi]` with `lo <= hi`. It limits the actuator force, that is, the gain times the control, **before** `gear` is applied. For a joint motor with gear 1, the unit is N·m. Without it, the actuator force is not limited. |
+| `forcelimited` | no | Optional. `true` needs a `forcerange`; `false` together with a `forcerange` is an error. |
 | `gear` | no | The pipeline pads this array to length 6. |
 
 Author *tendon-transmission* actuators in the `<actuator>` section of the
 device XML file. An example is the HMEDI cables that drive the spatial tendons.
 The pipeline imports them automatically with the device prefix at attachment
-time.
+time. The import accepts `<general>` and `<motor>` elements with these
+attributes: `name`, `tendon`, `gaintype`, `gainprm`, `biastype`, `biasprm`,
+`dyntype`, `dynprm`, `ctrlrange`, `ctrllimited`, `forcerange`, `forcelimited`
+and `gear`. Any other element or attribute (for example `class`, `kp` or
+`lengthrange`) is an error, because the import would not apply it. A device-XML
+actuator with a joint, site or body transmission is also an error: declare it in
+the `actuators:` section instead. To set the length range of an imported
+actuator, use `actuator_overrides`.
 
 ## `keyframe_overrides`
 

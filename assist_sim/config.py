@@ -72,6 +72,8 @@ _ITEM_KEYS: Dict[str, frozenset] = {
             "dynprm",
             "ctrlrange",
             "ctrllimited",
+            "forcerange",
+            "forcelimited",
             "gear",
         }
     ),
@@ -420,6 +422,21 @@ def _parse_actuator(raw: dict) -> "ActuatorDef":
                 f"MuJoCo <motor> cannot express (a motor is {_MOTOR_EQUIVALENT}). Use type 'general'."
             )
 
+    # A force limit needs a range, and a range is a limit: anything else is a no-op or a
+    # contradiction, so it is rejected rather than built as an unlimited actuator.
+    forcerange, forcelimited = raw.get("forcerange"), raw.get("forcelimited")
+    if forcerange is not None:
+        if len(forcerange) != 2 or float(forcerange[0]) > float(forcerange[1]):
+            raise ValueError(f"actuator '{name}' needs 'forcerange: [lo, hi]' with lo <= hi; got {forcerange}")
+        if forcelimited is False:
+            raise ValueError(
+                f"actuator '{name}' sets 'forcerange' but also 'forcelimited: false'. Remove one: "
+                f"a forcerange always limits the force."
+            )
+        forcerange = [float(v) for v in forcerange]
+    elif forcelimited:
+        raise ValueError(f"actuator '{name}' sets 'forcelimited: true' without 'forcerange: [lo, hi]'")
+
     return ActuatorDef(
         name=name,
         type=act_type,
@@ -432,6 +449,7 @@ def _parse_actuator(raw: dict) -> "ActuatorDef":
         dynprm=raw.get("dynprm", [1, 0, 0]),
         ctrlrange=raw.get("ctrlrange"),
         ctrllimited=raw.get("ctrllimited", False),
+        forcerange=forcerange,
         gear=raw.get("gear", [1.0]),
     )
 
@@ -672,6 +690,9 @@ class ActuatorDef:
     dynprm: List[float] = field(default_factory=lambda: [1, 0, 0])
     ctrlrange: Optional[List[float]] = None
     ctrllimited: bool = False
+    # Clamps the actuator force, i.e. gain * ctrl before ``gear`` (N*m for a joint motor with
+    # gear 1). None leaves the actuator unlimited.
+    forcerange: Optional[List[float]] = None
     gear: List[float] = field(default_factory=lambda: [1.0])
 
 

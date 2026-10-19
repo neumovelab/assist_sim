@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`forcerange` / `forcelimited` on YAML actuators.** A joint motor can now be force-limited
+  from its device config. Before, the schema rejected `forcerange`, and a device-XML joint
+  actuator was skipped (see Fixed), so no file could limit a joint motor. The range clamps the
+  actuator force (gain times control) before `gear`. Without it, the actuator stays unlimited,
+  as before. Inconsistent settings are errors: a reversed or wrong-length range,
+  `forcelimited: true` without a range, or `forcelimited: false` with one.
+
 ### Changed
 
 - **`myo-sim>=0.2.3` (was `>=0.2.1`).** myo-sim 0.2.1 gives `chest_r` a phantom 12.87 kg: the
@@ -17,6 +26,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Device-XML actuators that the import cannot carry are errors, not silent no-ops.** A joint,
+  site or body actuator in a device XML was skipped without a message. An element other than
+  `<general>` or `<motor>` (for example `<position kp=...>`) became a plain `general` with the
+  default gain. An attribute that the import does not read (`class`, `kp`, `lengthrange`, and so
+  on) changed nothing. An unknown `gaintype` / `biastype` / `dyntype` name kept the default, in
+  the YAML `actuators:` section too. Each case now raises `ValueError`. The bundled devices use
+  only supported attributes, so no shipped model changes.
 - **The wheelchair and bionic-bimanual envs build again on myo-sim 0.2.2 and later.**
   `upper_body.py` imported the `myo_sim.build.compose` builders by their 0.2.1 names
   (`load_torso_spec`, `load_passive_torso_spec`, `load_right_arm_spec`,
