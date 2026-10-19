@@ -269,6 +269,15 @@ actuators:
 | `forcelimited` | no | Optional. `true` needs a `forcerange`; `false` together with a `forcerange` is an error. |
 | `gear` | no | The pipeline pads this array to length 6. |
 
+The bundled powered devices use permissive starting values, because the provided
+controllers were tuned on them. Next to these values, each device config (or, for
+cable devices, the model XML) has commented lines marked `to spec` that set the
+rating of the physical device. To use one, uncomment it; for `gainprm` or
+`ctrlrange`, also comment out the line that it replaces. Where a device has a
+continuous and an instantaneous rating, there is one `forcerange` line for each:
+use at most one. `tests/test_to_spec_blocks.py` uncomments these lines and checks
+the full-command output against the specification.
+
 Author *tendon-transmission* actuators in the `<actuator>` section of the
 device XML file. An example is the HMEDI cables that drive the spatial tendons.
 The pipeline imports them automatically with the device prefix at attachment

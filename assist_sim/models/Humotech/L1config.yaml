@@ -52,6 +52,12 @@ joint_overrides:
   - name: "mtp_angle_l"
     range: [0.2, 0.5]
 
+# The actuator values below are permissive starting values; the provided controllers
+# were tuned on them. A line marked "to spec" sets the hardware rating instead: uncomment
+# it, and for gainprm or ctrlrange also comment out the line it replaces. forcerange
+# limits gain * ctrl before gear (gear is 1, so the unit is N*m).
+# Spec: 100 N*m PF and 50 N*m DF (MyoAssist 1.0 paper, Fig. 2). The model gives 100 N*m PF and no DF.
+# Model mass: 2.19 kg per leg of hardware (spec 2.2 kg per leg), plus the 0.33-kg split shoe.
 actuators:
   - name: "Exo_R"
     type: "general"
@@ -63,7 +69,9 @@ actuators:
     dyntype: "none"
     dynprm: [1, 0, 0]
     ctrlrange: [-1, 0]
+    # ctrlrange: [-1, 0.5]  # to spec: adds the 50 N*m DF rating
     ctrllimited: true
+    # forcerange: [-100, 50]  # to spec: limit at 100 N*m PF and 50 N*m DF
     gear: [1.0]
   - name: "Exo_L"
     type: "general"
@@ -75,7 +83,9 @@ actuators:
     dyntype: "none"
     dynprm: [1, 0, 0]
     ctrlrange: [-1, 0]
+    # ctrlrange: [-1, 0.5]  # to spec: adds the 50 N*m DF rating
     ctrllimited: true
+    # forcerange: [-100, 50]  # to spec: limit at 100 N*m PF and 50 N*m DF
     gear: [1.0]
 
 # --- Device <-> human contact excludes (freejoint lineages only) ---

@@ -14,31 +14,40 @@ attachments:
   - device_body: "hippo_thigh_l"
     parent_body: "femur_l"
 
-# Ideal hip-flexion actuators (fixed-gain joint transmission, bidirectional).
-# Gain/range are starting values -- tune per controller; sign follows the MSK
-# hip_flexion convention (positive = flexion).
+# Ideal hip-flexion actuators (fixed-gain joint transmission, bidirectional); the sign
+# follows the MSK hip_flexion convention (positive = flexion).
+# The actuator values below are permissive starting values; the provided controllers
+# were tuned on them. A line marked "to spec" sets the hardware rating instead: uncomment
+# it, and for gainprm or ctrlrange also comment out the line it replaces. forcerange
+# limits gain * ctrl before gear (gear is 1, so the unit is N*m).
+# Spec: 48 N*m (MyoAssist 1.0 paper, Fig. 2). The model gives 100 N*m in either direction at full command.
+# Model mass: 4.90 kg (spec 4.9 kg).
 actuators:
   - name: "Exo_R"
     type: "general"
     joint: "hip_flexion_r"
     gaintype: "fixed"
     gainprm: [100, 0, 0]
+    # gainprm: [48, 0, 0]  # to spec: full command gives 48 N*m
     biastype: "none"
     biasprm: [0, 0, 0]
     dyntype: "none"
     dynprm: [1, 0, 0]
     ctrlrange: [-1, 1]
     ctrllimited: true
+    # forcerange: [-48, 48]  # to spec: limit at 48 N*m, gain unchanged
     gear: [1.0]
   - name: "Exo_L"
     type: "general"
     joint: "hip_flexion_l"
     gaintype: "fixed"
     gainprm: [100, 0, 0]
+    # gainprm: [48, 0, 0]  # to spec: full command gives 48 N*m
     biastype: "none"
     biasprm: [0, 0, 0]
     dyntype: "none"
     dynprm: [1, 0, 0]
     ctrlrange: [-1, 1]
     ctrllimited: true
+    # forcerange: [-48, 48]  # to spec: limit at 48 N*m, gain unchanged
     gear: [1.0]

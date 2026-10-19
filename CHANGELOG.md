@@ -15,6 +15,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   actuator force (gain times control) before `gear`. Without it, the actuator stays unlimited,
   as before. Inconsistent settings are errors: a reversed or wrong-length range,
   `forcelimited: true` without a range, or `forcelimited: false` with one.
+- **Specification values as commented "to spec" lines** in the powered devices: DephyExoBoot,
+  Humotech, OpenExo, Hippo, NEUankle and both OSL configs, and the HMEDI model XML. The
+  permissive defaults stay in force; a user uncomments the lines to use the hardware rating
+  (the Fig. 2 values of the MyoAssist 1.0 paper). STRIDE and UTAnkleExo document their torque
+  rating, which their cable models cannot match with a single force limit. Each header also
+  gives the model mass and what it includes beyond the specification (sockets, pylons, shoes,
+  the Dephy batteries). `tests/test_to_spec_blocks.py` uncomments the lines and checks the
+  full-command output against the specification.
 
 ### Changed
 

@@ -47,30 +47,41 @@ joint_overrides:
     range: [-0.0145, 0.2]
     damping: 0.5
 
+# The actuator values below are permissive starting values; the provided controllers
+# were tuned on them. A line marked "to spec" sets the hardware rating instead: uncomment
+# it, and for gainprm or ctrlrange also comment out the line it replaces. forcerange
+# limits gain * ctrl before gear (gear is 1, so the unit is N*m).
+# Spec: 25 N*m PF (MyoAssist 1.0 paper, Fig. 2). The model gives 100 N*m PF at full command.
+# Model mass: 1.70 kg per leg, plus 1.31 kg at the pelvis (two 0.64-kg batteries and a
+# 0.03-kg controller board), that is 2.35 kg per leg (spec 2.3 kg per leg).
 actuators:
   - name: "Exo_R"
     type: "general"
     joint: "ankle_angle_r"
     gaintype: "fixed"
     gainprm: [100, 0, 0]
+    # gainprm: [25, 0, 0]  # to spec: full command gives 25 N*m PF
     biastype: "none"
     biasprm: [0, 0, 0]
     dyntype: "none"
     dynprm: [1, 0, 0]
     ctrlrange: [-1, 0]
     ctrllimited: true
+    # forcerange: [-25, 0]  # to spec: limit at 25 N*m PF, gain unchanged
     gear: [1.0]
   - name: "Exo_L"
     type: "general"
     joint: "ankle_angle_l"
     gaintype: "fixed"
     gainprm: [100, 0, 0]
+    # gainprm: [25, 0, 0]  # to spec: full command gives 25 N*m PF
     biastype: "none"
     biasprm: [0, 0, 0]
     dyntype: "none"
     dynprm: [1, 0, 0]
     ctrlrange: [-1, 0]
     ctrllimited: true
+    # forcerange: [-25, 0]  # to spec: limit at 25 N*m PF, gain unchanged
     gear: [1.0]
 
 # --- Device <-> human contact excludes (freejoint lineages only) ---

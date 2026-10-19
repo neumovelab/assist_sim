@@ -130,6 +130,13 @@ tendon_modifications:
   myofullbody: *r80_reanchor
 
 # --- Add prosthetic actuator ---
+# The gain and control range give 168 N*m at full command.
+# The actuator values below are permissive starting values; the provided controllers
+# were tuned on them. A line marked "to spec" sets the hardware rating instead: uncomment
+# it, and for gainprm or ctrlrange also comment out the line it replaces. forcerange
+# limits gain * ctrl before gear (gear is 1, so the unit is N*m).
+# Spec: 29 N*m continuous, 145.25 N*m instantaneous (MyoAssist 1.0 paper, Fig. 2). Use at most one forcerange.
+# Model mass: 2.29 kg: ankle and foot 2.03, pylon 0.06 (device, spec 2.2 kg), socket 0.20.
 actuators:
   - name: "osl_ankle_torque_actuator"
     type: "motor"
@@ -137,6 +144,8 @@ actuators:
     gainprm: [58.4]
     ctrlrange: [-2.88, 2.88]
     ctrllimited: true
+    # forcerange: [-145.25, 145.25]  # to spec, instantaneous: limit at 145.25 N*m
+    # forcerange: [-29, 29]  # to spec, continuous: limit at 29 N*m
     gear: [1.0]
 
 keyframe_overrides:

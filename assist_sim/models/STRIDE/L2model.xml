@@ -189,6 +189,10 @@
   <!-- 400 N is the measured stall force of the current actuator.
        gear="-1" makes positive ctrl SHORTEN the tendon (tendon actuators pull at
        negative gear). -->
+  <!-- Spec: 50 N*m PF (MyoAssist 1.0 paper, Fig. 2). The model limits the cable force (0 to 400 N); through
+       the linkage that gives 28 to 47 N*m PF over the ankle range, so no single cable-force
+       limit reproduces the 50 N*m rating at every ankle angle.
+       Model mass: 1.10 kg per leg: exoskeleton 0.77 and split shoe 0.33 (spec 1.1 kg per leg). -->
   <actuator>
     <motor name="cable_r" tendon="cable_r" gear="-1" ctrlrange="0 400" ctrllimited="true" forcelimited="true" forcerange="0 400" />
     <motor name="cable_l" tendon="cable_l" gear="-1" ctrlrange="0 400" ctrllimited="true" forcelimited="true" forcerange="0 400" />

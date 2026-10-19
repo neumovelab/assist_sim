@@ -13,7 +13,7 @@ Read `CONTRIBUTING.md` and `docs/concepts.md` before any substantial change.
 ```bash
 pip install -e .
 pip install -r requirements-dev.txt
-pytest                              # 373 collected: 370 pass, 2 skip, 1 xfail with myo_sim installed (~6 min)
+pytest                              # 381 collected: 378 pass, 2 skip, 1 xfail with myo_sim installed (~6 min alone)
 ruff check . && ruff format --check .
 
 python -m assist_sim list           # discoverable combinations (also: validate, combine)

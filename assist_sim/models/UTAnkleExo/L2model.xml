@@ -114,6 +114,9 @@
         </spatial>
     </tendon>
 
+    <!-- Spec: 40 N*m PF (MyoAssist 1.0 paper, Fig. 2). The cables have no force limit: the gain gives 600 N of
+         cable force at full command, and the ankle torque follows from the linkage geometry.
+         Model mass: 0.95 kg per leg (spec 0.95 kg per leg). -->
     <actuator>
         <general name="part2part3act_dx" tendon="part3part4attach_dx" ctrlrange="-1 0.00" dyntype="filter" dynprm="0.07" gainprm="600.0" biastype="none" />
         <general name="part2part3act_sx" tendon="part3part4attach_sx" ctrlrange="-1 0.00" dyntype="filter" dynprm="0.07" gainprm="600.0" biastype="none" />

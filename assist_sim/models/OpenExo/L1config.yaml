@@ -20,30 +20,40 @@ attachments:
   - device_body: "exo_blade_l"
     parent_body: "calcn_l"
 
+# The actuator values below are permissive starting values; the provided controllers
+# were tuned on them. A line marked "to spec" sets the hardware rating instead: uncomment
+# it, and for gainprm or ctrlrange also comment out the line it replaces. forcerange
+# limits gain * ctrl before gear (gear is 1, so the unit is N*m).
+# Spec: 28 N*m PF (MyoAssist 1.0 paper, Fig. 2). The model gives 100 N*m PF at full command.
+# Model mass: 1.95 kg per leg (spec 1.95 kg per leg).
 actuators:
   - name: "Exo_R"
     type: "general"
     joint: "ankle_angle_r"
     gaintype: "fixed"
     gainprm: [100, 0, 0]
+    # gainprm: [28, 0, 0]  # to spec: full command gives 28 N*m PF
     biastype: "none"
     biasprm: [0, 0, 0]
     dyntype: "none"
     dynprm: [1, 0, 0]
     ctrlrange: [-1, 0]
     ctrllimited: true
+    # forcerange: [-28, 0]  # to spec: limit at 28 N*m PF, gain unchanged
     gear: [1.0]
   - name: "Exo_L"
     type: "general"
     joint: "ankle_angle_l"
     gaintype: "fixed"
     gainprm: [100, 0, 0]
+    # gainprm: [28, 0, 0]  # to spec: full command gives 28 N*m PF
     biastype: "none"
     biasprm: [0, 0, 0]
     dyntype: "none"
     dynprm: [1, 0, 0]
     ctrlrange: [-1, 0]
     ctrllimited: true
+    # forcerange: [-28, 0]  # to spec: limit at 28 N*m PF, gain unchanged
     gear: [1.0]
 
 # See the note in Tutorial/L1config.yaml: the myoLeg knee flexes negative, the 80-muscle
