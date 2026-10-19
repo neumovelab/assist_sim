@@ -1,10 +1,12 @@
 name: tests
 
 on:
+  # `revision` collects the fixes for the MyoAssist 1.0 manuscript revision before they
+  # merge to main, so its pushes and the pull requests into it run the same checks.
   push:
-    branches: [main]
+    branches: [main, revision]
   pull_request:
-    branches: [main]
+    branches: [main, revision]
   # Reusable by publish.yml, which gates a release on these checks passing.
   workflow_call:
 
