@@ -49,6 +49,19 @@ actuators:
 # See the note in Tutorial/L1config.yaml: the myoLeg knee flexes negative, the 80-muscle
 # and full-body knees flex positive, so the authored lunge knee needs its sign per lineage.
 # Per-MSK blocks merge onto `default`.
+# --- Device <-> human contact excludes (freejoint lineages only) ---
+# MuJoCo only auto-excludes parent/child bodies.  The freejoint lineages (myolegs,
+# myofullbody) carry extra foot and shank colliders (foot_col1/3/4 on calcn,
+# tibia1/2_col on tibia) that the heel blades (on calcn) sit inside by design.
+# Unexcluded, they start interpenetrated by 28 mm and push apart at up to ~3.2 kN.
+contact:
+  excludes:
+    default: []
+    myolegs: &exc_freejoint
+      - ["exo_blade_r", "tibia_r"]
+      - ["exo_blade_l", "tibia_l"]
+    myofullbody: *exc_freejoint
+
 keyframe_overrides:
   default:
     stand:

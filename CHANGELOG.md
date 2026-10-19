@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Device parts no longer start inside human colliders on the freejoint lineages.**
+  MuJoCo only auto-excludes parent/child bodies, and `myolegs` / `myofullbody` carry extra
+  foot and shank colliders plus, on `myofullbody`, a torso five spine joints above the pelvis.
+  Ten combinations started interpenetrated by 16-196 mm, which the solver resolved at up to
+  ~68 kN on the first step while still compiling and stepping cleanly. Added per-MSK
+  `contact.excludes` to `DephyExoBoot_L1` (boot shank/mid vs calcn/tibia; belt and batteries vs
+  torso), `Humotech_L1`, `Anatomics_L1`, `OpenExo_L1` (shoe and exo parts vs calcn/tibia),
+  `HMEDI_L1` (waistband and femur flaps vs torso) and `Hippo_L1` (waist parts vs torso, and
+  every Hippo body vs the arm and hand bodies, which hang through the hip shells).
+
+### Added
+
+- **`tests/test_device_contact_overlap.py`**: asserts no device geom starts more than 2 mm
+  inside a human collider at the `stand` pose, for every MSK x device combination. It fails on
+  the ten combinations above without the excludes.
+
 ## [1.0.0] — First stable release
 
 Coordinated 1.0.0 across the MyoAssist framework. The public API (`load_combined`,

@@ -62,3 +62,18 @@ attachments:
   # myolegs26 is the same passive-torso scaffold + 26-muscle legs, so it reuses
   # the myolegs attachment verbatim (torso bypassed to pelvis, same frame).
   myolegs26: *torsod_legs
+
+# --- Device <-> human contact excludes (myofullbody only) ---
+# MuJoCo only auto-excludes parent/child bodies.  On myofullbody the torso is five
+# spine joints from the pelvis, and the waistband (on pelvis) sits inside its
+# collision geoms by design: unexcluded, it starts 71 mm deep and pushes apart at
+# ~45 kN.  The femur flaps (on femur) swing into the torso at hip flexion, 7 mm
+# deep in the walk poses.  On the leg lineages the torso is the pelvis's direct
+# child, so MuJoCo already skips the waistband pair.
+contact:
+  excludes:
+    default: []
+    myofullbody:
+      - ["hmedi waistband", "torso"]
+      - ["hmedi femurflap_r", "torso"]
+      - ["hmedi femurflap_l", "torso"]

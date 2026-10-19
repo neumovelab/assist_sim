@@ -73,6 +73,31 @@ actuators:
     ctrllimited: true
     gear: [1.0]
 
+# --- Device <-> human contact excludes (freejoint lineages only) ---
+# MuJoCo only auto-excludes parent/child bodies.  On the freejoint lineages the
+# boot shank (on tibia) overlaps the heel capsules on calcn (foot_col1/3/4) and
+# the boot mid (on calcn) overlaps tibia2_col; on myofullbody the belt (on pelvis)
+# also sits inside the torso collision geoms, five spine joints from the pelvis.
+# Unexcluded, these start interpenetrated by up to 8 cm and push apart at up to
+# ~31 kN.  myolegs22 and myolegs26 have none of these overlaps.
+contact:
+  excludes:
+    default: []
+    myolegs:
+      - &exc_shank_r ["tb_shank_r", "calcn_r"]
+      - &exc_shank_l ["tb_shank_l", "calcn_l"]
+      - &exc_mid_r ["tb_mid_r", "tibia_r"]
+      - &exc_mid_l ["tb_mid_l", "tibia_l"]
+    myofullbody:
+      - *exc_shank_r
+      - *exc_shank_l
+      - *exc_mid_r
+      - *exc_mid_l
+      - ["fanny_pack", "torso"]
+      - ["battery_l", "torso"]
+      - ["battery_r", "torso"]
+      - ["raspberry_pi", "torso"]
+
 # --- Re-point the foot GRF sensors onto the boot outsole ---
 # The boot outsole (tb_mid / tb_toe) is the ground interface, not the bare
 # calcn/toes, so the baseline touch sensors read zero.  Drop them and re-declare
