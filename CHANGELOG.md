@@ -34,6 +34,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The Wheelchair caster forks swivel +/-60 deg, not +/-60 rad.** The source chain wrote
+  `range="-60 60"` for a standalone wheelchair model that compiled in degrees (the MuJoCo
+  default). The collaborator env, and this model, declare `angle="radian"`, so the same text
+  limited the forks to +/-60 rad, which is no limit at all. The forks now use +/-1.0472 rad.
+  Both keyframes have the forks at 0, inside the range.
 - **Device-XML actuators that the import cannot carry are errors, not silent no-ops.** A joint,
   site or body actuator in a device XML was skipped without a message. An element other than
   `<general>` or `<motor>` (for example `<position kp=...>`) became a plain `general` with the

@@ -202,3 +202,17 @@ def test_auxivo_exo_geoms_use_radian_euler(geom):
     # A real (radian) rotation is far from identity (|w| <= ~0.95); the degree misparse
     # rotates by ~1.57 deg, a near-identity quat with |w| ~ 0.9997.
     assert abs(m.geom_quat[gid][0]) < 0.99
+
+
+@needs_myo_sim
+@pytest.mark.parametrize("fork", ["wc_left_fork", "wc_right_fork"])
+def test_wheelchair_caster_forks_swivel_60_degrees(fork):
+    """The caster forks are limited to +/-60 deg, the original's intent.
+
+    The source chain wrote ``range="-60 60"`` for a standalone model that compiled in degrees.
+    Under this model's ``angle="radian"`` the same text is +/-60 rad, which limits nothing.
+    """
+    m, _ = build_wheelchair("both")
+    lo, hi = m.jnt_range[m.joint(fork).id]
+    assert m.jnt_limited[m.joint(fork).id] == 1
+    assert (lo, hi) == pytest.approx((-1.0472, 1.0472))
