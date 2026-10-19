@@ -18,7 +18,7 @@ which is not installed. Install it with `pip install myo_sim` ...
 through `myo_sim.load_spec(...)`. Install `myo_sim`:
 
 ```bash
-pip install "myo-sim>=0.2.1"
+pip install "myo-sim>=0.2.3"
 ```
 
 It is a declared dependency of `assist_sim`, so this normally only happens in an

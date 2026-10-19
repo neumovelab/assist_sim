@@ -14,15 +14,19 @@ pytest                # most tests skip without myo_sim
 ```
 
 `myo_sim` composes the baseline musculoskeletal (MSK) models and is a hard runtime
-dependency (`myo-sim>=0.2.1`), so `pip install -e .` already brings it in from PyPI and the
+dependency (`myo-sim>=0.2.3`), so `pip install -e .` already brings it in from PyPI and the
 full suite runs:
 
 ```bash
-pytest                # 307 collected: 305 pass, 2 skip (~3 min)
+pytest                # 359 collected: 356 pass, 2 skip, 1 xfail (~6 min)
 ```
 
 One skip is platform-gated: `test_staging_works_from_a_read_only_device_directory` needs POSIX
-file modes, so it runs on Linux and macOS and skips on Windows.
+file modes, so it runs on Linux and macOS and skips on Windows. The other is the full name-set
+check in `test_upper_body_export.py`, which runs only when `BIONIC_BASELINE_XML` points at the
+fork baseline. The expected failure is `Hippo_L1` on `myofullbody` in
+`test_device_contact_overlap.py`: its device parts still start inside the body (see the
+CHANGELOG).
 
 If you deliberately install without it, most tests skip on the `needs_myo_sim` gate and three
 modules (`test_msk_only.py`, `test_tendon_reanchor.py`, `test_upper_body_export.py`) skip

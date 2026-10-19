@@ -187,7 +187,7 @@ def _composed_models(myo_sim) -> frozenset:
         raise ImportError(
             f"The installed myo_sim ({getattr(myo_sim, '__version__', 'unknown')}) does not expose "
             "'_COMPOSED_MODELS', which assist_sim reads to discover the composable MSK models. "
-            "The myo_sim interface has changed; install a compatible myo-sim (>=0.2.1)."
+            "The myo_sim interface has changed; install a compatible myo-sim (>=0.2.3)."
         )
     return frozenset(models)
 

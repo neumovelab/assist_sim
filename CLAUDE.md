@@ -13,7 +13,7 @@ Read `CONTRIBUTING.md` and `docs/concepts.md` before any substantial change.
 ```bash
 pip install -e .
 pip install -r requirements-dev.txt
-pytest                              # 305 pass, 2 skip with myo_sim installed (~3 min)
+pytest                              # 359 collected: 356 pass, 2 skip, 1 xfail with myo_sim installed (~6 min)
 ruff check . && ruff format --check .
 
 python -m assist_sim list           # discoverable combinations (also: validate, combine)
@@ -159,7 +159,7 @@ running training without it is paying that multiple on every model build.
 
 The baseline MSK models live in `myo_sim`, not in this repository. `assist_sim` resolves them
 through `_COMPATIBLE_MSK_KEYS` in `registry.py`. myo_sim **composes the leg models at runtime**,
-with no static XML. The assist_sim keys mirror the myo_sim model names, and `myo-sim>=0.2.1` is a
+with no static XML. The assist_sim keys mirror the myo_sim model names, and `myo-sim>=0.2.3` is a
 hard runtime dependency, so `pip install -e .` brings it in.
 
 `_resolve_msk` calls `myo_sim.load_spec(<model>)`, removes the bundled myosuite scene, and returns

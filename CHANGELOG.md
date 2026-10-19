@@ -7,13 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **`myo-sim>=0.2.3` (was `>=0.2.1`).** myo-sim 0.2.1 gives `chest_r` a phantom 12.87 kg: the
+  body has wrap ellipsoids but no `<inertial>`, so MuJoCo infers its mass from the geometry.
+  The extra mass is on every torso-bearing model, which includes all four MSK keys and the
+  composed upper-body envs. 0.2.3 sets it to 0.001 kg. Total masses are now 78.09 kg
+  (`myolegs22`, `myolegs26`), 74.98 kg (`myolegs`) and 84.26 kg (`myofullbody`).
+
 ### Fixed
 
+- **The wheelchair and bionic-bimanual envs build again on myo-sim 0.2.2 and later.**
+  `upper_body.py` imported the `myo_sim.build.compose` builders by their 0.2.1 names
+  (`load_torso_spec`, `load_passive_torso_spec`, `load_right_arm_spec`,
+  `load_mirrored_left_arm_spec`, `load_legs_spec`). myo-sim 0.2.2 renamed them to `build_*`,
+  so every fresh install since 2026-08-27 raised `ImportError` for these envs, and any fresh
+  CI run failed seven tests. The composed models keep their structure (`nq`, `nu`, `nbody`,
+  `ngeom` are unchanged). The other differences come from myo-sim: the `chest_r` mass, the
+  lunate inertia, the `back_cylinder_l` wrap radius (0.17 to 0.166 m) and 11 hand tendon
+  lengths per arm.
 - **Device parts no longer start inside human colliders on the freejoint lineages.**
   MuJoCo only auto-excludes parent/child bodies, and `myolegs` / `myofullbody` carry extra
   foot and shank colliders plus, on `myofullbody`, a torso five spine joints above the pelvis.
   Ten combinations started interpenetrated by 16-196 mm, which the solver resolved at up to
-  ~68 kN on the first step while still compiling and stepping cleanly. Added per-MSK
+  ~68 kN on the first step while still compiling and stepping cleanly. Nine are fixed (the
+  tenth, `Hippo_L1` on `myofullbody`, is under Known issues). Added per-MSK
   `contact.excludes` to `DephyExoBoot_L1` (boot shank/mid vs calcn/tibia; belt and batteries vs
   torso), `Humotech_L1`, `Anatomics_L1`, `OpenExo_L1` (shoe and exo parts vs calcn/tibia) and
   `HMEDI_L1` (waistband and femur flaps vs torso). The overlaps are not new: assist_sim 0.7.0

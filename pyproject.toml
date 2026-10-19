@@ -49,7 +49,10 @@ dependencies = [
     "PyYAML>=6.0.2",
     "numpy>=1.24",
     # Every MSK key resolves via myo_sim.load_spec(<model>); required at runtime.
-    "myo-sim>=0.2.1",
+    # 0.2.3 is the floor for two reasons: it removes the phantom 12.87 kg on chest_r that
+    # 0.2.1 adds to every torso, and upper_body.py calls the myo_sim.build.compose builders
+    # by the build_* names that 0.2.2 introduced (0.2.1 has load_* only).
+    "myo-sim>=0.2.3",
 ]
 
 [project.optional-dependencies]

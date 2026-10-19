@@ -186,26 +186,26 @@ def _strip_scene_decor(human: "mujoco.MjSpec") -> None:
 def _build_human(arms: str, torso: str = "passive") -> "mujoco.MjSpec":
     """Torso + the selected muscled arm(s). ``torso="passive"`` is a locked muscle-less
     scaffold (default); ``"muscled"`` keeps the active ``myotorso`` (spine joints + muscles)."""
+    # myo-sim 0.2.2 renamed the compose builders from load_* to build_*, and the arm
+    # builders take the registration (for its mirror rules) instead of the rules alone.
     from myo_sim.build.compose import (
         LEFT_ARM_ATTACH_SITE,
         MODEL_REGISTRY,
         RIGHT_ARM_ATTACH_SITE,
+        build_mirrored_left_arm_spec,
+        build_passive_torso_spec,
+        build_right_arm_spec,
+        build_torso_spec,
         find_site,
-        load_mirrored_left_arm_spec,
-        load_passive_torso_spec,
-        load_right_arm_spec,
-        load_torso_spec,
     )
 
     reg = MODEL_REGISTRY["myoarms"]
-    human = load_passive_torso_spec(reg) if torso == "passive" else load_torso_spec(reg)
+    human = build_passive_torso_spec(reg) if torso == "passive" else build_torso_spec(reg)
     _strip_scene_decor(human)
     if arms in ("both", "right"):
-        human.attach(load_right_arm_spec(), prefix="", suffix="", site=find_site(human, RIGHT_ARM_ATTACH_SITE))
+        human.attach(build_right_arm_spec(reg), prefix="", suffix="", site=find_site(human, RIGHT_ARM_ATTACH_SITE))
     if arms in ("both", "left"):
-        human.attach(
-            load_mirrored_left_arm_spec(reg.mirror_rules), prefix="", suffix="", site=find_site(human, LEFT_ARM_ATTACH_SITE)
-        )
+        human.attach(build_mirrored_left_arm_spec(reg), prefix="", suffix="", site=find_site(human, LEFT_ARM_ATTACH_SITE))
     # The torso ships contact pairs for both arms; drop any referencing a missing geom.
     geom_names = {g.name for g in human.geoms if g.name}
     for pair in list(human.pairs):
@@ -217,9 +217,9 @@ def _build_human(arms: str, torso: str = "passive") -> "mujoco.MjSpec":
 def _freeze_legs_seated(human: "mujoco.MjSpec") -> None:
     """Attach both legs muscle-less, bake ``_SEATED_LEGS`` into the leg geometry, and
     delete every leg joint -- rigid seated legs with no leg DOF (as in the original)."""
-    from myo_sim.build.compose import load_legs_spec
+    from myo_sim.build.compose import build_legs_spec
 
-    legs = load_legs_spec()
+    legs = build_legs_spec()
     for sensor in list(legs.sensors):  # no leg DOF here -> drop the legs' proprioceptive/touch sensors
         legs.delete(sensor)
     for actuator in list(legs.actuators):
@@ -445,9 +445,9 @@ def _freeze_legs_standing(human: "mujoco.MjSpec") -> None:
     deleted, so the figure gains anatomical legs to stand on the base but NO leg DOF or
     actuators -- as in the original, whose lower body was a decorative shell. Keeps the
     exact nu / nq / nsensor match; adds only rigid leg bodies for grounding."""
-    from myo_sim.build.compose import load_legs_spec
+    from myo_sim.build.compose import build_legs_spec
 
-    legs = load_legs_spec()
+    legs = build_legs_spec()
     for sensor in list(legs.sensors):  # the legs ship proprioceptive sensors; env has only touch
         legs.delete(sensor)
     for actuator in list(legs.actuators):

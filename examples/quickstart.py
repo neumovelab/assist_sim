@@ -44,7 +44,7 @@ def _abort_no_myo_sim() -> None:
         "    pip install -e .\n"
         "\n"
         "Or install it on its own:\n"
-        '    pip install "myo-sim>=0.2.1"\n'
+        '    pip install "myo-sim>=0.2.3"\n'
         "\n"
         "Without myo_sim, no combined model can be compiled.",
         file=sys.stderr,
