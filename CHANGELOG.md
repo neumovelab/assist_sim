@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Tutorial_L1 no longer collides with itself or the heel on `myolegs` and `myofullbody`.** The
+  shared mounting started the actuator 13.8 mm inside its foot attachment and about 1 mm into the
+  heel, so both contacts were active on every step and the 80-muscle model with the device
+  stepped at about half the rate of the bare model. Device geoms now use `contype=2
+  conaffinity=1`, and the actuator-heel pair is excluded on those two MSKs.
+
 ## [1.0.0] — First stable release
 
 Coordinated 1.0.0 across the MyoAssist framework. The public API (`load_combined`,
