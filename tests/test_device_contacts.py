@@ -58,12 +58,14 @@ _SQUAT_FEET = "80-muscle squat: heels 93 mm apart, so the left and right foot pa
 
 # (msk, device, keyframe) -> reason, for contacts between a device geom and an MSK geom.
 KNOWN_DEVICE_MSK: dict[tuple[str, str, str], str] = {
-    **{(msk, "STRIDE_L2", "squat"): "STRIDE link_ag 37 mm inside calcn (50 kN)" for msk in LEGS_80},
     **{
-        (msk, "STRIDE_L2", "lunge"): "STRIDE link_ag_r 37 mm inside calcn_r, r_fore_upper inside tibia_r (27 kN)"
+        (msk, "STRIDE_L2", "squat"): "STRIDE shoe uppers 30 to 33 mm inside the tibia and link_de on calcn (28 kN)"
         for msk in LEGS_80
     },
-    **{(msk, "STRIDE_L2", kf): "STRIDE shank pushes 87 N on calcn" for msk in LEGS_80 for kf in ("walk_left", "walk_right")},
+    **{
+        (msk, "STRIDE_L2", "lunge"): "STRIDE r_fore_upper 32 mm inside tibia_r and link_de_r on calcn_r (18 kN)"
+        for msk in LEGS_80
+    },
     **{(msk, "Anatomics_L1", "squat"): f"Anatomics right exo 12 mm inside tibia_l (116 N); {_SQUAT_FEET}" for msk in LEGS_80},
     **{
         ("myofullbody", "OpenSourceLeg_KA_L1", kf): "the right thumb rests 6.6 mm inside the OSL_KA socket (10 N)"

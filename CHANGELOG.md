@@ -44,6 +44,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`STRIDE_L2` no longer pushes on the heel on `myolegs` and `myofullbody`.** The shank frame and
+  the AG link sit on the heel capsules that this lineage adds (`foot_col1/3/4` on `calcn`), as the
+  GCF and BCD links do, but only those two links had excludes. The shank frame pushed 87 N on the
+  heel at the walk keyframes, and 63 N per leg at `stand` on MuJoCo 3.11. The AG link started 37 to
+  52 mm inside the heel at `squat` and `lunge`. Both now have excludes against `calcn`.
 - **Device equality constraints close at every keyframe.** The keyframe rebuild gave each device
   joint one value, its `qpos0` or its `keyframe_overrides` value, in every pose. A closed-chain
   device therefore started a keyframe with its constraints open, and MuJoCo pulled it shut on the

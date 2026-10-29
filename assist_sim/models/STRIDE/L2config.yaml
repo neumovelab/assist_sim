@@ -148,6 +148,13 @@ contact:
       # over it by design, same as the GCF link above.
       - ["link_bcd_r", "calcn_r"]
       - ["link_bcd_l", "calcn_l"]
+      # The shank frame and the AG link also sit on these heel capsules (foot_col1/3/4).
+      # Unexcluded, the shank frame pushes 87 N on the heel at walk, and the AG link
+      # starts 37 to 52 mm inside it at squat and lunge.
+      - ["shank_r", "calcn_r"]
+      - ["shank_l", "calcn_l"]
+      - ["link_ag_r", "calcn_r"]
+      - ["link_ag_l", "calcn_l"]
     myofullbody: *exc_80
 
 sensor_removals:
