@@ -44,6 +44,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Device equality constraints close at every keyframe.** The keyframe rebuild gave each device
+  joint one value, its `qpos0` or its `keyframe_overrides` value, in every pose. A closed-chain
+  device therefore started a keyframe with its constraints open, and MuJoCo pulled it shut on the
+  first steps with large transient forces. `STRIDE_L2` was open by 0.033 rad at `stand`,
+  0.086 rad at `walk_left` and `walk_right`, and 0.274 rad (15.7 deg) at `squat` and `lunge`, on
+  all four MSKs. The rebuild now moves the device joints of each keyframe, a device free joint
+  too, until the device equalities close. It uses damped least-squares steps on the equality rows
+  of the constraint Jacobian. The MSK joints keep their values, and each device joint stays in
+  its range. `STRIDE_L2` now closes to 2e-9 rad and `Hippo_L1` to 3e-12 m. The offline-solved
+  `Hippo_L1` overrides left up to 0.00045 mm, and they are now the start point of the solve. A
+  keyframe that does not close gives a `RuntimeWarning` that names the device, the MSK and the
+  keyframe. `UTAnkleExo_L2` gives it on all four MSKs. Its connect anchors do not match the leg
+  on `myolegs22`, `myolegs26` and `myofullbody`, and a solve cannot correct an anchor. The solve
+  reduces its largest open distance from 1.04 m to 177 mm on `myolegs22`, and from 0.73 m to
+  2.3 mm on `myolegs`, where the anchors are correct. The solve adds 1-3 ms to a compose
+  (20-80 ms for `UTAnkleExo_L2`), and no signature changes. New
+  `tests/test_keyframe_device_closure.py` checks every MSK x device pair that has device
+  equalities. On `myolegs` and `myofullbody`, the closed `STRIDE_L2` linkage at `squat` and
+  `lunge` puts `link_ag` 52 mm into the `foot_col4` heel capsule (the open linkage had 37 mm
+  there, and `link_de` 24 mm). A gait replay with the couplings closed gives the same 52 mm, so
+  this contact is a separate defect, and it is still open.
 - **The Auxivo LiftSuit weighs 0.90 kg, not 34.1 kg.** Its exo parts are separate welded bodies
   without inertials, and only the belt geom carried a mass, so MuJoCo inferred the rest from
   volume at 1000 kg/m^3: 21.4 kg for the upper panel, 9.0 kg for the spring-tendon wrap cylinder

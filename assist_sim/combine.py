@@ -36,11 +36,13 @@ round-trips through it.
 
 from __future__ import annotations
 
+import warnings
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 import mujoco as mj
+import numpy as np
 
 from .canonical_keyframes import KNEE_JOINTS, LEG_SENTINEL_JOINT, canonical_leg_keyframes
 from .config import _SENSOR_TYPES, ActuatorDef, DeviceConfig, EqualityConstraint
@@ -60,6 +62,16 @@ _QVEL_WIDTH = {
     mj.mjtJoint.mjJNT_SLIDE: 1,
     mj.mjtJoint.mjJNT_HINGE: 1,
 }
+
+# Device keyframe closure (ModelCombiner._close_device_equalities). The solve stops when the
+# largest device equality violation (m or rad) is below _CLOSE_TOL, after _CLOSE_MAX_EVALS
+# constraint evaluations, or when the damping passes _CLOSE_DAMPING_MAX (no step lowers the
+# residual, so the residual is at a least-squares minimum).
+_CLOSE_TOL = 1e-8
+_CLOSE_MAX_EVALS = 100
+_CLOSE_DAMPING_MIN = 1e-12
+_CLOSE_DAMPING_START = 1e-6
+_CLOSE_DAMPING_MAX = 1e8
 
 # Maps from string names used in YAML to mujoco enum values
 _GAINTYPE_MAP = {
@@ -960,6 +972,12 @@ class ModelCombiner:
         ``keyframe_overrides`` are applied on top.  This preserves pose
         fidelity across body removals without depending on array length.
 
+        Last, the device joints move so that the device equalities close at each
+        keyframe (:meth:`_close_device_equalities`).  The MSK joints keep their
+        values.  A device joint value from ``keyframe_overrides`` is the start
+        point of that solve.  The legacy full-array ``keyframes`` mode is emitted
+        as authored.
+
         The spec's source keyframes were blanked (``key.qpos = []``) before
         surgery rather than deleted (``MjSpec.delete`` does not accept keys), so
         those pre-existing keys are *repurposed* here to host the first rebuilt
@@ -1037,6 +1055,9 @@ class ModelCombiner:
                 kind="keyframe",
             )
 
+        closure = ModelCombiner._device_closure_targets(model, prefix)
+        closure_data = mj.MjData(model) if closure[2].size else None
+
         for kf_name, kf_data in parsed_keyframes.items():
             qpos = list(model.qpos0)
             qvel = [0.0] * model.nv
@@ -1048,7 +1069,134 @@ class ModelCombiner:
             if override is not None:
                 ModelCombiner._apply_overrides(model, override, prefix, qpos)
 
+            if closure_data is not None:
+                residual = ModelCombiner._close_device_equalities(model, closure_data, qpos, closure)
+                if residual > _CLOSE_TOL:
+                    # A warning, not an error: the config resolves and the model is usable,
+                    # but a reset to this keyframe starts with a transient. UTAnkleExo_L2
+                    # gets here: its connects do not close in the canonical poses.
+                    warnings.warn(
+                        f"{config.name} on {msk_key or 'this MSK'}: the device equalities do not close at "
+                        f"keyframe '{kf_name}' (largest violation {residual:.3g} m or rad). A reset to this "
+                        f"keyframe starts with an open constraint, and the first steps pull it shut.",
+                        RuntimeWarning,
+                        stacklevel=2,
+                    )
+
             emit(kf_name, kf_data.time, qpos, qvel)
+
+    @staticmethod
+    def _device_closure_targets(model: mj.MjModel, prefix: str):
+        """Return what the device closure solve moves, checks and clips.
+
+        A device body is a body whose name starts with the device prefix, or a child
+        of one (an unnamed body gets no prefix).  A device equality is an active
+        ``connect``, ``weld`` or ``joint`` equality with an object on a device body.
+
+        Returns ``(dofs, qpos_adr, eq_ids, limits)``: the DOF and the qpos indices of
+        the joints on device bodies, the device equality ids, and ``(qpos address,
+        lower, upper)`` for each limited hinge or slide joint on a device body.
+        """
+        on_device = np.zeros(model.nbody, dtype=bool)
+        if prefix:
+            for b in range(1, model.nbody):
+                # MuJoCo numbers each body after its parent, so the parent flag is already set.
+                on_device[b] = model.body(b).name.startswith(prefix) or on_device[model.body_parentid[b]]
+        joints = [j for j in range(model.njnt) if on_device[model.jnt_bodyid[j]]]
+        dofs = np.flatnonzero(on_device[model.dof_bodyid])
+        qpos_adr = np.array(
+            [int(model.jnt_qposadr[j]) + k for j in joints for k in range(_QPOS_WIDTH[mj.mjtJoint(int(model.jnt_type[j]))])],
+            dtype=int,
+        )
+        limits = [
+            (int(model.jnt_qposadr[j]), float(model.jnt_range[j][0]), float(model.jnt_range[j][1]))
+            for j in joints
+            if model.jnt_limited[j] and model.jnt_type[j] in (mj.mjtJoint.mjJNT_HINGE, mj.mjtJoint.mjJNT_SLIDE)
+        ]
+        eq_ids = []
+        for e in range(model.neq):
+            objs = [int(o) for o in (model.eq_obj1id[e], model.eq_obj2id[e]) if o >= 0]
+            if model.eq_type[e] == mj.mjtEq.mjEQ_JOINT:
+                bodies = [model.jnt_bodyid[o] for o in objs]
+            elif model.eq_type[e] in (mj.mjtEq.mjEQ_CONNECT, mj.mjtEq.mjEQ_WELD):
+                on_site = model.eq_objtype[e] == mj.mjtObj.mjOBJ_SITE
+                bodies = [model.site_bodyid[o] if on_site else o for o in objs]
+            else:
+                continue
+            if model.eq_active0[e] and any(on_device[b] for b in bodies):
+                eq_ids.append(e)
+        return dofs, qpos_adr, np.array(eq_ids, dtype=int), limits
+
+    @staticmethod
+    def _close_device_equalities(model, data, qpos, targets) -> float:
+        """Move the device joints of ``qpos`` so that the device equalities close.
+
+        ``targets`` comes from :meth:`_device_closure_targets`.  Only the device
+        entries of ``qpos`` change; the MSK entries keep their exact values.  Each
+        step is a damped least-squares (Levenberg-Marquardt) step on the equality
+        rows of the constraint Jacobian, restricted to the device columns.
+        ``mj_integratePos`` applies the step, so a free or ball device joint keeps a
+        unit quaternion.  Each limited device joint is then clipped to its range.  A
+        step that does not decrease the residual is tried again with more damping.
+        ``qpos`` is changed in place.
+
+        Returns the largest remaining violation (m or rad), 0 with no device equality.
+        """
+        dofs, qpos_adr, eq_ids, limits = targets
+        if not eq_ids.size:
+            return 0.0
+        nv = model.nv
+        step = np.zeros(nv)
+        eye = np.eye(dofs.size)
+
+        def clip(q):
+            for adr, lo, hi in limits:
+                q[adr] = min(max(q[adr], lo), hi)
+            return q
+
+        def evaluate(q):
+            # Only the kinematics and the constraint rows: the equality rows need no
+            # tendons and no collision, which are most of the cost of mj_fwdPosition.
+            data.qpos[:] = q
+            mj.mj_kinematics(model, data)
+            mj.mj_comPos(model, data)
+            mj.mj_makeConstraint(model, data)
+            n = data.nefc
+            rows = np.flatnonzero((data.efc_type[:n] == mj.mjtConstraint.mjCNSTR_EQUALITY) & np.isin(data.efc_id[:n], eq_ids))
+            jac = data.efc_J[: n * nv].reshape(n, nv)[np.ix_(rows, dofs)]
+            res = data.efc_pos[rows].copy()
+            return res, jac, float(res @ res)
+
+        # Read the Jacobian as a dense array, and make only the equality rows.
+        saved = (model.opt.jacobian, model.opt.disableflags)
+        model.opt.jacobian = mj.mjtJacobian.mjJAC_DENSE
+        model.opt.disableflags |= int(
+            mj.mjtDisableBit.mjDSBL_CONTACT | mj.mjtDisableBit.mjDSBL_LIMIT | mj.mjtDisableBit.mjDSBL_FRICTIONLOSS
+        )
+        try:
+            q = clip(np.array(qpos, dtype=float))
+            res, jac, cost = evaluate(q)
+            damping = _CLOSE_DAMPING_START
+            for _ in range(_CLOSE_MAX_EVALS):
+                if not res.size or np.max(np.abs(res)) < _CLOSE_TOL or damping > _CLOSE_DAMPING_MAX:
+                    break
+                step[dofs] = np.linalg.solve(jac.T @ jac + damping * eye, -(jac.T @ res))
+                moved = q.copy()
+                mj.mj_integratePos(model, moved, step, 1.0)
+                # mj_integratePos also normalizes the MSK quaternions; keep the MSK entries as given.
+                trial = q.copy()
+                trial[qpos_adr] = moved[qpos_adr]
+                trial_res, trial_jac, trial_cost = evaluate(clip(trial))
+                if trial_cost < cost:
+                    q, res, jac, cost = trial, trial_res, trial_jac, trial_cost
+                    damping = max(damping * 0.1, _CLOSE_DAMPING_MIN)
+                else:
+                    damping *= 10.0
+        finally:
+            model.opt.jacobian, model.opt.disableflags = saved
+        for adr in qpos_adr:
+            qpos[adr] = float(q[adr])
+        return float(np.max(np.abs(res), initial=0.0))
 
     @staticmethod
     def _restore_joint_slices(model, by_joint, target, adr_array) -> None:

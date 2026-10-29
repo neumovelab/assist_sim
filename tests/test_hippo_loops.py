@@ -1,11 +1,10 @@
 """Hippo_L1 keyframes close the cuff loops and respect the hip ranges the device sets.
 
 Each Hippo thigh segment hangs from its motor on a hinge, and a ``connect`` equality holds its cuff to
-a strap that slides along the thigh. The hinge and strap values that close each loop in the canonical
-poses are solved offline and stored as per-MSK keyframe overrides, so they go stale when the canonical
-poses or the MSK geometry change. A stale keyframe starts with a loop open, and the solver snaps it
-shut on the first step. The device also restricts hip adduction and rotation with explicit joint
-ranges, which every keyframe must respect.
+a strap that slides along the thigh. The keyframe rebuild solves the hinge and strap values that close
+each loop, starting from the per-MSK keyframe overrides. An open keyframe starts with a loop open, and
+the solver snaps it shut on the first step. The device also restricts hip adduction and rotation with
+explicit joint ranges, which every keyframe must respect.
 """
 
 from __future__ import annotations
@@ -47,7 +46,7 @@ def test_hippo_cuff_loops_close_at_every_keyframe(msk_key):
             gap = float(np.linalg.norm(p1 - p2))
             assert gap < MAX_LOOP_GAP_M, (
                 f"{msk_key} keyframe '{model.key(k).name}': the {model.body(b1).name} loop is open by "
-                f"{gap * 1000:.2f} mm. Re-solve the Hippo keyframe_overrides for this MSK."
+                f"{gap * 1000:.2f} mm. Check the keyframe closure solve and the Hippo keyframe_overrides for this MSK."
             )
 
 

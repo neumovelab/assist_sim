@@ -80,8 +80,9 @@ path loads the spec from the given XML file instead.
   tendon-transmission actuators of the device. Add the equalities, contacts and
   sensors that `attach_body` does not move.
 - Compile the spec. Rebuild the keyframes by joint name: restore the authored
-  values of the joints that remain, then apply `keyframe_overrides`. Compile
-  again, to make the keyframes permanent.
+  values of the joints that remain, then apply `keyframe_overrides`. Then move
+  the device joints of each keyframe until the device equalities close. The
+  MSK joints do not move. Compile again, to make the keyframes permanent.
 
 The pipeline returns the compiled `MjModel` and a new `MjData`. If you request
 an export, `utils.export_combined_xml` writes it from the final spec. This is

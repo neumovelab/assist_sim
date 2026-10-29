@@ -310,6 +310,15 @@ keyframe_overrides:
 Each top-level key is a keyframe name. That keyframe must already exist in the
 MSK model. A joint that you do not list keeps its authored value.
 
+> **The pipeline closes the device equalities at each keyframe.** After the
+> overrides, it moves the device joints (a device free joint too) until each
+> device `equality` closes. The MSK joints keep their values, and each device
+> joint stays in its range. A device joint value in `keyframe_overrides` is the
+> start point of this solve. A linkage can close in more than one pose, and the
+> start point selects the pose. If a keyframe does not close, `combine` gives a
+> `RuntimeWarning` that names the device, the MSK and the keyframe. The legacy
+> `keyframes` section is used as you write it.
+
 ### Per-MSK keyframe_overrides
 
 ```yaml
