@@ -125,6 +125,14 @@ _EQTYPE_MAP = {
 # Names that select the world body as an attachment parent (free-rooted device).
 _WORLD_PARENTS = ("world", "worldbody")
 
+# Collision bits of a device geom per side: (contype, conaffinity without bit 0).  Every MSK
+# and terrain collider has contype 1, so bit 0 is their channel.  Bit 1 is the left parts,
+# bit 2 the right parts and bit 3 the unsided parts.  A part accepts only the other side, so
+# the parts of one side never collide, and no device part accepts an unsided part.
+_DEVICE_SIDE_BITS = {"left": (2, 4), "right": (4, 2), None: (8, 0)}
+_RIGHT_SUFFIXES = ("_r", "_R", "_dx")
+_LEFT_SUFFIXES = ("_l", "_L", "_sx")
+
 # Placeholder name a re-anchored wrap element carries between being created on
 # the surviving body and inheriting the original's name.
 _REANCHOR_TMP_NAME = "__assist_sim_reanchor_tmp__"
@@ -258,7 +266,7 @@ class ModelCombiner:
             device_full_spec = mj.MjSpec.from_file(device_full)
             device_stripped_spec = mj.MjSpec.from_file(device_stripped)
 
-            self._attach_bodies(
+            attached = self._attach_bodies(
                 human_spec,
                 device_full_spec,
                 device_stripped_spec,
@@ -266,6 +274,7 @@ class ModelCombiner:
                 prefix,
                 msk_key=msk_key,
             )
+            self._set_device_contact_bits(human_spec, attached)
             self._replace_meshes(human_spec, device_config, prefix, msk_key)
             self._apply_body_overrides(human_spec, device_config, prefix, msk_key)
             self._apply_actuator_overrides(human_spec, device_config, prefix, msk_key)
@@ -488,7 +497,7 @@ class ModelCombiner:
         config: DeviceConfig,
         prefix: str,
         msk_key: Optional[str] = None,
-    ) -> None:
+    ) -> List[Tuple[mj.MjsBody, str]]:
         """Attach each device body to its human parent body.
 
         The first attach uses the full device spec, which copies the entire
@@ -497,9 +506,12 @@ class ModelCombiner:
         spec so duplicate meshes are not re-added -- the device geoms still
         resolve to the already-copied prefixed meshes.  This replaces the 3.5+
         "delete device meshes after first attach" trick.
+
+        Returns each attached device body with the name of its human parent.
         """
         human_spec.copy_during_attach = True
 
+        attached: List[Tuple[mj.MjsBody, str]] = []
         attachments = config.resolve_attachments(msk_key)
         for i, att in enumerate(attachments):
             # ``parent_body: world`` grafts a free-rooted device body (its own
@@ -529,7 +541,66 @@ class ModelCombiner:
                 )
 
             frame = ModelCombiner._make_frame(parent_body, att)
-            frame.attach_body(device_body, prefix=prefix)
+            attached.append((frame.attach_body(device_body, prefix=prefix), att.parent_body))
+        return attached
+
+    @staticmethod
+    def _set_device_contact_bits(human_spec: mj.MjSpec, attached: List[Tuple[mj.MjsBody, str]]) -> None:
+        """Stop the parts on one side of a device colliding with each other.
+
+        The parts of one leg touch or overlap by design (a shank piece and a heel piece
+        span the ankle).  They are in different weld groups, so MuJoCo tests them, and at
+        the ``stand`` keyframe on ``myolegs`` it pushed them apart at 14.5 kN in
+        ``Humotech_L1`` and 12.7 kN in ``DephyExoBoot_L1``.  This rule replaces one bit
+        split or exclude per device, and applies to every colliding device geom
+        (``_DEVICE_SIDE_BITS``).  A visual-only geom (contype and conaffinity 0) stays
+        as it is.
+
+        - A left part and a right part collide.  Two parts of one side do not, and an
+          unsided part (pelvis, waist, torso) collides with no device part.
+        - A part collides with the same MSK and terrain geoms as before.  All of those
+          have contype 1, so the part keeps its conaffinity bit 0 and drops its contype
+          bit 0, which would otherwise let it touch its own side.  A part that has
+          contype 1 and conaffinity 0 (the ``OpenSourceLeg`` foot capsules, the
+          ``UTAnkleExo_L2`` parts) touches the MSK and terrain only through its contype,
+          so it keeps contype bit 0.  That bit still meets the conaffinity bit 0 of the
+          other parts, so each body pair where it would cause a contact that the rule
+          forbids gets an ``<exclude>``.
+
+        The suffix of the human parent body gives the side: ``_r``, ``_R`` or ``_dx`` is
+        right and ``_l``, ``_L`` or ``_sx`` is left.  If the parent has no suffix
+        (pelvis, torso, world), the suffix of the device body or of its nearest device
+        ancestor gives the side.  Otherwise the part is unsided.  An explicit ``<pair>``
+        ignores these bits; the shipped configs pair device geoms only with MSK geoms.
+        """
+        # (body name, side, OR of its geom contypes, OR of its geom conaffinities)
+        bodies: List[Tuple[str, Optional[str], int, int]] = []
+        for root, parent_name in attached:
+            parent_side = _name_side(parent_name)
+            for body in (root, *root.find_all(mj.mjtObj.mjOBJ_BODY)):
+                side = parent_side or _device_body_side(body, root)
+                side_type, side_affinity = _DEVICE_SIDE_BITS[side]
+                body_type = body_affinity = 0
+                for geom in body.geoms:
+                    if not (geom.contype or geom.conaffinity):
+                        continue
+                    outside_affinity = geom.conaffinity & 1
+                    outside_type = 0 if outside_affinity else geom.contype & 1
+                    geom.contype = side_type | outside_type
+                    geom.conaffinity = side_affinity | outside_affinity
+                    body_type |= geom.contype
+                    body_affinity |= geom.conaffinity
+                if body_type or body_affinity:
+                    bodies.append((body.name, side, body_type, body_affinity))
+
+        for i, (name1, side1, type1, affinity1) in enumerate(bodies):
+            for name2, side2, type2, affinity2 in bodies[i + 1 :]:
+                if side1 is not None and side2 is not None and side1 != side2:
+                    continue  # left and right parts collide
+                if type1 & affinity2 & 1 or type2 & affinity1 & 1:
+                    exclude = human_spec.add_exclude()
+                    exclude.bodyname1 = name1
+                    exclude.bodyname2 = name2
 
     @staticmethod
     def _make_frame(parent_body, att):
@@ -1003,6 +1074,24 @@ class ModelCombiner:
                 # MSKs differ (e.g. myolegs has freejoint root, not pelvis_ty).
                 continue
             qpos[int(model.jnt_qposadr[jid])] = value
+
+
+def _name_side(name: str) -> Optional[str]:
+    """``"right"`` or ``"left"`` from the suffix of a body name, else None."""
+    if name.endswith(_RIGHT_SUFFIXES):
+        return "right"
+    if name.endswith(_LEFT_SUFFIXES):
+        return "left"
+    return None
+
+
+def _device_body_side(body, root) -> Optional[str]:
+    """The side of the first name with a side suffix from *body* up to the attached *root*."""
+    while True:
+        side = _name_side(body.name)
+        if side is not None or body.name == root.name:
+            return side
+        body = body.parent
 
 
 def _equality_data(eq_def: EqualityConstraint) -> list:

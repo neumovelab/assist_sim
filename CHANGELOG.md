@@ -9,9 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **`tests/test_device_contact_overlap.py`**: asserts no device geom starts more than 2 mm
-  inside a human collider at the `stand` pose, for every MSK x device combination. It fails on
-  the ten combinations under Fixed without the excludes.
+- **`tests/test_device_contacts.py`**: for every MSK x device combination, asserts that no two
+  device geoms on one side (or unsided) can collide. This check reads the collision bits, the
+  weld and parent filters, the excludes and the explicit pairs, so it does not depend on a pose.
+  At each of the five keyframes, it also asserts that the device-MSK contacts and the contacts
+  between left and right device parts push 25 N or less in total and go no deeper than 2 mm.
+  The known failures are strict xfails. The module replaces `tests/test_device_contact_overlap.py`,
+  which checked only the 2 mm depth at `stand` and skipped the two `OpenSourceLeg` devices,
+  because their element prefix is not their registry key. On the tree before the side rule
+  (under Fixed), the module fails 19 combinations in the structural check and 32 keyframe
+  checks of device-device force. It compiles each combination once, as the old module did.
 - **`forcerange` / `forcelimited` on YAML actuators.** A joint motor can now be force-limited
   from its device config. Before, the schema rejected `forcerange`, and a device-XML joint
   actuator was skipped (see Fixed), so no file could limit a joint motor. The range clamps the
@@ -108,8 +115,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Tutorial_L1 no longer collides with itself or the heel on `myolegs` and `myofullbody`.** The
   shared mounting started the actuator 13.8 mm inside its foot attachment and about 1 mm into the
   heel, so both contacts were active on every step and the 80-muscle model with the device
-  stepped at about half the rate of the bare model. Device geoms now use `contype=2
-  conaffinity=1`, and the actuator-heel pair is excluded on those two MSKs.
+  stepped at about half the rate of the bare model. The actuator-heel pair is excluded on those
+  two MSKs, and the side rule below keeps the actuator out of contact with its foot attachment.
+  (The `contype=2 conaffinity=1` that this fix first put on each geom is now redundant and is
+  removed from `L1model.xml`.)
+
+- **The parts on one side of a device no longer collide with each other.** On `myolegs` and
+  `myofullbody`, the shank, heel and shoe parts of one leg sit inside each other by design. They
+  are in different weld groups, so MuJoCo tested them, and the solver pushed them apart on every
+  step. After `mj_forward` at `stand`, the device-device normal force was 14.5 kN in
+  `Humotech_L1`, 12.7 kN in `DephyExoBoot_L1`, 5.2 kN in `Anatomics_L1` and 3.2 kN in
+  `OpenExo_L1` (2.9 to 21.5 kN over the five keyframes). The parts span the ankle, so the force
+  loaded the ankle. `myolegs22` and `myolegs26` gave 0 N, but the same pairs were candidates.
+  The composer now sets the collision bits of each colliding device geom from its side: left
+  `contype=2 conaffinity=5`, right `contype=4 conaffinity=3`, unsided (pelvis, waist, torso)
+  `contype=8 conaffinity=1`. The suffix of the MSK parent body gives the side. For a part on
+  the pelvis, the torso or the world, the suffix of the device body gives it (`_r`, `_l`, `_dx`,
+  `_sx`). Two parts of one side make no contact, and an unsided part makes no contact with
+  another device part. A left part and a right part make contact, as the MSK legs do. Every
+  part makes contact with the same MSK and terrain geoms as before: over the 52 combinations,
+  the 15,332 device-MSK candidate geom pairs and the 504 pairs with a floor plane are unchanged,
+  and the 216 same-side and 89 unsided device-device pairs are gone. A geom with `contype=1
+  conaffinity=0` (the `OpenSourceLeg` foot capsules, the `UTAnkleExo_L2` parts) keeps that bit 0,
+  and the composer excludes each body pair where the bit lets two parts of one side make contact
+  (3 excludes on `OpenSourceLeg_A_L1`, 6 on `OpenSourceLeg_KA_L1`). `STRIDE_L2`, `Tutorial_L1`
+  and `UTAnkleExo_L2` had no contact between their parts before, so now their left and right parts
+  make contact. Left-right contacts that remain on `myolegs` and `myofullbody`: the `HMEDI_L1`
+  femur flaps (5.7 mm, 47-55 N at `stand`) and the `Humotech_L1` heel rings (5.4 mm, 38 N at
+  `stand`). The `squat` keyframe puts the heels 93 mm apart (168 mm at `stand`), so the left and
+  right foot parts cross: 11.2 kN in `STRIDE_L2`, 6.5 kN in `Humotech_L1`.
 
 ## [1.0.0] — First stable release
 

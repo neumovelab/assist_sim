@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import os
 import time
+import types
 from pathlib import Path
 
 from assist_sim import load_combined_model
 from assist_sim.cache import compute_key, input_paths
+from assist_sim.loading import _package_token
 
 
 def test_first_call_writes_cache(minimal_human, minimal_device_config, tmp_path):
@@ -50,3 +52,19 @@ def test_version_bump_invalidates_key(minimal_human, minimal_device_config):
 def test_msk_key_part_of_cache_key(minimal_human, minimal_device_config):
     paths = input_paths(minimal_human, minimal_device_config, minimal_human)
     assert compute_key(paths, "0.1.0", "msk_a") != compute_key(paths, "0.1.0", "msk_b")
+
+
+def test_source_edit_moves_package_token(tmp_path):
+    """An edit to the pipeline source moves the cache key, with no version bump.
+
+    A change to how the pipeline composes a model, such as the device contact bits in
+    ``combine.py``, must not reuse a model that the old pipeline cached. The key folds in the
+    newest ``*.py`` mtime of the package, so an editable install sees the edit at once.
+    """
+    source = tmp_path / "pkg" / "combine.py"
+    source.parent.mkdir()
+    source.write_text("")
+    package = types.SimpleNamespace(__version__="1.0.0", __file__=str(source.parent / "__init__.py"))
+    before = _package_token(package)
+    os.utime(source, (time.time() + 10, time.time() + 10))
+    assert _package_token(package) != before

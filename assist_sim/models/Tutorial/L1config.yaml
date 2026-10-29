@@ -50,8 +50,8 @@ actuators:
 # `myolegs` and `myofullbody` the shared mounting puts the actuator 13.8 mm
 # inside its own foot attachment and ~1 mm into the heel collision ellipsoid, so both contacts
 # were active on every step (~1.6 kN between the parts, per leg) and the model ran at half
-# speed.  The parts no longer test each other (contype/conaffinity split in L1model.xml); the
-# heel overlap is excluded on the two MSKs where it occurs.
+# speed.  The parts of one side no longer test each other (the composer gives each device geom
+# the collision bits of its side); the heel overlap is excluded on the two MSKs where it occurs.
 contact:
   excludes:
     myolegs: &exc_80

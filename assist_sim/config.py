@@ -607,9 +607,9 @@ class ContactExclude:
     Only needed where geometry overlaps *by design*.  MuJoCo already skips geoms
     in the same weld group and in parent-child body pairs, so a device whose
     bodies are welded onto the human (no joints of its own) needs none of these.
-    Prefer a ``contype`` / ``conaffinity`` bit split for blanket
-    "device parts never touch each other" filtering -- that costs two attributes
-    in the device XML instead of one exclude per pair.
+    The pipeline already keeps the parts of one device side apart (see
+    ``ModelCombiner._set_device_contact_bits``), so an exclude is for a device
+    part that overlaps a human body, or for a left part that overlaps a right part.
     """
 
     body1: str

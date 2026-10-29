@@ -204,8 +204,9 @@ def test_stride_contacts_emitted_and_intra_device_filtered(msk):
     The shank is welded to tibia, whose weld parent is femur, and MuJoCo
     auto-excludes parent-child body pairs -- so the actuator would sink into the
     thigh without an explicit ``<pair>``.  Conversely the links are coaxial by
-    design, and rather than one exclude per non-adjacent pair they are filtered by
-    ``contype=2 conaffinity=1``, which must hold for every device geom.
+    design, and rather than one exclude per non-adjacent pair the composer gives
+    each device geom the bits of its side: ``contype=4 conaffinity=3`` on the right
+    leg and ``contype=2 conaffinity=5`` on the left.
     """
     model, _ = load_combined(msk, "STRIDE_L2")
 
@@ -224,13 +225,16 @@ def test_stride_contacts_emitted_and_intra_device_filtered(msk):
     }
     assert len(excludes) >= 4  # plate + gcf against each calcaneus
 
-    # Two device geoms must never be collision candidates.
+    # Two device geoms on one leg must never be collision candidates.
     for gid in range(model.ngeom):
         name = mj.mj_id2name(model, mj.mjtObj.mjOBJ_GEOM, gid) or ""
         if not name.startswith(STRIDE):
             continue
-        assert model.geom_contype[gid] == 2, name
-        assert model.geom_conaffinity[gid] == 1, name
+        body = int(model.geom_bodyid[gid])
+        while model.body(body).name.startswith(STRIDE):
+            body = int(model.body_parentid[body])
+        expected = (4, 3) if model.body(body).name.endswith("_r") else (2, 5)
+        assert (model.geom_contype[gid], model.geom_conaffinity[gid]) == expected, name
 
 
 @needs_myo_sim
