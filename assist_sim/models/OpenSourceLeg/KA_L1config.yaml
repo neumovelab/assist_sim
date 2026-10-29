@@ -313,7 +313,7 @@ actuator_overrides:
 # Spec: 29 N*m continuous, 145.25 N*m instantaneous (MyoAssist 1.0 paper, Fig. 2). Use at most one forcerange
 # per actuator.
 # Model mass: 5.38 kg: knee, ankle, foot, adapter and pylons 4.53, transfemoral socket 0.85
-# (spec 5.2 kg).
+# (spec 5.4 kg with batteries and electronics, opensourceleg.org).
 actuators:
   - name: "osl_knee_torque_actuator"
     type: "motor"
