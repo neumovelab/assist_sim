@@ -69,7 +69,6 @@ KNOWN_DEVICE_MSK: dict[tuple[str, str, str], str] = {
         ("myofullbody", "OpenSourceLeg_KA_L1", kf): "the right thumb rests 6.6 mm inside the OSL_KA socket (10 N)"
         for kf in ("walk_right", "lunge")
     },
-    ("myolegs26", "UTAnkleExo_L2", "lunge"): "misplaced free-rooted UT exo (A-S4): part2_dx 7 mm inside toes_r (165 N)",
 }
 
 # (msk, device, keyframe) -> reason, for contacts between two device geoms.

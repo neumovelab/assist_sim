@@ -53,9 +53,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   too, until the device equalities close. It uses damped least-squares steps on the equality rows
   of the constraint Jacobian. The MSK joints keep their values, and each device joint stays in
   its range. `STRIDE_L2` now closes to 2e-9 rad and `Hippo_L1` to 3e-12 m. The offline-solved
-  `Hippo_L1` overrides left up to 0.00045 mm, and they are now the start point of the solve. A
-  keyframe that does not close gives a `RuntimeWarning` that names the device, the MSK and the
-  keyframe. `UTAnkleExo_L2` gives it on all four MSKs. Its connect anchors do not match the leg
+  `Hippo_L1` overrides left up to 0.00045 mm, and they are now the start point of the solve. The solve
+  is best effort and does not raise; `tests/test_keyframe_device_closure.py` checks every device
+  at every keyframe. `UTAnkleExo_L2` stays open on all four MSKs (strict xfail). Its connect anchors do not match the leg
   on `myolegs22`, `myolegs26` and `myofullbody`, and a solve cannot correct an anchor. The solve
   reduces its largest open distance from 1.04 m to 177 mm on `myolegs22`, and from 0.73 m to
   2.3 mm on `myolegs`, where the anchors are correct. The solve adds 1-3 ms to a compose

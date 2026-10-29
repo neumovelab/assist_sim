@@ -315,8 +315,9 @@ MSK model. A joint that you do not list keeps its authored value.
 > device `equality` closes. The MSK joints keep their values, and each device
 > joint stays in its range. A device joint value in `keyframe_overrides` is the
 > start point of this solve. A linkage can close in more than one pose, and the
-> start point selects the pose. If a keyframe does not close, `combine` gives a
-> `RuntimeWarning` that names the device, the MSK and the keyframe. The legacy
+> start point selects the pose. The solve is best effort: if a keyframe does not
+> close, `combine` still builds the model, and the keyframe starts with an open
+> constraint. The test `tests/test_keyframe_device_closure.py` checks it. The legacy
 > `keyframes` section is used as you write it.
 
 ### Per-MSK keyframe_overrides

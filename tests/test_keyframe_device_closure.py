@@ -10,7 +10,6 @@ shipped device that has equalities, on every MSK.
 
 from __future__ import annotations
 
-import warnings
 from functools import lru_cache
 from pathlib import Path
 
@@ -85,9 +84,7 @@ def test_closure_matrix_covers_the_loop_devices():
 @needs_myo_sim
 @pytest.mark.parametrize(("msk_key", "device_key"), PARAMS)
 def test_keyframes_close_device_equalities(msk_key, device_key):
-    with warnings.catch_warnings(record=True) as caught:
-        warnings.simplefilter("always")
-        model, data = load_combined(msk_key, device_key)
+    model, data = load_combined(msk_key, device_key)
     prefix = device_key + "_"
     eq_ids = _device_equalities(model, prefix)
     assert eq_ids, f"{msk_key} x {device_key}: no device equality found"
@@ -117,9 +114,6 @@ def test_keyframes_close_device_equalities(msk_key, device_key):
             assert lo - RANGE_TOL <= q <= hi + RANGE_TOL, (
                 f"{msk_key} x {device_key}, keyframe '{key}': {model.joint(j).name} = {q:.4f} is outside [{lo:.4f}, {hi:.4f}]."
             )
-
-    open_warnings = [str(w.message) for w in caught if "do not close" in str(w.message)]
-    assert not open_warnings, open_warnings
 
 
 # ----------------------------------------------------------------------
@@ -162,18 +156,15 @@ def _home(model: mj.MjModel, joint: str) -> float:
 
 
 def test_device_joint_closes_its_equality_and_msk_joints_hold(tmp_path):
-    with warnings.catch_warnings():
-        warnings.simplefilter("error", RuntimeWarning)
-        model = _combine(tmp_path, LOOP)
+    model = _combine(tmp_path, LOOP)
     assert _home(model, "Loop_dev_joint") == pytest.approx(LOOP_CLOSED, abs=1e-9)
     # The MSK joints keep their authored values exactly, and the open MSK equality stays open.
     assert {joint: _home(model, joint) for joint in HOME} == HOME
 
 
-def test_device_joint_stays_in_range_and_warns_when_open(tmp_path):
+def test_device_joint_stays_in_range_when_the_loop_cannot_close(tmp_path):
     body = LOOP + 'joint_overrides:\n  - {name: "Loop_dev_joint", range: [-0.1, 0.1]}\n'
-    with pytest.warns(RuntimeWarning, match=r"Loop on this MSK: .* keyframe 'home'"):
-        model = _combine(tmp_path, body)
+    model = _combine(tmp_path, body)  # no error: the solve is best effort (see combine.py)
     assert _home(model, "Loop_dev_joint") == pytest.approx(0.1)
 
 

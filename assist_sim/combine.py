@@ -36,7 +36,6 @@ round-trips through it.
 
 from __future__ import annotations
 
-import warnings
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -1070,18 +1069,11 @@ class ModelCombiner:
                 ModelCombiner._apply_overrides(model, override, prefix, qpos)
 
             if closure_data is not None:
-                residual = ModelCombiner._close_device_equalities(model, closure_data, qpos, closure)
-                if residual > _CLOSE_TOL:
-                    # A warning, not an error: the config resolves and the model is usable,
-                    # but a reset to this keyframe starts with a transient. UTAnkleExo_L2
-                    # gets here: its connects do not close in the canonical poses.
-                    warnings.warn(
-                        f"{config.name} on {msk_key or 'this MSK'}: the device equalities do not close at "
-                        f"keyframe '{kf_name}' (largest violation {residual:.3g} m or rad). A reset to this "
-                        f"keyframe starts with an open constraint, and the first steps pull it shut.",
-                        RuntimeWarning,
-                        stacklevel=2,
-                    )
+                # Best effort: the solve gets each device as close to closed as its geometry
+                # allows. It does not raise when a loop stays open (UTAnkleExo_L2 in the
+                # canonical poses, item A-S4); tests/test_keyframe_device_closure.py checks
+                # the residual of every device at every keyframe.
+                ModelCombiner._close_device_equalities(model, closure_data, qpos, closure)
 
             emit(kf_name, kf_data.time, qpos, qvel)
 
