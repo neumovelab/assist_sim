@@ -253,6 +253,32 @@ def test_stride_no_device_penetration_at_rest(msk):
     assert not offenders, f"device geoms penetrating at rest: {offenders}"
 
 
+TUTORIAL = "Tutorial_L1_"
+
+
+@needs_myo_sim
+@pytest.mark.parametrize("msk", ["myolegs22", "myolegs26", "myolegs", "myofullbody"])
+def test_tutorial_no_device_penetration_at_rest(msk):
+    """No Tutorial_L1 geom starts any keyframe interpenetrating anything.
+
+    On `myolegs` and `myofullbody` the shared mounting put the actuator inside its own
+    foot attachment and against the heel; both contacts were active on every step.
+    """
+    model, data = load_combined(msk, "Tutorial_L1")
+    offenders = []
+    for key in range(max(model.nkey, 1)):
+        if model.nkey:
+            mj.mj_resetDataKeyframe(model, data, key)
+        mj.mj_forward(model, data)
+        for i in range(data.ncon):
+            c = data.contact[i]
+            g1 = mj.mj_id2name(model, mj.mjtObj.mjOBJ_GEOM, c.geom1) or ""
+            g2 = mj.mj_id2name(model, mj.mjtObj.mjOBJ_GEOM, c.geom2) or ""
+            if (TUTORIAL in g1 or TUTORIAL in g2) and "terrain" not in g1 + g2 and c.dist < 0:
+                offenders.append((key, g1, g2, float(c.dist)))
+    assert not offenders, f"device geoms penetrating at rest: {offenders}"
+
+
 # ----------------------------------------------------------------------
 # sensors / sensor_removals
 # ----------------------------------------------------------------------
