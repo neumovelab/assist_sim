@@ -30,13 +30,7 @@ RANGE_TOL = 1e-9
 
 # Devices whose keyframes do not close. Strict, so the test fails once a device closes and its
 # entry must go.
-KNOWN_OPEN = {
-    "UTAnkleExo_L2": (
-        "A-S4: the UTAnkleExo_L2 connect anchors do not match the leg on myolegs22, myolegs26 and "
-        "myofullbody. The least-squares closure leaves the connects open by up to 177 mm (myolegs22), "
-        "40 mm (myolegs26), 16 mm (myofullbody) and 2.3 mm (myolegs)."
-    ),
-}
+KNOWN_OPEN: dict[str, str] = {}
 
 
 @lru_cache(maxsize=None)

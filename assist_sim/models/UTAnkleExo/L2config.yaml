@@ -17,32 +17,58 @@ device:
   compatible_msk: ["myolegs22", "myolegs26", "myolegs", "myofullbody"]
 
 # Free-rooted attach: graft each exo root under worldbody (freejoint preserved).
-# pos/quat place the root so the exo sits on the leg at the same pose relative
-# to the calcaneus as the source model; the <connect> constraints below then
-# pin it there.  Per-MSK because each baseline places the calcaneus in a
-# different world frame (myolegs is torso-composed under a yaw-rotated root).
+# The source model fits the exo to myolegs. The right (dx) exo keeps that fit,
+# and the left (sx) exo is its mirror image (the source left fit was 2.6 deg
+# and 5-6 mm off the mirror). Every MSK takes the same pose relative to the
+# ankle and foot. The pose is transferred in world space, through a frame at
+# the ankle joint centre (forward = calcn -> toes, up = world z), because the
+# body frames differ between lineages. The exo then sits within 0.1 mm of its
+# myolegs pose relative to the foot bones. The myolegs22/26 tibia sits 9.9 mm
+# behind the myolegs tibia relative to the talus, so there the shank clamp
+# lands 9.9 mm further forward on the tibia. MuJoCo derives the leg side of each connect from this pose at qpos0,
+# so a wrong pose still gives a zero residual at qpos0 (A-S4).
 attachments:
-  default:  # myolegs26 (torso'd, assembled qpos0)
+  default: &att_myolegs26
     - device_body: "part3_dx"
       parent_body: "world"
-      pos: [-0.15748, 0.03818, 0.07181]
-      quat: [0.61612, 0.0, 0.0, -0.78765]
+      pos: [-0.15748, 0.03809, 0.02187]
+      quat: [0.12090, -0.00005, 0.00040, 0.99267]
     - device_body: "part3_sx"
       parent_body: "world"
-      pos: [0.10772, 0.27798, 0.07181]
-      quat: [0.63360, 0.0, 0.0, 0.77366]
-  myolegs:  # 80-muscle, passive torso
+      pos: [0.09969, 0.27102, 0.02168]
+      quat: [0.99257, -0.00040, 0.00005, 0.12169]
+  myolegs26: *att_myolegs26
+  myolegs22:
+    - device_body: "part3_dx"
+      parent_body: "world"
+      pos: [-0.03809, -0.15748, -0.97813]
+      quat: [0.61643, 0.00032, -0.00025, -0.78741]
+    - device_body: "part3_sx"
+      parent_body: "world"
+      pos: [-0.27102, 0.09969, -0.97832]
+      quat: [0.61581, -0.00032, -0.00025, 0.78790]
+  myolegs:
     - device_body: "part3_dx"
       parent_body: "world"
       pos: [-0.1500, 0.0292, 0.0]
       quat: [0.12050, -0.00005, 0.00040, 0.99271]
     - device_body: "part3_sx"
       parent_body: "world"
-      pos: [0.1000, 0.2692, 0.0]
-      quat: [0.99500, -0.00040, 0.00004, 0.09983]
+      pos: [0.09198, 0.26233, -0.00019]
+      quat: [0.99252, -0.00040, 0.00005, 0.12208]
+  myofullbody:
+    - device_body: "part3_dx"
+      parent_body: "world"
+      pos: [-0.1750, 0.1292, 0.0]
+      quat: [0.12050, -0.00005, 0.00040, 0.99271]
+    - device_body: "part3_sx"
+      parent_body: "world"
+      pos: [0.06698, 0.36233, -0.00019]
+      quat: [0.99252, -0.00040, 0.00005, 0.12208]
 
-# Point-to-point clamps (anchor is in the device body's local frame), ported
-# verbatim from the source model's <equality>. dx -> right leg, sx -> left leg.
+# Point-to-point clamps, ported verbatim from the source model's <equality>.
+# The anchor is in the device body's frame; MuJoCo computes the anchor in the
+# leg body from the attachment pose at qpos0. dx -> right leg, sx -> left leg.
 equality:
   # Right (dx)
   - type: "connect"
@@ -70,3 +96,24 @@ equality:
     device_body: "part2_sx"
     parent_body: "tibia_l"
     anchor: [-0.24, 0.05, 0.1]
+
+# With the source fit, the device hinge (joint2) is 31-41 mm above the
+# anatomical ankle axis and 13-14 deg off it. Two clamps on the foot and one on
+# the tibia then over-constrain the loop, and it cannot close when the ankle
+# turns: the keyframe solve left 2.3 mm on myolegs at squat (A-S4). joint2
+# moves onto the ankle axis of each lineage, in the part2 frame, so part2 turns
+# with the tibia and joint2 equals the ankle angle. The myolegs axis is
+# oblique, the myolegs22/26 axis is mediolateral. The meshes keep the source
+# pose, so the drawn pin is 31-41 mm from the hinge, and the cable moment arm
+# about the ankle is 69 mm (myolegs) and 74 mm (myolegs22/26), not the 68 mm
+# about the pin.
+joint_overrides:
+  default: &hinge_myoleg
+    - {name: "UTAnkleExo_L2_joint2_dx", pos: [-0.03241, 0.00064, -0.03044], axis: [-0.24080, 0.97058, 0.0]}
+    - {name: "UTAnkleExo_L2_joint2_sx", pos: [-0.19747, 0.00111, -0.03044], axis: [-0.24080, -0.97058, 0.0]}
+  myolegs26: *hinge_myoleg
+  myolegs22: *hinge_myoleg
+  myolegs: &hinge_gait2392
+    - {name: "UTAnkleExo_L2_joint2_dx", pos: [-0.04015, 0.00652, -0.04053], axis: [-0.13384, 0.97560, 0.17402]}
+    - {name: "UTAnkleExo_L2_joint2_sx", pos: [-0.18978, 0.00700, -0.04044], axis: [-0.13384, -0.97560, -0.17402]}
+  myofullbody: *hinge_gait2392
