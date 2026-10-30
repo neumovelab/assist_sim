@@ -106,14 +106,19 @@ equality:
 # oblique, the myolegs22/26 axis is mediolateral. The meshes keep the source
 # pose, so the drawn pin is 31-41 mm from the hinge, and the cable moment arm
 # about the ankle is 69 mm (myolegs) and 74 mm (myolegs22/26), not the 68 mm
-# about the pin.
+# about the pin. The values have nine digits: the loop has more equations than
+# DOFs, so a hinge that is off the ankle axis by the rounding of a 5-digit value
+# (1e-6 m) leaves the reset projection of myoassist open by 4e-7 m. myolegs22
+# and myolegs26 differ at that level, so each has its own block.
 joint_overrides:
-  default: &hinge_myoleg
-    - {name: "UTAnkleExo_L2_joint2_dx", pos: [-0.03241, 0.00064, -0.03044], axis: [-0.24080, 0.97058, 0.0]}
-    - {name: "UTAnkleExo_L2_joint2_sx", pos: [-0.19747, 0.00111, -0.03044], axis: [-0.24080, -0.97058, 0.0]}
-  myolegs26: *hinge_myoleg
-  myolegs22: *hinge_myoleg
+  default: &hinge_myolegs26
+    - {name: "UTAnkleExo_L2_joint2_dx", pos: [-0.032409541, 0.000640114, -0.030440838], axis: [-0.240798049, 0.970575242, -0.000002547]}
+    - {name: "UTAnkleExo_L2_joint2_sx", pos: [-0.197465907, 0.001108985, -0.030438516], axis: [-0.240797984, -0.970575258, 0.000001905]}
+  myolegs26: *hinge_myolegs26
+  myolegs22:
+    - {name: "UTAnkleExo_L2_joint2_dx", pos: [-0.032408899, 0.000640273, -0.030440607], axis: [-0.240801425, 0.970574404, -0.000000810]}
+    - {name: "UTAnkleExo_L2_joint2_sx", pos: [-0.197466182, 0.001109053, -0.030439766], axis: [-0.240789613, -0.970577335, 0.000000168]}
   myolegs: &hinge_gait2392
-    - {name: "UTAnkleExo_L2_joint2_dx", pos: [-0.04015, 0.00652, -0.04053], axis: [-0.13384, 0.97560, 0.17402]}
-    - {name: "UTAnkleExo_L2_joint2_sx", pos: [-0.18978, 0.00700, -0.04044], axis: [-0.13384, -0.97560, -0.17402]}
+    - {name: "UTAnkleExo_L2_joint2_dx", pos: [-0.040148083, 0.006520293, -0.040530168], axis: [-0.133838838, 0.975604851, 0.174018216]}
+    - {name: "UTAnkleExo_L2_joint2_sx", pos: [-0.189784391, 0.007001074, -0.040442646], axis: [-0.133836306, -0.975604977, -0.174019457]}
   myofullbody: *hinge_gait2392
