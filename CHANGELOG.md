@@ -44,6 +44,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The split shoe of `Anatomics_L1`, `Humotech_L1` and `STRIDE_L2` is one shoe on every MSK
+  (N18).** The fore halves ride `toes` and were authored for the myoLeg MTP axis. On `myolegs`
+  and `myofullbody` the MTP axis is the oblique gait2392 axis, and a positive angle lowers the
+  toes, so the halves met at 21.8 deg at `stand`, and no angle brought them closer than 6.6 deg.
+  `Anatomics_L1` had no MTP override, so its halves met at 11.4 deg on all four MSKs. On the
+  80-muscle lineage the fore halves now get an attachment frame, and the MTP range and keyframes
+  take that lineage's sign: [-0.463, -0.163] rad, flat at -0.163. The myoLeg range stays
+  [0.2, 0.5]. `Anatomics_L1` gets the same ranges and the shoe keyframes. The fore uppers get the
+  roll of the fore soles, which removes a 1.1 deg kink between the uppers on `myolegs22` and
+  `myolegs26`. The halves now meet within 0.13 deg at `stand` and at both walk keyframes on all
+  12 combinations. `tests/test_split_shoe.py` checks this.
 - **`STRIDE_L2` no longer pushes on the heel on `myolegs` and `myofullbody`.** The shank frame and
   the AG link sit on the heel capsules that this lineage adds (`foot_col1/3/4` on `calcn`), as the
   GCF and BCD links do, but only those two links had excludes. The shank frame pushed 87 N on the
