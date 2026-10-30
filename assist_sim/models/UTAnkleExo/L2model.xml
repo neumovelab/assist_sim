@@ -93,7 +93,9 @@
     </worldbody>
 
     <tendon>
-        
+        <!-- part2part3attach is inert (N1): both of its sites are on part1, so its length never changes and its
+             stiffness gives no force. The source mesh part1_zaxis.stl draws this spring in series with the cable,
+             between the part1 lever and the cable end, which no body here models. -->
         <spatial name="part2part3attach_dx" range="0.04 0.06" class="ut_exo_dx" stiffness="25000" solreflimit="0.002 1.0" solimplimit="0.9 0.95 0.01" rgba="0.8 0.8 0.8 1.0">
             <site site="part1_attach_dx" />
             <site site="part3_attach_dx" />
