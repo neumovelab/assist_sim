@@ -394,17 +394,24 @@ def test_cable_shortens_into_plantarflexion(msk):
 
 
 def test_stride_mounts_identically_on_every_lineage(models_dir):
-    """No attachment carries a per-MSK pose offset.
+    """No attachment of the device frame carries a per-MSK pose offset.
 
     The device is a rigid frame strapped flat to the shank, so it must sit the same
     way on every model.  Canting it per lineage to chase a differing ankle axis
     swings the actuator 27 mm laterally at the top and the plate 19 mm the other
     way at the bottom -- visibly crooked.  Where the axes disagree the *joint* axis
     is declared instead; see the next test.
+
+    The fore halves of the split shoe are the exception. They ride ``toes``, and on the
+    80-muscle lineage their frame takes up the oblique MTP axis, so that the shoe sits
+    the same way on every model (``tests/test_split_shoe.py``).
     """
+    shoe_fore = {"r_fore_sole", "r_fore_upper", "l_fore_sole", "l_fore_upper"}
     config = DeviceConfig.from_yaml(str(models_dir / "STRIDE" / "L2config.yaml"))
     for msk in (None, "myolegs22", "myolegs26", "myolegs", "myofullbody"):
         for att in config.resolve_attachments(msk):
+            if att.device_body in shoe_fore and msk in ("myolegs", "myofullbody"):
+                continue
             assert att.pos is None, (msk, att.device_body)
             assert att.quat is None, (msk, att.device_body)
 
@@ -432,7 +439,10 @@ def test_stride_declares_a_sagittal_ankle_on_the_80_muscle_lineage(models_dir):
         assert overrides["ankle_angle_r"].axis == [0, 0, 1], msk
         assert overrides["ankle_angle_r"].pos == [0, -0.4, 0], msk
         assert overrides["ankle_angle_r"].range == [-0.698132, 0.349], msk
-        assert overrides["mtp_angle_r"].range == [0.2, 0.5], msk
+        # The shoe range of this lineage, whose positive MTP angle lowers the toes
+        # (tests/test_split_shoe.py). myoLeg keeps [0.2, 0.5].
+        assert overrides["mtp_angle_r"].range == [-0.463, -0.163], msk
+    assert default["mtp_angle_r"].range == [0.2, 0.5]
 
 
 @needs_myo_sim

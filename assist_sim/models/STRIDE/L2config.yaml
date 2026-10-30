@@ -13,6 +13,15 @@ device:
 # The foot plate is NOT attached to the shoe -- the linkage's only tie to the
 # human is the shank__link_ag <-> ankle_angle coupling. Welding the plate to the
 # sole would over-constrain the chain and fight that coupling.
+#
+# The fore halves are authored for the myoLeg MTP axis (z of the toes frame): at mtp_angle
+# 0.2 the two halves make one flat shoe, and a larger angle lifts the toes. The 80-muscle
+# lineage (myolegs, myofullbody) has the oblique gait2392 MTP axis, and there a positive
+# mtp_angle lowers the toes. No angle about that axis gives the myoLeg toe pose. At -0.163
+# the toe pose is nearest to it (6.6 deg away), and the attachment frame of each fore half
+# takes up the remaining rotation. At mtp_angle -0.163 the fore halves are where they are
+# on myoLeg at 0.2, and the shoe is flat. Same shoe and frames as Anatomics_L1 and
+# Humotech_L1.
 
 attachments:
   default:
@@ -30,12 +39,12 @@ attachments:
   myolegs: &attach_80
     - *shoe_r_aft_sole
     - *shoe_r_aft_upper
-    - *shoe_r_fore_sole
-    - *shoe_r_fore_upper
+    - {device_body: "r_fore_sole", parent_body: "toes_r", quat: &fore_frame_r [0.998317, 0.047059, -0.004722, 0.03357]}
+    - {device_body: "r_fore_upper", parent_body: "toes_r", quat: *fore_frame_r}
     - *shoe_l_aft_sole
     - *shoe_l_aft_upper
-    - *shoe_l_fore_sole
-    - *shoe_l_fore_upper
+    - {device_body: "l_fore_sole", parent_body: "toes_l", quat: &fore_frame_l [0.998317, -0.047059, 0.004722, 0.03357]}
+    - {device_body: "l_fore_upper", parent_body: "toes_l", quat: *fore_frame_l}
     - *shank_r_mount
     - *shank_l_mount
   myofullbody: *attach_80
@@ -107,18 +116,19 @@ equality:
     solref: [0.002, 1]
 
 # --- Ranges the device imposes on the leg ---
+# The shoe range: flat at one end, 0.3 rad (17.2 deg) of toe lift at the other.
 joint_overrides:
   default:
     - &ankle_r_fit {name: "ankle_angle_r", range: [-0.888851, 0.349]}
     - &ankle_l_fit {name: "ankle_angle_l", range: [-0.888851, 0.349]}
-    - &mtp_r_shoe {name: "mtp_angle_r", range: [0.2, 0.5]}
-    - &mtp_l_shoe {name: "mtp_angle_l", range: [0.2, 0.5]}
+    - {name: "mtp_angle_r", range: [0.2, 0.5]}
+    - {name: "mtp_angle_l", range: [0.2, 0.5]}
 
   myolegs: &joints_80
     - {name: "ankle_angle_r", axis: [0, 0, 1], pos: [0, -0.4, 0], range: [-0.698132, 0.349]}
     - {name: "ankle_angle_l", axis: [0, 0, 1], pos: [0, -0.4, 0], range: [-0.698132, 0.349]}
-    - *mtp_r_shoe
-    - *mtp_l_shoe
+    - {name: "mtp_angle_r", range: [-0.463, -0.163]}
+    - {name: "mtp_angle_l", range: [-0.463, -0.163]}
   myofullbody: *joints_80
 
 contact:
@@ -171,6 +181,8 @@ sensors:
 
 # See the note in Tutorial/L1config.yaml: the myoLeg knee flexes negative, the 80-muscle
 # and full-body knees flex positive, so the authored lunge knee needs its sign per lineage.
+# The MTP sign flips in the same way. The 80-muscle shoe is flat at -0.163, so each
+# 80-muscle mtp_angle is -0.163 minus the toe lift of the default pose (its value - 0.2).
 # Per-MSK blocks merge onto `default`.
 keyframe_overrides:
   default:
@@ -197,9 +209,21 @@ keyframe_overrides:
       knee_angle_l: -1.09
       ankle_angle_l: 0.045
       mtp_angle_l: 0.26
-  myolegs:
+  myolegs: &keyframes_80
+    stand:
+      mtp_angle_r: -0.163
+      mtp_angle_l: -0.163
+    walk_left:
+      mtp_angle_r: -0.163
+      mtp_angle_l: -0.163
+    walk_right:
+      mtp_angle_r: -0.163
+      mtp_angle_l: -0.163
+    squat:
+      mtp_angle_r: -0.288
+      mtp_angle_l: -0.288
     lunge:
+      mtp_angle_r: -0.363
       knee_angle_l: 1.09
-  myofullbody:
-    lunge:
-      knee_angle_l: 1.09
+      mtp_angle_l: -0.223
+  myofullbody: *keyframes_80

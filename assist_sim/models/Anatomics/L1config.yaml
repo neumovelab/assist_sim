@@ -7,31 +7,54 @@ device:
 # Rigid exo frame on the right shank + foot, plus bilateral instrumented
 # soles/uppers that form the ground interface. Everything is welded (no device
 # joints) and passive (no actuators).
+#
+# The soles and uppers are the split shoe of Humotech_L1 and STRIDE_L2: the aft halves
+# ride calcn and the fore halves ride toes, so mtp_angle sets the shape of the shoe. The
+# fore halves are authored for the myoLeg MTP axis (z of the toes frame): at mtp_angle 0.2
+# the two halves make one flat shoe, and a larger angle lifts the toes. The 80-muscle
+# lineage (myolegs, myofullbody) has the oblique gait2392 MTP axis, and there a positive
+# mtp_angle lowers the toes. No angle about that axis gives the myoLeg toe pose. At -0.163
+# the toe pose is nearest to it (6.6 deg away), and the attachment frame of each fore half
+# takes up the remaining rotation. At mtp_angle -0.163 the fore halves are where they are
+# on myoLeg at 0.2, and the shoe is flat.
 attachments:
-  # Right shank + foot exo frame
-  - device_body: "shank_exo"
-    parent_body: "tibia_r"
-  - device_body: "front_foot_exo"
-    parent_body: "calcn_r"
-  - device_body: "back_foot_exo"
-    parent_body: "calcn_r"
-  # Bilateral instrumented soles / uppers
-  - device_body: "r_aft_sole"
-    parent_body: "calcn_r"
-  - device_body: "r_aft_upper"
-    parent_body: "calcn_r"
-  - device_body: "r_fore_sole"
-    parent_body: "toes_r"
-  - device_body: "r_fore_upper"
-    parent_body: "toes_r"
-  - device_body: "l_aft_sole"
-    parent_body: "calcn_l"
-  - device_body: "l_aft_upper"
-    parent_body: "calcn_l"
-  - device_body: "l_fore_sole"
-    parent_body: "toes_l"
-  - device_body: "l_fore_upper"
-    parent_body: "toes_l"
+  default:
+    # Right shank + foot exo frame
+    - &shank_exo {device_body: "shank_exo", parent_body: "tibia_r"}
+    - &front_foot_exo {device_body: "front_foot_exo", parent_body: "calcn_r"}
+    - &back_foot_exo {device_body: "back_foot_exo", parent_body: "calcn_r"}
+    # Bilateral instrumented soles / uppers
+    - &aft_sole_r {device_body: "r_aft_sole", parent_body: "calcn_r"}
+    - &aft_upper_r {device_body: "r_aft_upper", parent_body: "calcn_r"}
+    - {device_body: "r_fore_sole", parent_body: "toes_r"}
+    - {device_body: "r_fore_upper", parent_body: "toes_r"}
+    - &aft_sole_l {device_body: "l_aft_sole", parent_body: "calcn_l"}
+    - &aft_upper_l {device_body: "l_aft_upper", parent_body: "calcn_l"}
+    - {device_body: "l_fore_sole", parent_body: "toes_l"}
+    - {device_body: "l_fore_upper", parent_body: "toes_l"}
+  myolegs: &attach_80
+    - *shank_exo
+    - *front_foot_exo
+    - *back_foot_exo
+    - *aft_sole_r
+    - *aft_upper_r
+    - {device_body: "r_fore_sole", parent_body: "toes_r", quat: &fore_frame_r [0.998317, 0.047059, -0.004722, 0.03357]}
+    - {device_body: "r_fore_upper", parent_body: "toes_r", quat: *fore_frame_r}
+    - *aft_sole_l
+    - *aft_upper_l
+    - {device_body: "l_fore_sole", parent_body: "toes_l", quat: &fore_frame_l [0.998317, -0.047059, 0.004722, 0.03357]}
+    - {device_body: "l_fore_upper", parent_body: "toes_l", quat: *fore_frame_l}
+  myofullbody: *attach_80
+
+# The shoe range: flat at one end, 0.3 rad (17.2 deg) of toe lift at the other.
+joint_overrides:
+  default:
+    - {name: "mtp_angle_r", range: [0.2, 0.5]}
+    - {name: "mtp_angle_l", range: [0.2, 0.5]}
+  myolegs: &joints_80
+    - {name: "mtp_angle_r", range: [-0.463, -0.163]}
+    - {name: "mtp_angle_l", range: [-0.463, -0.163]}
+  myofullbody: *joints_80
 
 # --- Device <-> human contact excludes (freejoint lineages only) ---
 # MuJoCo only auto-excludes parent/child bodies.  The freejoint lineages (myolegs,
@@ -65,3 +88,43 @@ sensors:
   - {name: "r_toes", type: touch, site: "r_forefoot_touch"}
   - {name: "l_foot", type: touch, site: "l_sole_touch"}
   - {name: "l_toes", type: touch, site: "l_forefoot_touch"}
+
+# The MSK poses are authored for a bare foot, with the toes at 0 when the foot is flat.
+# In the shoe, the flat toe angle is 0.2 (myoLeg) or -0.163 (80-muscle), so each pose
+# moves the toe angle onto the shoe and keeps the toe lift of the bare-foot pose. The
+# 80-muscle MTP sign is the opposite of myoLeg, so its toe lift is negative.
+# Per-MSK blocks merge onto `default`.
+keyframe_overrides:
+  default:
+    stand:
+      mtp_angle_r: 0.2
+      mtp_angle_l: 0.2
+    walk_left:
+      mtp_angle_r: 0.2
+      mtp_angle_l: 0.2
+    walk_right:
+      mtp_angle_r: 0.2
+      mtp_angle_l: 0.2
+    squat:
+      mtp_angle_r: 0.325
+      mtp_angle_l: 0.325
+    lunge:
+      mtp_angle_r: 0.4
+      mtp_angle_l: 0.26
+  myolegs: &keyframes_80
+    stand:
+      mtp_angle_r: -0.163
+      mtp_angle_l: -0.163
+    walk_left:
+      mtp_angle_r: -0.163
+      mtp_angle_l: -0.163
+    walk_right:
+      mtp_angle_r: -0.163
+      mtp_angle_l: -0.163
+    squat:
+      mtp_angle_r: -0.288
+      mtp_angle_l: -0.288
+    lunge:
+      mtp_angle_r: -0.363
+      mtp_angle_l: -0.223
+  myofullbody: *keyframes_80

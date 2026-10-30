@@ -2,55 +2,66 @@ device:
   name: "Humotech_L1"
   model_xml: "L1model.xml"
 
+# --- The split shoe ---
+# The aft halves ride calcn and the fore halves ride toes, so mtp_angle sets the shape of
+# the shoe. The fore halves are authored for the myoLeg MTP axis (z of the toes frame): at
+# mtp_angle 0.2 the two halves make one flat shoe, and a larger angle lifts the toes. The
+# 80-muscle lineage (myolegs, myofullbody) has the oblique gait2392 MTP axis, and there a
+# positive mtp_angle lowers the toes. No angle about that axis gives the myoLeg toe pose.
+# At -0.163 the toe pose is nearest to it (6.6 deg away), and the attachment frame of each
+# fore half takes up the remaining rotation. At mtp_angle -0.163 the fore halves are where
+# they are on myoLeg at 0.2, and the shoe is flat. Same shoe and frames as Anatomics_L1
+# and STRIDE_L2.
 attachments:
-  # Tibia R
-  - device_body: "shin_cuff_r"
-    parent_body: "tibia_r"
-  - device_body: "shin_main_r"
-    parent_body: "tibia_r"
-  # Calcn R
-  - device_body: "heel_ring_r"
-    parent_body: "calcn_r"
-  - device_body: "heel_connector_r"
-    parent_body: "calcn_r"
-  - device_body: "sole_attachment_r"
-    parent_body: "calcn_r"
-  - device_body: "r_aft_sole"
-    parent_body: "calcn_r"
-  - device_body: "r_aft_upper"
-    parent_body: "calcn_r"
-  # Toes R
-  - device_body: "r_fore_sole"
-    parent_body: "toes_r"
-  - device_body: "r_fore_upper"
-    parent_body: "toes_r"
-  # Tibia L
-  - device_body: "shin_cuff_l"
-    parent_body: "tibia_l"
-  - device_body: "shin_main_l"
-    parent_body: "tibia_l"
-  # Calcn L
-  - device_body: "heel_ring_l"
-    parent_body: "calcn_l"
-  - device_body: "heel_connector_l"
-    parent_body: "calcn_l"
-  - device_body: "sole_attachment_l"
-    parent_body: "calcn_l"
-  - device_body: "l_aft_sole"
-    parent_body: "calcn_l"
-  - device_body: "l_aft_upper"
-    parent_body: "calcn_l"
-  # Toes L
-  - device_body: "l_fore_sole"
-    parent_body: "toes_l"
-  - device_body: "l_fore_upper"
-    parent_body: "toes_l"
+  default:
+    - &shin_cuff_r {device_body: "shin_cuff_r", parent_body: "tibia_r"}
+    - &shin_main_r {device_body: "shin_main_r", parent_body: "tibia_r"}
+    - &heel_ring_r {device_body: "heel_ring_r", parent_body: "calcn_r"}
+    - &heel_connector_r {device_body: "heel_connector_r", parent_body: "calcn_r"}
+    - &sole_attachment_r {device_body: "sole_attachment_r", parent_body: "calcn_r"}
+    - &aft_sole_r {device_body: "r_aft_sole", parent_body: "calcn_r"}
+    - &aft_upper_r {device_body: "r_aft_upper", parent_body: "calcn_r"}
+    - {device_body: "r_fore_sole", parent_body: "toes_r"}
+    - {device_body: "r_fore_upper", parent_body: "toes_r"}
+    - &shin_cuff_l {device_body: "shin_cuff_l", parent_body: "tibia_l"}
+    - &shin_main_l {device_body: "shin_main_l", parent_body: "tibia_l"}
+    - &heel_ring_l {device_body: "heel_ring_l", parent_body: "calcn_l"}
+    - &heel_connector_l {device_body: "heel_connector_l", parent_body: "calcn_l"}
+    - &sole_attachment_l {device_body: "sole_attachment_l", parent_body: "calcn_l"}
+    - &aft_sole_l {device_body: "l_aft_sole", parent_body: "calcn_l"}
+    - &aft_upper_l {device_body: "l_aft_upper", parent_body: "calcn_l"}
+    - {device_body: "l_fore_sole", parent_body: "toes_l"}
+    - {device_body: "l_fore_upper", parent_body: "toes_l"}
+  myolegs: &attach_80
+    - *shin_cuff_r
+    - *shin_main_r
+    - *heel_ring_r
+    - *heel_connector_r
+    - *sole_attachment_r
+    - *aft_sole_r
+    - *aft_upper_r
+    - {device_body: "r_fore_sole", parent_body: "toes_r", quat: &fore_frame_r [0.998317, 0.047059, -0.004722, 0.03357]}
+    - {device_body: "r_fore_upper", parent_body: "toes_r", quat: *fore_frame_r}
+    - *shin_cuff_l
+    - *shin_main_l
+    - *heel_ring_l
+    - *heel_connector_l
+    - *sole_attachment_l
+    - *aft_sole_l
+    - *aft_upper_l
+    - {device_body: "l_fore_sole", parent_body: "toes_l", quat: &fore_frame_l [0.998317, -0.047059, 0.004722, 0.03357]}
+    - {device_body: "l_fore_upper", parent_body: "toes_l", quat: *fore_frame_l}
+  myofullbody: *attach_80
 
+# The shoe range: flat at one end, 0.3 rad (17.2 deg) of toe lift at the other.
 joint_overrides:
-  - name: "mtp_angle_r"
-    range: [0.2, 0.5]
-  - name: "mtp_angle_l"
-    range: [0.2, 0.5]
+  default:
+    - {name: "mtp_angle_r", range: [0.2, 0.5]}
+    - {name: "mtp_angle_l", range: [0.2, 0.5]}
+  myolegs: &joints_80
+    - {name: "mtp_angle_r", range: [-0.463, -0.163]}
+    - {name: "mtp_angle_l", range: [-0.463, -0.163]}
+  myofullbody: *joints_80
 
 # The actuator values below are permissive starting values; the provided controllers
 # were tuned on them. A line marked "to spec" sets the hardware rating instead: uncomment
@@ -125,6 +136,8 @@ sensors:
 
 # See the note in Tutorial/L1config.yaml: the myoLeg knee flexes negative, the 80-muscle
 # and full-body knees flex positive, so the authored lunge knee needs its sign per lineage.
+# The MTP sign flips in the same way. The 80-muscle shoe is flat at -0.163, so each
+# 80-muscle mtp_angle is -0.163 minus the toe lift of the default pose (its value - 0.2).
 # Per-MSK blocks merge onto `default`.
 keyframe_overrides:
   default:
@@ -151,9 +164,21 @@ keyframe_overrides:
       knee_angle_l: -1.09
       ankle_angle_l: 0.045
       mtp_angle_l: 0.26
-  myolegs:
+  myolegs: &keyframes_80
+    stand:
+      mtp_angle_r: -0.163
+      mtp_angle_l: -0.163
+    walk_left:
+      mtp_angle_r: -0.163
+      mtp_angle_l: -0.163
+    walk_right:
+      mtp_angle_r: -0.163
+      mtp_angle_l: -0.163
+    squat:
+      mtp_angle_r: -0.288
+      mtp_angle_l: -0.288
     lunge:
+      mtp_angle_r: -0.363
       knee_angle_l: 1.09
-  myofullbody:
-    lunge:
-      knee_angle_l: 1.09
+      mtp_angle_l: -0.223
+  myofullbody: *keyframes_80
