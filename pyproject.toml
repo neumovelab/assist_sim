@@ -41,8 +41,9 @@ dependencies = [
     # The ceiling is measured, not defensive.  MuJoCo keeps widening scalar MjSpec
     # fields and moving MjData arrays: MjsTendon.stiffness became a 3-vector in 3.7,
     # mjENBL_MULTICCD went away in 3.8, and MjData.ten_J turned sparse in 3.6.  3.4
-    # through 3.11 are verified green; the `mujoco-range` job in
-    # .github/workflows/test.yml tests both ends on every PR.  Raise the ceiling only
+    # through 3.11 are verified green; the `test` lanes run the floor (the pin in
+    # requirements.txt) and the `mujoco-range` job in .github/workflows/test.yml runs
+    # the ceiling on every PR.  Raise the ceiling only
     # after that job passes against the newer release -- an unbounded range shipped a
     # wheel that could not combine a device on any mujoco past 3.6.
     "mujoco>=3.4,<3.12",

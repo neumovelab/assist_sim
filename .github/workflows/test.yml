@@ -33,20 +33,20 @@ jobs:
       - run: ruff format --check .
 
   test:
-    # The reproducible lane: the pinned stack from requirements.txt. Full Python sweep
-    # on Linux; the ends of the range only on Windows and macOS, which is enough to
-    # catch path-separator and file-locking regressions without tripling the bill.
+    # The reproducible lane: the pinned stack from requirements.txt, whose mujoco 3.4.0 is
+    # the floor of the declared range. A Python-version break shows at one end of the
+    # range (a newer feature fails on 3.10, a removal on 3.13), so only the ends run, on
+    # Windows, the development platform. Linux and macOS run the newest Python, for
+    # path-separator and file-locking regressions.
     name: pytest (${{ matrix.os }}, py${{ matrix.python-version }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest]
-        python-version: ["3.10", "3.11", "3.12", "3.13"]
         include:
           - { os: windows-latest, python-version: "3.10" }
           - { os: windows-latest, python-version: "3.13" }
-          - { os: macos-latest, python-version: "3.10" }
+          - { os: ubuntu-latest, python-version: "3.13" }
           - { os: macos-latest, python-version: "3.13" }
 
     steps:
@@ -76,20 +76,13 @@ jobs:
     # means the *declared* range in pyproject.toml goes untested at the top -- which is
     # how an unbounded `mujoco>=3.4` shipped in a wheel that could not combine a device
     # on any mujoco past 3.6. This job installs without the pin file, so it tests what
-    # a plain `pip install assist-sim` user actually gets, at both ends of the range.
+    # a plain `pip install assist-sim` user actually gets: the newest mujoco the range
+    # allows. The floor, 3.4.0, is the pin of the `test` lane.
     #
-    # If the ceiling leg fails on a newly released mujoco, that is the signal to fix the
+    # If this job fails on a newly released mujoco, that is the signal to fix the
     # incompatibility and then raise the ceiling in pyproject.toml -- not to relax this job.
-    name: mujoco range (${{ matrix.bound }})
+    name: mujoco range (ceiling)
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          # Floor: the oldest mujoco the range allows.
-          - { bound: floor, pin: "mujoco==3.4.0" }
-          # Ceiling: whatever the range's upper bound admits today (no pin -> newest allowed).
-          - { bound: ceiling, pin: "" }
 
     steps:
       - uses: actions/checkout@v4
@@ -103,7 +96,6 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -e . pytest
-          if [ -n "${{ matrix.pin }}" ]; then pip install "${{ matrix.pin }}"; fi
           python -c "import mujoco; print('resolved mujoco', mujoco.__version__)"
 
       - name: Run tests

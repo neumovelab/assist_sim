@@ -36,6 +36,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **CI runs 7 jobs, not 12.** The `test` lane runs the ends of the Python range, 3.10 and 3.13,
+  on Windows, and 3.13 on Linux and macOS. A Python-version break shows at one end of the range,
+  and one job per OS catches path-separator and file-locking regressions. Ubuntu 3.10 to 3.12
+  and the 3.10 macOS job are gone. The `mujoco-range` floor job is gone too: it ran the same
+  mujoco 3.4.0 as the `test` lane, whose pin is the floor. The ceiling job stays.
 - **`myo-sim>=0.2.3` (was `>=0.2.1`).** myo-sim 0.2.1 gives `chest_r` a phantom 12.87 kg: the
   body has wrap ellipsoids but no `<inertial>`, so MuJoCo infers its mass from the geometry.
   The extra mass is on every torso-bearing model, which includes all four MSK keys and the
