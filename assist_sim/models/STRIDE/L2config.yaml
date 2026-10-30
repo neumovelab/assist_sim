@@ -125,8 +125,8 @@ joint_overrides:
     - {name: "mtp_angle_l", range: [0.2, 0.5]}
 
   myolegs: &joints_80
-    - {name: "ankle_angle_r", axis: [0, 0, 1], pos: [0, -0.4, 0], range: [-0.698132, 0.349]}
-    - {name: "ankle_angle_l", axis: [0, 0, 1], pos: [0, -0.4, 0], range: [-0.698132, 0.349]}
+    - {name: "ankle_angle_r", axis: [0, 0, 1], range: [-0.698132, 0.349]}
+    - {name: "ankle_angle_l", axis: [0, 0, 1], range: [-0.698132, 0.349]}
     - {name: "mtp_angle_r", range: [-0.463, -0.163]}
     - {name: "mtp_angle_l", range: [-0.463, -0.163]}
   myofullbody: *joints_80

@@ -437,12 +437,31 @@ def test_stride_declares_a_sagittal_ankle_on_the_80_muscle_lineage(models_dir):
     for msk in ("myolegs", "myofullbody"):
         overrides = {j.name: j for j in config.resolve_joint_overrides(msk)}
         assert overrides["ankle_angle_r"].axis == [0, 0, 1], msk
-        assert overrides["ankle_angle_r"].pos == [0, -0.4, 0], msk
+        # The axis turns about the ankle joint centre, the talus origin.
+        assert overrides["ankle_angle_r"].pos is None, msk
         assert overrides["ankle_angle_r"].range == [-0.698132, 0.349], msk
         # The shoe range of this lineage, whose positive MTP angle lowers the toes
         # (tests/test_split_shoe.py). myoLeg keeps [0.2, 0.5].
         assert overrides["mtp_angle_r"].range == [-0.463, -0.163], msk
     assert default["mtp_angle_r"].range == [0.2, 0.5]
+
+
+@needs_myo_sim
+@pytest.mark.parametrize("msk", ["myolegs", "myofullbody"])
+def test_stride_ankle_hinge_stays_at_the_ankle(msk):
+    """The sagittal axis of STRIDE_L2 passes through the ankle joint centre of the bare MSK.
+
+    The override once also set ``pos: [0, -0.4, 0]``, the talus offset in the tibia frame.
+    A joint position is in the frame of the joint's own body, the talus, so that put the
+    hinge 400 mm below the ankle, and the foot swung on an arc about it.
+    """
+    anchors = {}
+    for device in ("STRIDE_L2", "Tutorial_L1"):  # Tutorial_L1 leaves the ankle as it is
+        model, data = load_combined(msk, device)
+        mj.mj_forward(model, data)
+        anchors[device] = [data.xanchor[model.joint("ankle_angle_" + side).id].copy() for side in "rl"]
+    for side, stride, bare in zip("rl", anchors["STRIDE_L2"], anchors["Tutorial_L1"]):
+        assert np.linalg.norm(stride - bare) < 1e-9, f"{msk}: STRIDE ankle_angle_{side} is {stride - bare} m off the ankle"
 
 
 @needs_myo_sim
