@@ -61,7 +61,7 @@
       <inertial pos="0.006583 -0.008331 0.062037" quat="0.616489 -0.688779 0.184580 0.333848" mass="0.09900" diaginertia="1.099849e-04 1.362452e-04 2.088670e-04" />
       <geom name="r_fore_sole_geom" mesh="r_fore_sole" type="mesh" rgba="0.95 0.95 0.95 1" />
     </body>
-    <body name="r_fore_upper" pos="0.038 0.0175 -0.0395" euler="0 -0.1 -0.2">
+    <body name="r_fore_upper" pos="0.038 0.0175 -0.0395" euler="-0.02 -0.1 -0.2">
       <inertial pos="0.003460 -0.010682 0.050763" quat="0.639090 0.682283 0.241978 -0.259807" mass="0.06600" diaginertia="7.934845e-05 8.742663e-05 1.244249e-04" />
       <geom name="r_fore_upper_geom" mesh="r_fore_upper" type="mesh" rgba="0.95 0.95 0.95 0.25" />
     </body>
@@ -79,7 +79,7 @@
       <inertial pos="0.006583 -0.008331 0.062086" quat="0.616489 0.688779 -0.184580 0.333848" mass="0.09900" diaginertia="1.099849e-04 1.362451e-04 2.088670e-04" />
       <geom name="l_fore_sole_geom" mesh="l_fore_sole" type="mesh" rgba="0.95 0.95 0.95 1" />
     </body>
-    <body name="l_fore_upper" pos="0.038 0.0175 -0.0615" euler="0 0.1 -0.2">
+    <body name="l_fore_upper" pos="0.038 0.0175 -0.0615" euler="0.02 0.1 -0.2">
       <inertial pos="0.003460 -0.010682 0.053914" quat="0.639090 -0.682283 -0.241978 -0.259807" mass="0.06600" diaginertia="7.934845e-05 8.742663e-05 1.244249e-04" />
       <geom name="l_fore_upper_geom" mesh="l_fore_upper" type="mesh" rgba="0.95 0.95 0.95 0.25" />
     </body>
