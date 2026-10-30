@@ -101,12 +101,24 @@ def _ensure_limit_sensors(spec: mj.MjSpec) -> None:
         sensor.objname = joint
 
 
-def to_planar_root(spec: mj.MjSpec) -> bool:
+def turn_pose(pos, quat, turn) -> tuple[list, list]:
+    """Apply the rigid ``turn`` that :func:`to_planar_root` returns to a world pose.
+
+    A body parented to the world (a free-rooted device) is posed for the MSK before the
+    turn, so it must turn with the skeleton, about the same pivot.
+    """
+    pivot, rot = turn
+    new_pos = pivot + _rotvec(np.asarray(pos, dtype=float) - pivot, rot)
+    return list(new_pos), list(_mul(rot, quat))
+
+
+def to_planar_root(spec: mj.MjSpec):
     """Align a freejoint leg MSK ``spec`` to the ``myolegs22`` root frame in place.
 
-    Returns ``True`` when the transform was applied, ``False`` (no-op) when the
-    spec has no freejoint (already a planar named root), no ``pelvis`` body, or is
-    not a leg model.
+    Returns the rigid turn it applied to the skeleton, as ``(pivot, quat)``: a rotation
+    by ``quat`` about the world point ``pivot`` (see :func:`turn_pose`). Returns ``None``
+    (no-op) when the spec has no freejoint (already a planar named root), no ``pelvis``
+    body, or is not a leg model.
     """
     root_body = free_joint = None
     for body in spec.bodies:
@@ -117,12 +129,12 @@ def to_planar_root(spec: mj.MjSpec) -> bool:
         if free_joint is not None:
             break
     if free_joint is None:
-        return False
+        return None
     if not any(j.name == _LEG_SENTINEL_JOINT for j in spec.joints):
-        return False
+        return None
     pelvis = next((b for b in spec.bodies if b.name == "pelvis"), None)
     if pelvis is None:
-        return False
+        return None
 
     # 1) rigidly yaw the whole skeleton to the myolegs22 frame.  The composed leg
     #    MSK is not one subtree hanging off the pelvis: the upper body and the legs
@@ -149,7 +161,10 @@ def to_planar_root(spec: mj.MjSpec) -> bool:
     # an euler ``alt``.  The freejoint root bodies happen to be quat-form today, so this is
     # belt-and-braces, but the failure mode is a silently unrotated skeleton, which is
     # exactly the 90-degree torso/leg split this function exists to prevent.
-    root_world = probe_data.xquat[mj.mj_name2id(probe_model, mj.mjtObj.mjOBJ_BODY, root_body.name)].copy()
+    root_id = mj.mj_name2id(probe_model, mj.mjtObj.mjOBJ_BODY, root_body.name)
+    root_world = probe_data.xquat[root_id].copy()
+    # The root body keeps its position, so the skeleton turns about it.
+    pivot = probe_data.xpos[root_id].copy()
     root_body.alt.type = mj.mjtOrientation.mjORIENTATION_QUAT
     root_body.quat = list(_mul(delta, root_world))
 
@@ -168,4 +183,4 @@ def to_planar_root(spec: mj.MjSpec) -> bool:
     # 3) add the knee/hip/ankle joint-limit sensors the reflex controller reads
     #    but the 80-muscle myolegs does not ship (myolegs26 already has them).
     _ensure_limit_sensors(spec)
-    return True
+    return pivot, delta

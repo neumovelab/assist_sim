@@ -252,10 +252,13 @@ class ModelCombiner:
         # sets this, so its floating-base models are unchanged.  Runs before the
         # surgery/attachments (all name-based, frame-independent) and before the
         # keyframe rebuild (which then restores pelvis_ty/pelvis_tilt by name).
+        # The attachments are frame-independent except for world-parented device
+        # bodies, which _attach_bodies turns with the skeleton (root_turn).
+        root_turn = None
         if planar_root:
             from .root_frame import to_planar_root
 
-            to_planar_root(human_spec)
+            root_turn = to_planar_root(human_spec)
 
         # Re-anchor before surgery: a muscle the amputation preserves has to be
         # moved onto the residual bone while its wrap sites still exist.
@@ -284,6 +287,7 @@ class ModelCombiner:
                 device_config,
                 prefix,
                 msk_key=msk_key,
+                root_turn=root_turn,
             )
             self._set_device_contact_bits(human_spec, attached)
             self._replace_meshes(human_spec, device_config, prefix, msk_key)
@@ -508,6 +512,7 @@ class ModelCombiner:
         config: DeviceConfig,
         prefix: str,
         msk_key: Optional[str] = None,
+        root_turn=None,
     ) -> List[Tuple[mj.MjsBody, str]]:
         """Attach each device body to its human parent body.
 
@@ -517,6 +522,10 @@ class ModelCombiner:
         spec so duplicate meshes are not re-added -- the device geoms still
         resolve to the already-copied prefixed meshes.  This replaces the 3.5+
         "delete device meshes after first attach" trick.
+
+        ``root_turn`` is the rigid turn of a ``planar_root`` build (see
+        :func:`assist_sim.root_frame.to_planar_root`). A world-parented body is posed for
+        the MSK before that turn, so its frame turns with the skeleton.
 
         Returns each attached device body with the name of its human parent.
         """
@@ -529,7 +538,8 @@ class ModelCombiner:
             # <freejoint>) directly under worldbody -- used by constraint-clamped
             # devices whose parts float and are tied to the leg via <equality>
             # rather than rigidly re-parented onto a human body.
-            if att.parent_body.lower() in _WORLD_PARENTS:
+            world_parent = att.parent_body.lower() in _WORLD_PARENTS
+            if world_parent:
                 parent_body = human_spec.worldbody
             else:
                 parent_body = human_spec.body(att.parent_body)
@@ -552,6 +562,10 @@ class ModelCombiner:
                 )
 
             frame = ModelCombiner._make_frame(parent_body, att)
+            if world_parent and root_turn is not None:
+                from .root_frame import turn_pose
+
+                frame.pos, frame.quat = turn_pose(frame.pos, frame.quat, root_turn)
             attached.append((frame.attach_body(device_body, prefix=prefix), att.parent_body))
         return attached
 
@@ -1070,9 +1084,9 @@ class ModelCombiner:
 
             if closure_data is not None:
                 # Best effort: the solve gets each device as close to closed as its geometry
-                # allows. It does not raise when a loop stays open (UTAnkleExo_L2 in the
-                # canonical poses, item A-S4); tests/test_keyframe_device_closure.py checks
-                # the residual of every device at every keyframe.
+                # allows. It does not raise when a loop stays open;
+                # tests/test_keyframe_device_closure.py checks the residual of every device
+                # at every keyframe.
                 ModelCombiner._close_device_equalities(model, closure_data, qpos, closure)
 
             emit(kf_name, kf_data.time, qpos, qvel)
