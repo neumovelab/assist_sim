@@ -55,6 +55,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   roll of the fore soles, which removes a 1.1 deg kink between the uppers on `myolegs22` and
   `myolegs26`. The halves now meet within 0.13 deg at `stand` and at both walk keyframes on all
   12 combinations. `tests/test_split_shoe.py` checks this.
+- **`UTAnkleExo_L2` sits on the leg on all four MSKs, and its keyframes close (A-S4, N35).** The
+  exo is free-rooted, and MuJoCo takes the leg side of each `connect` from the attachment pose at
+  qpos0, so the residual at qpos0 was zero wherever the exo was. The `default` attachment block
+  (used by `myolegs26`, and by `myolegs22` and `myofullbody`, which had none) had a 90 deg yaw
+  error and a 50 mm height error. The exo was 1.1 m from the leg on `myolegs22`, 0.28 m on
+  `myolegs26` and 0.24 m on `myofullbody`. Each MSK now has its own block, moved from the
+  `myolegs` fit in world space through a frame at the ankle joint centre, and the left exo is the
+  mirror image of the right. The device hinge `joint2` was 31-41 mm above the ankle axis and
+  13-14 deg off it, so the loop did not close even on `myolegs` (2.3 mm at `squat`). Per-lineage
+  `joint_overrides` now put `joint2` on the ankle axis, with nine-digit values for each MSK: the
+  loop has more equations than DOFs, so 5-digit values left the myoassist reset open by 4e-7 m.
+  Every UT connect now closes to 1 um or less at all five keyframes (before: up to 177 mm). The cable moment arm about the ankle is
+  69 mm on `myolegs` and `myofullbody` and 74 mm on `myolegs22` and `myolegs26`, against 68 mm
+  about the old pin. The strict xfail in `tests/test_keyframe_device_closure.py` is gone. The
+  spring tendon stays inert (N1): both of its sites are on `part1`.
+- **A world-parented device turns with the skeleton in a `planar_root` build.** `to_planar_root`
+  turns the 3D-lineage skeleton about its root body to the `myolegs22` frame, but a device body
+  parented to the world kept the pose it had for the unturned MSK. `UTAnkleExo_L2` was 162 to
+  221 mm from the ankle in CO builds of `myolegs26`, `myolegs` and `myofullbody`. `to_planar_root`
+  now returns the turn, and `_attach_bodies` applies it to world-parented frames.
+  New `tests/test_utankleexo_fit.py` checks the hinge against the ankle axis, the foot part
+  against `myolegs`, and the left-right mirror, in both builds, and the connects at every
+  `planar_root` keyframe.
+- **The `STRIDE_L2` ankle turns about the ankle on `myolegs` and `myofullbody`.** Its override of
+  `ankle_angle_r`/`_l` on this lineage also set `pos: [0, -0.4, 0]`, the talus offset in the tibia
+  frame. A joint position is in the frame of the joint's own body, the talus, so the hinge sat
+  400 mm below the ankle, and the foot swung on an arc about it (about 140 mm at 20 deg). At
+  `squat` and `lunge` the shoe went into the tibia at 32 kN and 16 kN. The position override is
+  gone, and the sagittal axis stays. The four strict xfails for those contacts are gone, and
+  `tests/test_device_sections.py` checks the hinge against the ankle of the bare MSK.
 - **`STRIDE_L2` no longer pushes on the heel on `myolegs` and `myofullbody`.** The shank frame and
   the AG link sit on the heel capsules that this lineage adds (`foot_col1/3/4` on `calcn`), as the
   GCF and BCD links do, but only those two links had excludes. The shank frame pushed 87 N on the
@@ -71,10 +101,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   its range. `STRIDE_L2` now closes to 2e-9 rad and `Hippo_L1` to 3e-12 m. The offline-solved
   `Hippo_L1` overrides left up to 0.00045 mm, and they are now the start point of the solve. The solve
   is best effort and does not raise; `tests/test_keyframe_device_closure.py` checks every device
-  at every keyframe. `UTAnkleExo_L2` stays open on all four MSKs (strict xfail). Its connect anchors do not match the leg
-  on `myolegs22`, `myolegs26` and `myofullbody`, and a solve cannot correct an anchor. The solve
-  reduces its largest open distance from 1.04 m to 177 mm on `myolegs22`, and from 0.73 m to
-  2.3 mm on `myolegs`, where the anchors are correct. The solve adds 1-3 ms to a compose
+  at every keyframe. `UTAnkleExo_L2` closes too, after its placement fix (below). The solve adds 1-3 ms to a compose
   (20-80 ms for `UTAnkleExo_L2`), and no signature changes. New
   `tests/test_keyframe_device_closure.py` checks every MSK x device pair that has device
   equalities. On `myolegs` and `myofullbody`, the closed `STRIDE_L2` linkage at `squat` and
