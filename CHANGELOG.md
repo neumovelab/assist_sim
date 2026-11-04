@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] — MyoAssist 1 manuscript-revision release
+
+Device-model, contact, and keyframe fixes found in the review of the MyoAssist 1 paper, actuator
+force limits, and a smaller CI matrix. Results that depend on the device models (contacts,
+keyframes, the UTAnkleExo_L2 and STRIDE_L2 kinematics) can differ from 1.0.0.
+
 ### Added
 
 - **`tests/test_device_contacts.py`**: for every MSK x device combination, asserts that no two
@@ -997,5 +1003,7 @@ for PyPI distribution.
      sections above are history without a ref to compare against; add a line here when a
      release is tagged rather than backfilling tags for versions nobody will diff. -->
 
-[Unreleased]: https://github.com/neumovelab/assist_sim/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/neumovelab/assist_sim/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/neumovelab/assist_sim/compare/v1.0.0...v1.1.0
+[1.0.0]: https://github.com/neumovelab/assist_sim/releases/tag/v1.0.0
 [0.7.0]: https://github.com/neumovelab/assist_sim/releases/tag/v0.7.0
