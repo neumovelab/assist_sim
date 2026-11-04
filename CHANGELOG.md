@@ -49,6 +49,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The squat and lunge toes lift on `myolegs` and `myofullbody`.** The canonical toe angles
+  (squat 0.125, lunge 0.2 / 0.06) are authored on the myoLeg MTP axis, where a positive angle
+  lifts the toes. On the oblique gait2392 axis of the 80-muscle lineage a positive angle lowers
+  them, so those keyframes pushed the toes 1 to 4 mm down. The MTP range is symmetric, so,
+  unlike the knee, the convention cannot be read off the range: `positive_mtp_lifts_toes` turns
+  the joint at `qpos0` and checks whether the toes rise, and `canonical_leg_keyframes` takes an
+  `mtp_sign` for the flip. `DephyExoBoot_L1` gets the boot range of that lineage's sign,
+  [-0.2, 0.0145], and loses its right-toe keyframe clamps: they clamped values from before the
+  pose-fidelity fix, and they made its squat asymmetric (0.2 right, 0.125 left).
+  `tests/test_keyframe_pose_fidelity.py` checks that the toes lift on all four MSKs.
 - **The split shoe of `Anatomics_L1`, `Humotech_L1` and `STRIDE_L2` is one shoe on every MSK
   (N18).** The fore halves ride `toes` and were authored for the myoLeg MTP axis. On `myolegs`
   and `myofullbody` the MTP axis is the oblique gait2392 axis, and a positive angle lowers the

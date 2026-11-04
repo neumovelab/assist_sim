@@ -166,9 +166,10 @@ def test_rl_path_skips_overrides_for_absent_joints():
 def test_device_joint_override_does_not_exclude_its_own_poses():
     """A device that narrows a joint range must not exclude the poses it ships with.
 
-    DephyExoBoot restricts mtp to [-0.0145, 0.2] because the boot's toe box is rigid, but
-    shipped no pose overrides, so three of its five poses sat outside its own range.  The
-    poses are now clamped to the boot's travel, matching what Humotech and STRIDE already do.
+    DephyExoBoot restricts mtp to a short travel because the boot's toe box is rigid, and
+    three of its five poses once sat outside its own range.  The canonical toe angles now lie
+    inside that travel on every lineage: the 80-muscle lineage flips the MTP sign of both the
+    poses and the boot range.
     """
     for msk in ("myolegs22", "myolegs26", "myolegs", "myofullbody"):
         model, _ = load_combined(msk, "DephyExoBoot_L1")

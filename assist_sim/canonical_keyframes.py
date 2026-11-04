@@ -12,7 +12,9 @@ compiled ``qpos0``, so one per-joint pose table works across all leg lineages:
   where the myoLeg knee is negative.  Feeding the raw myoLeg angles hyperextends
   it (a walk pose lands the knee below its range, a squat folds the model over),
   so ``canonical_leg_keyframes`` takes a ``knee_sign`` and the caller flips it for
-  a positive-convention knee.  Its extra DOFs (``subtalar_angle_*`` and the
+  a positive-convention knee.  Its MTP sign is opposite too (an oblique axis on
+  which a positive angle lowers the toes), so ``canonical_leg_keyframes`` takes an
+  ``mtp_sign`` the same way.  Its extra DOFs (``subtalar_angle_*`` and the
   freejoint root) stay at ``qpos0``.
 * Planar-root joints (``pelvis_tx`` / ``pelvis_ty`` / ``pelvis_tilt``) apply on a
   planar-root model and are skipped on a freejoint-root model (they do not exist
@@ -35,10 +37,14 @@ model.
 
 from typing import Dict
 
+import mujoco as mj
+
 from .preprocess import KeyframeData
 
 # Knee joints whose sign is flipped for a positive-flexion knee.
 KNEE_JOINTS = ("knee_angle_r", "knee_angle_l")
+# MTP joints whose sign is flipped where a positive angle lowers the toes.
+MTP_JOINTS = ("mtp_angle_r", "mtp_angle_l")
 # myolegs22 walking initial velocity: forward pelvis translation (m/s).
 _WALK_FWD_VEL = 1.5
 _CANONICAL_LEG_VEL: Dict[str, Dict[str, float]] = {
@@ -116,7 +122,28 @@ _CANONICAL_LEG_POSES: Dict[str, Dict[str, float]] = {
 LEG_SENTINEL_JOINT = "hip_flexion_r"
 
 
-def canonical_leg_keyframes(knee_sign: float = 1.0) -> Dict[str, KeyframeData]:
+def positive_mtp_lifts_toes(model: mj.MjModel) -> bool:
+    """Whether a positive MTP angle lifts the toes, measured on the model at ``qpos0``.
+
+    The MTP range is symmetric, so unlike the knee its convention cannot be read off the
+    range: turn the first MTP joint present (an amputation can delete one side) and see
+    whether the toes' centre of mass rises.  ``True`` when the model has no MTP joint.
+    """
+    for joint in MTP_JOINTS:
+        jid = mj.mj_name2id(model, mj.mjtObj.mjOBJ_JOINT, joint)
+        if jid < 0:
+            continue
+        data = mj.MjData(model)
+        body = model.jnt_bodyid[jid]
+        mj.mj_kinematics(model, data)
+        height = data.xipos[body][2]
+        data.qpos[model.jnt_qposadr[jid]] += 0.1
+        mj.mj_kinematics(model, data)
+        return bool(data.xipos[body][2] > height)
+    return True
+
+
+def canonical_leg_keyframes(knee_sign: float = 1.0, mtp_sign: float = 1.0) -> Dict[str, KeyframeData]:
     """Standard leg keyframes as ``{name: KeyframeData}``.
 
     ``knee_sign`` selects the host knee's flexion convention; it is a **flag, not a
@@ -124,6 +151,9 @@ def canonical_leg_keyframes(knee_sign: float = 1.0) -> Dict[str, KeyframeData]:
     them alone -- so pass ``+1`` for the myoLeg (negative-flexion) knee and ``-1`` for a
     positive-flexion knee, and do not expect an intermediate value to scale
     anything.  Without the flip, the shared poses hyperextend a positive-flexion knee.
+    ``mtp_sign`` is the same kind of flag for the MTP joints: pass ``-1`` where a positive
+    angle lowers the toes (:func:`positive_mtp_lifts_toes`), so that the squat and lunge
+    toes lift on every lineage.
 
     Walking poses carry the forward ``pelvis_tx`` initial velocity; static poses stay at
     zero.  Note ``pelvis_tx`` only exists on a planar-root model, so on a freejoint-rooted
@@ -131,8 +161,10 @@ def canonical_leg_keyframes(knee_sign: float = 1.0) -> Dict[str, KeyframeData]:
     from rest; it applies under ``planar_root=True``, the CO build.
     """
 
+    flipped = (KNEE_JOINTS if knee_sign < 0 else ()) + (MTP_JOINTS if mtp_sign < 0 else ())
+
     def _qpos(joints: Dict[str, float]) -> Dict[str, list]:
-        return {j: [(-v if j in KNEE_JOINTS and knee_sign < 0 else v)] for j, v in joints.items()}
+        return {j: [(-v if j in flipped else v)] for j, v in joints.items()}
 
     return {
         name: KeyframeData(

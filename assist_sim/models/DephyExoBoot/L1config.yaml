@@ -33,19 +33,21 @@ attachments:
   - device_body: "tb_toe_l"
     parent_body: "toes_l"
 
+# The MTP range lets the toes lift 11.5 deg from flat and drop 0.8 deg. On the
+# 80-muscle lineage (myolegs, myofullbody) a positive MTP angle lowers the toes, so
+# that range has the opposite sign there.
 joint_overrides:
-  - name: "ankle_angle_r"
-    range: [-0.45, 0.349]
-    damping: 0.5
-  - name: "mtp_angle_r"
-    range: [-0.0145, 0.2]
-    damping: 0.5
-  - name: "ankle_angle_l"
-    range: [-0.45, 0.349]
-    damping: 0.5
-  - name: "mtp_angle_l"
-    range: [-0.0145, 0.2]
-    damping: 0.5
+  default:
+    - &ankle_r {name: "ankle_angle_r", range: [-0.45, 0.349], damping: 0.5}
+    - {name: "mtp_angle_r", range: [-0.0145, 0.2], damping: 0.5}
+    - &ankle_l {name: "ankle_angle_l", range: [-0.45, 0.349], damping: 0.5}
+    - {name: "mtp_angle_l", range: [-0.0145, 0.2], damping: 0.5}
+  myolegs: &joints_80
+    - *ankle_r
+    - {name: "mtp_angle_r", range: [-0.2, 0.0145], damping: 0.5}
+    - *ankle_l
+    - {name: "mtp_angle_l", range: [-0.2, 0.0145], damping: 0.5}
+  myofullbody: *joints_80
 
 # The actuator values below are permissive starting values; the provided controllers
 # were tuned on them. A line marked "to spec" sets the hardware rating instead: uncomment
@@ -126,12 +128,10 @@ sensors:
   - {name: "l_foot", type: touch, site: "l_sole_touch"}
   - {name: "l_toes", type: touch, site: "l_forefoot_touch"}
 
-# The boot's toe box is effectively rigid, so joint_overrides above restricts
-# mtp_angle_{r,l} to [-0.0145, 0.2].  The MSK poses were authored for a bare foot and
-# ask the right toe for more than that (walk_right -0.0737, squat and lunge +0.349), so
-# clamp those three to the travel the boot actually allows -- the same pattern Humotech
-# and STRIDE use for their shoes.  mtp_angle_l is already inside the range in every pose
-# (0 / 0 / 0 / 0.125 / 0.06) and needs no clamp.
+# The boot's toe box is effectively rigid, so joint_overrides above restricts the MTP
+# joints to a short travel. The MSK poses already lie inside it: their toe angles are
+# 0 at stand and walk, 0.125 at squat, and 0.2 / 0.06 at lunge, with the opposite sign on
+# the 80-muscle lineage.
 keyframe_overrides:
   stand:
     pelvis_ty: 0.96
@@ -139,10 +139,7 @@ keyframe_overrides:
     pelvis_ty: 0.93285
   walk_right:
     pelvis_ty: 0.93285
-    mtp_angle_r: -0.0145
   squat:
     pelvis_ty: 0.77
-    mtp_angle_r: 0.2
   lunge:
     pelvis_ty: 0.72
-    mtp_angle_r: 0.2

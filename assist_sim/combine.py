@@ -43,7 +43,7 @@ from typing import Dict, List, Optional, Tuple
 import mujoco as mj
 import numpy as np
 
-from .canonical_keyframes import KNEE_JOINTS, LEG_SENTINEL_JOINT, canonical_leg_keyframes
+from .canonical_keyframes import KNEE_JOINTS, LEG_SENTINEL_JOINT, canonical_leg_keyframes, positive_mtp_lifts_toes
 from .config import _SENSOR_TYPES, ActuatorDef, DeviceConfig, EqualityConstraint
 from .errors import unknown_reference
 from .preprocess import KeyframeData, prepare_device_xml
@@ -1047,7 +1047,12 @@ class ModelCombiner:
                 if knee_jid >= 0 and model.jnt_limited[knee_jid]:
                     knee_positive = bool(model.jnt_range[knee_jid][1] > abs(model.jnt_range[knee_jid][0]))
                     break
-            parsed_keyframes = canonical_leg_keyframes(knee_sign=-1.0 if knee_positive else 1.0)
+            # The gait2392 MTP axis is oblique, and a positive angle lowers the toes, so the
+            # myoLeg squat and lunge toe angles flip there as well.
+            parsed_keyframes = canonical_leg_keyframes(
+                knee_sign=-1.0 if knee_positive else 1.0,
+                mtp_sign=1.0 if positive_mtp_lifts_toes(model) else -1.0,
+            )
 
         overrides = config.resolve_keyframe_overrides(msk_key)
 
