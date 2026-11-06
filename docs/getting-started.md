@@ -30,12 +30,12 @@ second install step.
 
 `myo_sim` supplies the baseline MSK models. It *composes* the leg models at run time, and
 `assist_sim` gets them with `myo_sim.load_spec(<model>)`. It is published on PyPI and
-declared as `myo-sim>=0.2.1`, so `pip install -e .` above already installed it. You only
+declared as `myo-sim>=0.2.3`, so `pip install -e .` above already installed it. You only
 need one of these if you want a different version:
 
 ```bash
 # A specific release:
-pip install "myo-sim>=0.2.1"
+pip install "myo-sim>=0.2.3"
 
 # Editable, for local development on myo_sim itself:
 git clone https://github.com/MyoHub/myo_sim.git

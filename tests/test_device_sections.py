@@ -204,8 +204,9 @@ def test_stride_contacts_emitted_and_intra_device_filtered(msk):
     The shank is welded to tibia, whose weld parent is femur, and MuJoCo
     auto-excludes parent-child body pairs -- so the actuator would sink into the
     thigh without an explicit ``<pair>``.  Conversely the links are coaxial by
-    design, and rather than one exclude per non-adjacent pair they are filtered by
-    ``contype=2 conaffinity=1``, which must hold for every device geom.
+    design, and rather than one exclude per non-adjacent pair the composer gives
+    each device geom the bits of its side: ``contype=4 conaffinity=3`` on the right
+    leg and ``contype=2 conaffinity=5`` on the left.
     """
     model, _ = load_combined(msk, "STRIDE_L2")
 
@@ -224,13 +225,16 @@ def test_stride_contacts_emitted_and_intra_device_filtered(msk):
     }
     assert len(excludes) >= 4  # plate + gcf against each calcaneus
 
-    # Two device geoms must never be collision candidates.
+    # Two device geoms on one leg must never be collision candidates.
     for gid in range(model.ngeom):
         name = mj.mj_id2name(model, mj.mjtObj.mjOBJ_GEOM, gid) or ""
         if not name.startswith(STRIDE):
             continue
-        assert model.geom_contype[gid] == 2, name
-        assert model.geom_conaffinity[gid] == 1, name
+        body = int(model.geom_bodyid[gid])
+        while model.body(body).name.startswith(STRIDE):
+            body = int(model.body_parentid[body])
+        expected = (4, 3) if model.body(body).name.endswith("_r") else (2, 5)
+        assert (model.geom_contype[gid], model.geom_conaffinity[gid]) == expected, name
 
 
 @needs_myo_sim
@@ -250,6 +254,32 @@ def test_stride_no_device_penetration_at_rest(msk):
         g2 = mj.mj_id2name(model, mj.mjtObj.mjOBJ_GEOM, c.geom2) or ""
         if (STRIDE in g1 or STRIDE in g2) and c.dist < 0:
             offenders.append((g1, g2, float(c.dist)))
+    assert not offenders, f"device geoms penetrating at rest: {offenders}"
+
+
+TUTORIAL = "Tutorial_L1_"
+
+
+@needs_myo_sim
+@pytest.mark.parametrize("msk", ["myolegs22", "myolegs26", "myolegs", "myofullbody"])
+def test_tutorial_no_device_penetration_at_rest(msk):
+    """No Tutorial_L1 geom starts any keyframe interpenetrating anything.
+
+    On `myolegs` and `myofullbody` the shared mounting put the actuator inside its own
+    foot attachment and against the heel; both contacts were active on every step.
+    """
+    model, data = load_combined(msk, "Tutorial_L1")
+    offenders = []
+    for key in range(max(model.nkey, 1)):
+        if model.nkey:
+            mj.mj_resetDataKeyframe(model, data, key)
+        mj.mj_forward(model, data)
+        for i in range(data.ncon):
+            c = data.contact[i]
+            g1 = mj.mj_id2name(model, mj.mjtObj.mjOBJ_GEOM, c.geom1) or ""
+            g2 = mj.mj_id2name(model, mj.mjtObj.mjOBJ_GEOM, c.geom2) or ""
+            if (TUTORIAL in g1 or TUTORIAL in g2) and "terrain" not in g1 + g2 and c.dist < 0:
+                offenders.append((key, g1, g2, float(c.dist)))
     assert not offenders, f"device geoms penetrating at rest: {offenders}"
 
 
@@ -364,17 +394,24 @@ def test_cable_shortens_into_plantarflexion(msk):
 
 
 def test_stride_mounts_identically_on_every_lineage(models_dir):
-    """No attachment carries a per-MSK pose offset.
+    """No attachment of the device frame carries a per-MSK pose offset.
 
     The device is a rigid frame strapped flat to the shank, so it must sit the same
     way on every model.  Canting it per lineage to chase a differing ankle axis
     swings the actuator 27 mm laterally at the top and the plate 19 mm the other
     way at the bottom -- visibly crooked.  Where the axes disagree the *joint* axis
     is declared instead; see the next test.
+
+    The fore halves of the split shoe are the exception. They ride ``toes``, and on the
+    80-muscle lineage their frame takes up the oblique MTP axis, so that the shoe sits
+    the same way on every model (``tests/test_split_shoe.py``).
     """
+    shoe_fore = {"r_fore_sole", "r_fore_upper", "l_fore_sole", "l_fore_upper"}
     config = DeviceConfig.from_yaml(str(models_dir / "STRIDE" / "L2config.yaml"))
     for msk in (None, "myolegs22", "myolegs26", "myolegs", "myofullbody"):
         for att in config.resolve_attachments(msk):
+            if att.device_body in shoe_fore and msk in ("myolegs", "myofullbody"):
+                continue
             assert att.pos is None, (msk, att.device_body)
             assert att.quat is None, (msk, att.device_body)
 
@@ -400,9 +437,31 @@ def test_stride_declares_a_sagittal_ankle_on_the_80_muscle_lineage(models_dir):
     for msk in ("myolegs", "myofullbody"):
         overrides = {j.name: j for j in config.resolve_joint_overrides(msk)}
         assert overrides["ankle_angle_r"].axis == [0, 0, 1], msk
-        assert overrides["ankle_angle_r"].pos == [0, -0.4, 0], msk
+        # The axis turns about the ankle joint centre, the talus origin.
+        assert overrides["ankle_angle_r"].pos is None, msk
         assert overrides["ankle_angle_r"].range == [-0.698132, 0.349], msk
-        assert overrides["mtp_angle_r"].range == [0.2, 0.5], msk
+        # The shoe range of this lineage, whose positive MTP angle lowers the toes
+        # (tests/test_split_shoe.py). myoLeg keeps [0.2, 0.5].
+        assert overrides["mtp_angle_r"].range == [-0.463, -0.163], msk
+    assert default["mtp_angle_r"].range == [0.2, 0.5]
+
+
+@needs_myo_sim
+@pytest.mark.parametrize("msk", ["myolegs", "myofullbody"])
+def test_stride_ankle_hinge_stays_at_the_ankle(msk):
+    """The sagittal axis of STRIDE_L2 passes through the ankle joint centre of the bare MSK.
+
+    The override once also set ``pos: [0, -0.4, 0]``, the talus offset in the tibia frame.
+    A joint position is in the frame of the joint's own body, the talus, so that put the
+    hinge 400 mm below the ankle, and the foot swung on an arc about it.
+    """
+    anchors = {}
+    for device in ("STRIDE_L2", "Tutorial_L1"):  # Tutorial_L1 leaves the ankle as it is
+        model, data = load_combined(msk, device)
+        mj.mj_forward(model, data)
+        anchors[device] = [data.xanchor[model.joint("ankle_angle_" + side).id].copy() for side in "rl"]
+    for side, stride, bare in zip("rl", anchors["STRIDE_L2"], anchors["Tutorial_L1"]):
+        assert np.linalg.norm(stride - bare) < 1e-9, f"{msk}: STRIDE ankle_angle_{side} is {stride - bare} m off the ankle"
 
 
 @needs_myo_sim

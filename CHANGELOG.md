@@ -7,6 +7,229 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] — MyoAssist 1 manuscript-revision release
+
+Device-model, contact, and keyframe fixes found in the review of the MyoAssist 1 paper, actuator
+force limits, and a smaller CI matrix. Results that depend on the device models (contacts,
+keyframes, the UTAnkleExo_L2 and STRIDE_L2 kinematics) can differ from 1.0.0.
+
+### Added
+
+- **`tests/test_device_contacts.py`**: for every MSK x device combination, asserts that no two
+  device geoms on one side (or unsided) can collide. This check reads the collision bits, the
+  weld and parent filters, the excludes and the explicit pairs, so it does not depend on a pose.
+  At each of the five keyframes, it also asserts that the device-MSK contacts and the contacts
+  between left and right device parts push 25 N or less in total and go no deeper than 2 mm.
+  The known failures are strict xfails. The module replaces `tests/test_device_contact_overlap.py`,
+  which checked only the 2 mm depth at `stand` and skipped the two `OpenSourceLeg` devices,
+  because their element prefix is not their registry key. On the tree before the side rule
+  (under Fixed), the module fails 19 combinations in the structural check and 32 keyframe
+  checks of device-device force. It compiles each combination once, as the old module did.
+- **`forcerange` / `forcelimited` on YAML actuators.** A joint motor can now be force-limited
+  from its device config. Before, the schema rejected `forcerange`, and a device-XML joint
+  actuator was skipped (see Fixed), so no file could limit a joint motor. The range clamps the
+  actuator force (gain times control) before `gear`. Without it, the actuator stays unlimited,
+  as before. Inconsistent settings are errors: a reversed or wrong-length range,
+  `forcelimited: true` without a range, or `forcelimited: false` with one.
+- **Specification values as commented "to spec" lines** in the powered devices: DephyExoBoot,
+  Humotech, OpenExo, Hippo, NEUankle and both OSL configs, and the HMEDI model XML. The
+  permissive defaults stay in force; a user uncomments the lines to use the hardware rating
+  (the Fig. 2 values of the MyoAssist 1.0 paper). STRIDE and UTAnkleExo document their torque
+  rating, which their cable models cannot match with a single force limit. Each header also
+  gives the model mass and what it includes beyond the specification (sockets, pylons, shoes,
+  the Dephy batteries). `tests/test_to_spec_blocks.py` uncomments the lines and checks the
+  full-command output against the specification.
+
+### Changed
+
+- **CI runs 7 jobs, not 12.** The `test` lane runs the ends of the Python range, 3.10 and 3.13,
+  on Windows, and 3.13 on Linux and macOS. A Python-version break shows at one end of the range,
+  and one job per OS catches path-separator and file-locking regressions. Ubuntu 3.10 to 3.12
+  and the 3.10 macOS job are gone. The `mujoco-range` floor job is gone too: it ran the same
+  mujoco 3.4.0 as the `test` lane, whose pin is the floor. The ceiling job stays.
+- **`myo-sim>=0.2.3` (was `>=0.2.1`).** myo-sim 0.2.1 gives `chest_r` a phantom 12.87 kg: the
+  body has wrap ellipsoids but no `<inertial>`, so MuJoCo infers its mass from the geometry.
+  The extra mass is on every torso-bearing model, which includes all four MSK keys and the
+  composed upper-body envs. 0.2.3 sets it to 0.001 kg. Total masses are now 78.09 kg
+  (`myolegs22`, `myolegs26`), 74.98 kg (`myolegs`) and 84.26 kg (`myofullbody`).
+
+### Fixed
+
+- **The squat and lunge toes lift on `myolegs` and `myofullbody`.** The canonical toe angles
+  (squat 0.125, lunge 0.2 / 0.06) are authored on the myoLeg MTP axis, where a positive angle
+  lifts the toes. On the oblique gait2392 axis of the 80-muscle lineage a positive angle lowers
+  them, so those keyframes pushed the toes 1 to 4 mm down. The MTP range is symmetric, so,
+  unlike the knee, the convention cannot be read off the range: `positive_mtp_lifts_toes` turns
+  the joint at `qpos0` and checks whether the toes rise, and `canonical_leg_keyframes` takes an
+  `mtp_sign` for the flip. `DephyExoBoot_L1` gets the boot range of that lineage's sign,
+  [-0.2, 0.0145], and loses its right-toe keyframe clamps: they clamped values from before the
+  pose-fidelity fix, and they made its squat asymmetric (0.2 right, 0.125 left).
+  `tests/test_keyframe_pose_fidelity.py` checks that the toes lift on all four MSKs.
+- **The split shoe of `Anatomics_L1`, `Humotech_L1` and `STRIDE_L2` is one shoe on every MSK
+  (N18).** The fore halves ride `toes` and were authored for the myoLeg MTP axis. On `myolegs`
+  and `myofullbody` the MTP axis is the oblique gait2392 axis, and a positive angle lowers the
+  toes, so the halves met at 21.8 deg at `stand`, and no angle brought them closer than 6.6 deg.
+  `Anatomics_L1` had no MTP override, so its halves met at 11.4 deg on all four MSKs. On the
+  80-muscle lineage the fore halves now get an attachment frame, and the MTP range and keyframes
+  take that lineage's sign: [-0.463, -0.163] rad, flat at -0.163. The myoLeg range stays
+  [0.2, 0.5]. `Anatomics_L1` gets the same ranges and the shoe keyframes. The fore uppers get the
+  roll of the fore soles, which removes a 1.1 deg kink between the uppers on `myolegs22` and
+  `myolegs26`. The halves now meet within 0.13 deg at `stand` and at both walk keyframes on all
+  12 combinations. `tests/test_split_shoe.py` checks this.
+- **`UTAnkleExo_L2` sits on the leg on all four MSKs, and its keyframes close (A-S4, N35).** The
+  exo is free-rooted, and MuJoCo takes the leg side of each `connect` from the attachment pose at
+  qpos0, so the residual at qpos0 was zero wherever the exo was. The `default` attachment block
+  (used by `myolegs26`, and by `myolegs22` and `myofullbody`, which had none) had a 90 deg yaw
+  error and a 50 mm height error. The exo was 1.1 m from the leg on `myolegs22`, 0.28 m on
+  `myolegs26` and 0.24 m on `myofullbody`. Each MSK now has its own block, moved from the
+  `myolegs` fit in world space through a frame at the ankle joint centre, and the left exo is the
+  mirror image of the right. The device hinge `joint2` was 31-41 mm above the ankle axis and
+  13-14 deg off it, so the loop did not close even on `myolegs` (2.3 mm at `squat`). Per-lineage
+  `joint_overrides` now put `joint2` on the ankle axis, with nine-digit values for each MSK: the
+  loop has more equations than DOFs, so 5-digit values left the myoassist reset open by 4e-7 m.
+  Every UT connect now closes to 1 um or less at all five keyframes (before: up to 177 mm). The cable moment arm about the ankle is
+  69 mm on `myolegs` and `myofullbody` and 74 mm on `myolegs22` and `myolegs26`, against 68 mm
+  about the old pin. The strict xfail in `tests/test_keyframe_device_closure.py` is gone. The
+  spring tendon stays inert (N1): both of its sites are on `part1`.
+- **A world-parented device turns with the skeleton in a `planar_root` build.** `to_planar_root`
+  turns the 3D-lineage skeleton about its root body to the `myolegs22` frame, but a device body
+  parented to the world kept the pose it had for the unturned MSK. `UTAnkleExo_L2` was 162 to
+  221 mm from the ankle in CO builds of `myolegs26`, `myolegs` and `myofullbody`. `to_planar_root`
+  now returns the turn, and `_attach_bodies` applies it to world-parented frames.
+  New `tests/test_utankleexo_fit.py` checks the hinge against the ankle axis, the foot part
+  against `myolegs`, and the left-right mirror, in both builds, and the connects at every
+  `planar_root` keyframe.
+- **The `STRIDE_L2` ankle turns about the ankle on `myolegs` and `myofullbody`.** Its override of
+  `ankle_angle_r`/`_l` on this lineage also set `pos: [0, -0.4, 0]`, the talus offset in the tibia
+  frame. A joint position is in the frame of the joint's own body, the talus, so the hinge sat
+  400 mm below the ankle, and the foot swung on an arc about it (about 140 mm at 20 deg). At
+  `squat` and `lunge` the shoe went into the tibia at 32 kN and 16 kN. The position override is
+  gone, and the sagittal axis stays. The four strict xfails for those contacts are gone, and
+  `tests/test_device_sections.py` checks the hinge against the ankle of the bare MSK.
+- **`STRIDE_L2` no longer pushes on the heel on `myolegs` and `myofullbody`.** The shank frame and
+  the AG link sit on the heel capsules that this lineage adds (`foot_col1/3/4` on `calcn`), as the
+  GCF and BCD links do, but only those two links had excludes. The shank frame pushed 87 N on the
+  heel at the walk keyframes, and 63 N per leg at `stand` on MuJoCo 3.11. The AG link started 37 to
+  52 mm inside the heel at `squat` and `lunge`. Both now have excludes against `calcn`.
+- **Device equality constraints close at every keyframe.** The keyframe rebuild gave each device
+  joint one value, its `qpos0` or its `keyframe_overrides` value, in every pose. A closed-chain
+  device therefore started a keyframe with its constraints open, and MuJoCo pulled it shut on the
+  first steps with large transient forces. `STRIDE_L2` was open by 0.033 rad at `stand`,
+  0.086 rad at `walk_left` and `walk_right`, and 0.274 rad (15.7 deg) at `squat` and `lunge`, on
+  all four MSKs. The rebuild now moves the device joints of each keyframe, a device free joint
+  too, until the device equalities close. It uses damped least-squares steps on the equality rows
+  of the constraint Jacobian. The MSK joints keep their values, and each device joint stays in
+  its range. `STRIDE_L2` now closes to 2e-9 rad and `Hippo_L1` to 3e-12 m. The offline-solved
+  `Hippo_L1` overrides left up to 0.00045 mm, and they are now the start point of the solve. The solve
+  is best effort and does not raise; `tests/test_keyframe_device_closure.py` checks every device
+  at every keyframe. `UTAnkleExo_L2` closes too, after its placement fix (below). The solve adds 1-3 ms to a compose
+  (20-80 ms for `UTAnkleExo_L2`), and no signature changes. New
+  `tests/test_keyframe_device_closure.py` checks every MSK x device pair that has device
+  equalities. On `myolegs` and `myofullbody`, the closed `STRIDE_L2` linkage at `squat` and
+  `lunge` puts `link_ag` 52 mm into the `foot_col4` heel capsule (the open linkage had 37 mm
+  there, and `link_de` 24 mm). A gait replay with the couplings closed gives the same 52 mm, so
+  this contact is a separate defect, and it is still open.
+- **The Auxivo LiftSuit weighs 0.90 kg, not 34.1 kg.** Its exo parts are separate welded bodies
+  without inertials, and only the belt geom carried a mass, so MuJoCo inferred the rest from
+  volume at 1000 kg/m^3: 21.4 kg for the upper panel, 9.0 kg for the spring-tendon wrap cylinder
+  and 3.6 kg for the leg straps. The leg-strap (0.178 kg) and upper-panel (0.627 kg) masses now
+  come from the MyoBack model (Walia et al., 2025), and the wrap class sets `mass="0"`. The env
+  total drops from 71.29 to 38.05 kg.
+- **The Wheelchair caster forks swivel +/-60 deg, not +/-60 rad.** The source chain wrote
+  `range="-60 60"` for a standalone wheelchair model that compiled in degrees (the MuJoCo
+  default). The collaborator env, and this model, declare `angle="radian"`, so the same text
+  limited the forks to +/-60 rad, which is no limit at all. The forks now use +/-1.0472 rad.
+  Both keyframes have the forks at 0, inside the range.
+- **Device-XML actuators that the import cannot carry are errors, not silent no-ops.** A joint,
+  site or body actuator in a device XML was skipped without a message. An element other than
+  `<general>` or `<motor>` (for example `<position kp=...>`) became a plain `general` with the
+  default gain. An attribute that the import does not read (`class`, `kp`, `lengthrange`, and so
+  on) changed nothing. An unknown `gaintype` / `biastype` / `dyntype` name kept the default, in
+  the YAML `actuators:` section too. Each case now raises `ValueError`. The bundled devices use
+  only supported attributes, so no shipped model changes.
+- **The wheelchair and bionic-bimanual envs build again on myo-sim 0.2.2 and later.**
+  `upper_body.py` imported the `myo_sim.build.compose` builders by their 0.2.1 names
+  (`load_torso_spec`, `load_passive_torso_spec`, `load_right_arm_spec`,
+  `load_mirrored_left_arm_spec`, `load_legs_spec`). myo-sim 0.2.2 renamed them to `build_*`,
+  so every fresh install since 2026-08-27 raised `ImportError` for these envs, and any fresh
+  CI run failed seven tests. The composed models keep their structure (`nq`, `nu`, `nbody`,
+  `ngeom` are unchanged). The other differences come from myo-sim: the `chest_r` mass, the
+  lunate inertia, the `back_cylinder_l` wrap radius (0.17 to 0.166 m) and 11 hand tendon
+  lengths per arm.
+- **`HMEDI_L1` is described as a hip-extension exo.** The config header and
+  `docs/available-models.md` said hip flexion. The cables run behind the hip and the actuators
+  only pull, so full command gives about 10 N·m of extension torque on all four MSKs. The model
+  is unchanged; only the description was wrong.
+- **`Hippo_L1` thigh segments stay on their motors.** The AK10-9 motor axes sit 54-56 mm
+  (`myolegs22`, `myolegs26`) and 73-75 mm (`myolegs`, `myofullbody`) behind and above the hip
+  joint centres, so the femur-welded braces swung off the motors as the hip flexed: 36-49 mm at
+  +30 deg and 59-73 mm at +60 deg, and 13-30 mm even at the authored pose. Each thigh segment
+  (brace and cuff, one rigid assembly) now hangs from its motor on a single hinge at the
+  motor-disc centre, as on the hardware, which has no other joint between the motor and the cuff.
+  A femur-side strap body slides along the thigh axis, and a `connect` equality holds it to the
+  cuff centre, so the cuff slides and tilts on the thigh like a strapped cuff on soft tissue. The
+  hub stays on the motor axis in every pose; the cuff slides -11 to +16 mm along the thigh over the
+  canonical poses and walking-range flexion. The pelvis-side parts keep their authored placement,
+  and the actuators are unchanged (ideal torques on `hip_flexion`). Per-MSK keyframe overrides
+  close the loops in the five canonical poses. On `myofullbody`, the waist parts are excluded
+  against the torso, which they sit inside by design, and the keyframes abduct the arms by 10 deg
+  so that the forearms clear the motor housing (they started up to 50 mm inside it). Signatures
+  change: `nq` +4, `nbody` +2 (the straps) on all four MSKs; device mass 4.902 kg (the straps add
+  1 g each).
+- **`Hippo_L1` restricts hip adduction and rotation.** The thigh segment
+  cannot follow either, so on `myolegs26`, `myolegs` and `myofullbody` the config sets explicit
+  joint ranges: adduction -3.5 to +3.5 deg and rotation -10 to +10 deg (was -50 to +30 and -40 to
+  +40). A quasi-static sweep set them: the cuff moves 2.6-2.9 mm on the thigh per degree of
+  adduction, so it reaches 10 mm at about 3.5 deg, where the `connect` pushes back 10-12.5 N*m.
+  The point `connect` barely resists rotation (under 3 mm and 0.2 N*m at 30 deg), so rotation is
+  limited where the cuff has twisted 10 mm on a 53-mm thigh.
+  `myolegs22` is planar and has neither joint. New `tests/test_hippo_loops.py` checks that every
+  keyframe closes the cuff loops to 0.1 mm and lies inside these ranges.
+- **Device parts no longer start inside human colliders on the freejoint lineages.**
+  MuJoCo only auto-excludes parent/child bodies, and `myolegs` / `myofullbody` carry extra
+  foot and shank colliders plus, on `myofullbody`, a torso five spine joints above the pelvis.
+  Ten combinations started interpenetrated by 16-196 mm, which the solver resolved at up to
+  ~68 kN on the first step while still compiling and stepping cleanly. Added per-MSK
+  `contact.excludes` to `DephyExoBoot_L1` (boot shank/mid vs calcn/tibia; belt and batteries vs
+  torso), `Humotech_L1`, `Anatomics_L1`, `OpenExo_L1` (shoe and exo parts vs calcn/tibia) and
+  `HMEDI_L1` (waistband and femur flaps vs torso). The `Hippo_L1` rework above fixes the
+  tenth, `Hippo_L1` on `myofullbody`. The overlaps are not new: assist_sim 0.7.0 on myo-sim 0.2.1
+  has the same ten at `qpos0`, at the same depths. The human colliders involved are in geom
+  group 4, which the viewer hides by default, so renders did not show them.
+
+- **Tutorial_L1 no longer collides with itself or the heel on `myolegs` and `myofullbody`.** The
+  shared mounting started the actuator 13.8 mm inside its foot attachment and about 1 mm into the
+  heel, so both contacts were active on every step and the 80-muscle model with the device
+  stepped at about half the rate of the bare model. The actuator-heel pair is excluded on those
+  two MSKs, and the side rule below keeps the actuator out of contact with its foot attachment.
+  (The `contype=2 conaffinity=1` that this fix first put on each geom is now redundant and is
+  removed from `L1model.xml`.)
+
+- **The parts on one side of a device no longer collide with each other.** On `myolegs` and
+  `myofullbody`, the shank, heel and shoe parts of one leg sit inside each other by design. They
+  are in different weld groups, so MuJoCo tested them, and the solver pushed them apart on every
+  step. After `mj_forward` at `stand`, the device-device normal force was 14.5 kN in
+  `Humotech_L1`, 12.7 kN in `DephyExoBoot_L1`, 5.2 kN in `Anatomics_L1` and 3.2 kN in
+  `OpenExo_L1` (2.9 to 21.5 kN over the five keyframes). The parts span the ankle, so the force
+  loaded the ankle. `myolegs22` and `myolegs26` gave 0 N, but the same pairs were candidates.
+  The composer now sets the collision bits of each colliding device geom from its side: left
+  `contype=2 conaffinity=5`, right `contype=4 conaffinity=3`, unsided (pelvis, waist, torso)
+  `contype=8 conaffinity=1`. The suffix of the MSK parent body gives the side. For a part on
+  the pelvis, the torso or the world, the suffix of the device body gives it (`_r`, `_l`, `_dx`,
+  `_sx`). Two parts of one side make no contact, and an unsided part makes no contact with
+  another device part. A left part and a right part make contact, as the MSK legs do. Every
+  part makes contact with the same MSK and terrain geoms as before: over the 52 combinations,
+  the 15,332 device-MSK candidate geom pairs and the 504 pairs with a floor plane are unchanged,
+  and the 216 same-side and 89 unsided device-device pairs are gone. A geom with `contype=1
+  conaffinity=0` (the `OpenSourceLeg` foot capsules, the `UTAnkleExo_L2` parts) keeps that bit 0,
+  and the composer excludes each body pair where the bit lets two parts of one side make contact
+  (3 excludes on `OpenSourceLeg_A_L1`, 6 on `OpenSourceLeg_KA_L1`). `STRIDE_L2`, `Tutorial_L1`
+  and `UTAnkleExo_L2` had no contact between their parts before, so now their left and right parts
+  make contact. Left-right contacts that remain on `myolegs` and `myofullbody`: the `HMEDI_L1`
+  femur flaps (5.7 mm, 47-55 N at `stand`) and the `Humotech_L1` heel rings (5.4 mm, 38 N at
+  `stand`). The `squat` keyframe puts the heels 93 mm apart (168 mm at `stand`), so the left and
+  right foot parts cross: 11.2 kN in `STRIDE_L2`, 6.5 kN in `Humotech_L1`.
+
 ## [1.0.0] — First stable release
 
 Coordinated 1.0.0 across the MyoAssist framework. The public API (`load_combined`,
@@ -780,5 +1003,7 @@ for PyPI distribution.
      sections above are history without a ref to compare against; add a line here when a
      release is tagged rather than backfilling tags for versions nobody will diff. -->
 
-[Unreleased]: https://github.com/neumovelab/assist_sim/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/neumovelab/assist_sim/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/neumovelab/assist_sim/compare/v1.0.0...v1.1.0
+[1.0.0]: https://github.com/neumovelab/assist_sim/releases/tag/v1.0.0
 [0.7.0]: https://github.com/neumovelab/assist_sim/releases/tag/v0.7.0

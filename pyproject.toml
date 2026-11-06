@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "assist_sim"
-version = "1.0.0"
+version = "1.1.0"
 description = "Programmatic combination of musculoskeletal models and assistive devices for MyoAssist training"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -41,15 +41,19 @@ dependencies = [
     # The ceiling is measured, not defensive.  MuJoCo keeps widening scalar MjSpec
     # fields and moving MjData arrays: MjsTendon.stiffness became a 3-vector in 3.7,
     # mjENBL_MULTICCD went away in 3.8, and MjData.ten_J turned sparse in 3.6.  3.4
-    # through 3.11 are verified green; the `mujoco-range` job in
-    # .github/workflows/test.yml tests both ends on every PR.  Raise the ceiling only
+    # through 3.11 are verified green; the `test` lanes run the floor (the pin in
+    # requirements.txt) and the `mujoco-range` job in .github/workflows/test.yml runs
+    # the ceiling on every PR.  Raise the ceiling only
     # after that job passes against the newer release -- an unbounded range shipped a
     # wheel that could not combine a device on any mujoco past 3.6.
     "mujoco>=3.4,<3.12",
     "PyYAML>=6.0.2",
     "numpy>=1.24",
     # Every MSK key resolves via myo_sim.load_spec(<model>); required at runtime.
-    "myo-sim>=0.2.1",
+    # 0.2.3 is the floor for two reasons: it removes the phantom 12.87 kg on chest_r that
+    # 0.2.1 adds to every torso, and upper_body.py calls the myo_sim.build.compose builders
+    # by the build_* names that 0.2.2 introduced (0.2.1 has load_* only).
+    "myo-sim>=0.2.3",
 ]
 
 [project.optional-dependencies]

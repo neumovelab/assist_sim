@@ -202,3 +202,30 @@ def test_auxivo_exo_geoms_use_radian_euler(geom):
     # A real (radian) rotation is far from identity (|w| <= ~0.95); the degree misparse
     # rotates by ~1.57 deg, a near-identity quat with |w| ~ 0.9997.
     assert abs(m.geom_quat[gid][0]) < 0.99
+
+
+@needs_myo_sim
+@pytest.mark.parametrize("fork", ["wc_left_fork", "wc_right_fork"])
+def test_wheelchair_caster_forks_swivel_60_degrees(fork):
+    """The caster forks are limited to +/-60 deg, the original's intent.
+
+    The source chain wrote ``range="-60 60"`` for a standalone model that compiled in degrees.
+    Under this model's ``angle="radian"`` the same text is +/-60 rad, which limits nothing.
+    """
+    m, _ = build_wheelchair("both")
+    lo, hi = m.jnt_range[m.joint(fork).id]
+    assert m.jnt_limited[m.joint(fork).id] == 1
+    assert (lo, hi) == pytest.approx((-1.0472, 1.0472))
+
+
+@needs_myo_sim
+def test_auxivo_exosuit_mass_follows_myoback():
+    """The exosuit is 0.90 kg: the MyoBack geom masses, and a massless wrap cylinder.
+
+    Each exo part is its own welded body with no inertial, so a geom without a mass took
+    its mass from its volume at the default density: 34.1 kg in total, 9.0 kg of it from
+    the spring-tendon wrap cylinder alone.
+    """
+    m, _ = build_auxivo_liftsuit()
+    masses = {b: m.body_mass[m.body(b).id] for b in ("exo_pelvis", "exo_lumbar4", "exo_torso")}
+    assert masses == pytest.approx({"exo_pelvis": 0.178, "exo_lumbar4": 0.094, "exo_torso": 0.627})

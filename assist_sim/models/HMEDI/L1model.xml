@@ -73,16 +73,27 @@
             <site site="cable_l_P3" />
         </spatial>
     </tendon>
+    <!-- The actuator values are permissive starting values (100 N cable force at full
+         command); the provided controllers were tuned on them. Spec: 220 N
+         (MyoAssist 1.0 paper, Fig. 2). To use the spec, replace each <general> element with the
+         commented element below it. forcerange limits gain * ctrl before gear.
+         Model mass: 4.50 kg (spec 4.5 kg). -->
     <actuator>
         <general name="Exo_R" tendon="cable_r"
                  gaintype="fixed" gainprm="100 0 0"
                  biastype="none" biasprm="0 0 0"
                  dyntype="none" dynprm="1 0 0"
                  ctrllimited="true" ctrlrange="-1 0" gear="1.0" />
+        <!-- to spec: <general name="Exo_R" tendon="cable_r" gaintype="fixed" gainprm="220 0 0"
+                 biastype="none" biasprm="0 0 0" dyntype="none" dynprm="1 0 0" ctrllimited="true"
+                 ctrlrange="-1 0" forcelimited="true" forcerange="-220 0" gear="1.0" /> -->
         <general name="Exo_L" tendon="cable_l"
                  gaintype="fixed" gainprm="100 0 0"
                  biastype="none" biasprm="0 0 0"
                  dyntype="none" dynprm="1 0 0"
                  ctrllimited="true" ctrlrange="-1 0" gear="1.0" />
+        <!-- to spec: <general name="Exo_L" tendon="cable_l" gaintype="fixed" gainprm="220 0 0"
+                 biastype="none" biasprm="0 0 0" dyntype="none" dynprm="1 0 0" ctrllimited="true"
+                 ctrlrange="-1 0" forcelimited="true" forcerange="-220 0" gear="1.0" /> -->
     </actuator>
 </mujoco>

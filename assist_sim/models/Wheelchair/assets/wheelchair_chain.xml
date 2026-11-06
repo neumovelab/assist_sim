@@ -81,7 +81,9 @@
         </body>
         
         <body name = "left_fork" pos="0 -0.78105 -0.607055">
-            <joint name= "left_fork" axis="0 -1 0" damping=".03" limited="true" range="-60 60"/>
+            <!-- +/-60 deg. The original standalone wheelchair compiled in degrees, so its "-60 60"
+                 meant degrees; under this model's angle="radian" it read as +/-60 rad, i.e. unlimited. -->
+            <joint name= "left_fork" axis="0 -1 0" damping=".03" limited="true" range="-1.0472 1.0472"/>
             <geom mesh= "caster_fork1" pos="0 0.78105 0.607055" material="metal"/>
             <geom mesh= "pin1" pos="0 0.78105 0.607055" material="metal"/>
                 
@@ -92,7 +94,9 @@
             
         </body>
         <body name = "right_fork" pos="0.4318 -0.78105 -0.60563">
-            <joint name= "right_fork" axis="0 -1 0" damping=".03" limited="true" range="-60 60"/>
+            <!-- +/-60 deg. The original standalone wheelchair compiled in degrees, so its "-60 60"
+                 meant degrees; under this model's angle="radian" it read as +/-60 rad, i.e. unlimited. -->
+            <joint name= "right_fork" axis="0 -1 0" damping=".03" limited="true" range="-1.0472 1.0472"/>
             <geom mesh= "caster_fork2" pos="-0.4318 0.78105 0.60563" material="metal"/>
             <geom mesh= "pin2" pos="-0.4318 0.78105 0.60563" material="metal"/>
             

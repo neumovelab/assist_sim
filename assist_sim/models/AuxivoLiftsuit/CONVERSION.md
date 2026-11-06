@@ -32,8 +32,8 @@ original**:
 - **Rest pose** — each exo body's pose *relative to its trunk segment* matches the
   original to `dpos = 0`, `dquat = 0` (`exo_torso|torso`, `exo_lumbar4|lumbar4`,
   `exo_pelvis|torso`).
-- **Dynamics** — 2 s of free settling reproduces the original's weld drift
-  (exo_torso ≈ 0.010 m, exo_lumbar4 ≈ 0.0002 m).
+- **Dynamics** — 2 s of free settling reproduced the original's weld drift
+  (exo_torso ≈ 0.010 m, exo_lumbar4 ≈ 0.0002 m), before the mass correction below.
 - **Counts** — nu / ntendon / neq match exactly.
 
 ## Diff vs the original
@@ -56,6 +56,13 @@ original**:
   eulers are radians (as in the original). Without it, MjSpec defaults to degrees and the
   mesh panels rotate ~1.57° instead of 90° (a "splayed open" suit), while site positions
   (no euler) still match — so the guard is a geom-*orientation* check, not position.
+- **Masses.** The exosuit weighs 0.90 kg (spec 1.0 kg): 0.178 kg leg straps, 0.094 kg belt and
+  0.627 kg upper panel, the values written on these geoms in the MyoBack model (Walia et al., 2025,
+  bioRxiv 10.1101/2025.03.13.643057). In MyoBack the geoms sit on trunk bodies that have explicit
+  inertials, so MuJoCo ignores the values and that suit is effectively massless. The collaborator
+  env moved the suit onto its own welded bodies with no inertial and kept only the belt mass, so
+  MuJoCo inferred 34.1 kg from the mesh and wrap-cylinder volumes at the default density. Here the
+  MyoBack geom masses are restored and the wrap cylinder is massless.
 - No exosuit geometry, welds, tendons, or meshes were otherwise altered.
 
 ## Export

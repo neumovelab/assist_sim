@@ -24,6 +24,7 @@ import mujoco as mj
 import pytest
 
 from assist_sim import load_combined, load_msk
+from assist_sim.canonical_keyframes import positive_mtp_lifts_toes
 
 from .conftest import needs_myo_sim
 
@@ -66,13 +67,46 @@ def test_reduced_myolegs22_matches_the_reference_distal_angles() -> None:
 @needs_myo_sim
 @pytest.mark.parametrize("msk_key", MSK_KEYS)
 def test_combined_keyframes_match_the_reference_distal_angles(msk_key: str) -> None:
-    """The injected table has to agree with the reduction it was copied from."""
-    poses = _poses(load_combined(msk_key, "Tutorial_L1")[0])
+    """The injected table has to agree with the reduction it was copied from.
+
+    On the 80-muscle lineage a positive MTP angle lowers the toes, so the toe angles there
+    have the opposite sign (``test_squat_and_lunge_toes_lift``).
+    """
+    model = load_combined(msk_key, "Tutorial_L1")[0]
+    mtp_sign = 1.0 if positive_mtp_lifts_toes(model) else -1.0
+    poses = _poses(model)
     for kf, expected in REFERENCE.items():
         for joint, want in zip(DISTAL, expected):
             if joint not in poses[kf]:
                 continue
+            want = mtp_sign * want if joint.startswith("mtp") else want
             assert poses[kf][joint] == pytest.approx(want, abs=1e-4), f"{msk_key} {kf}.{joint}"
+
+
+@needs_myo_sim
+@pytest.mark.parametrize("msk_key", MSK_KEYS)
+@pytest.mark.parametrize("kf", ["squat", "lunge"])
+def test_squat_and_lunge_toes_lift(msk_key: str, kf: str) -> None:
+    """The squat and lunge bend the toes up on every lineage.
+
+    The canonical toe angles are authored on the myoLeg MTP axis, where a positive angle lifts
+    the toes. On the gait2392 axis of ``myolegs`` and ``myofullbody`` the same angle lowered
+    them, so those squats and lunges pushed the toes into the floor. The check holds the
+    rest of the pose and compares the toes' centre of mass with the toe at 0.
+    """
+    model = load_combined(msk_key, "Tutorial_L1")[0]
+    data = mj.MjData(model)
+    key = mj.mj_name2id(model, mj.mjtObj.mjOBJ_KEY, kf)
+    for side in ("r", "l"):
+        toes = model.body(f"toes_{side}").id
+        heights = []
+        for keep_toe in (True, False):
+            mj.mj_resetDataKeyframe(model, data, key)
+            if not keep_toe:
+                data.qpos[model.jnt_qposadr[model.joint(f"mtp_angle_{side}").id]] = 0.0
+            mj.mj_kinematics(model, data)
+            heights.append(data.xipos[toes][2])
+        assert heights[0] > heights[1], f"{msk_key} {kf}: the {side} toes bend down"
 
 
 @needs_myo_sim

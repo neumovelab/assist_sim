@@ -48,11 +48,16 @@ attachments:
 # belongs in a torque-squared penalty in the objective rather than in the model.
 # Reflected motor inertia is deliberately unmodelled, matching OSL_A; it would go
 # in armature on neuankle_ankle_angle_r.
+# Spec: 50 N*m continuous, 122 N*m instantaneous (MyoAssist 1.0 paper, Fig. 2); the model uses the continuous
+# rating. To use the instantaneous rating instead, swap gainprm for the "to spec" line.
+# Model mass: 2.39 kg: ankle unit 1.60 (spec 1.6 kg), foot plate 0.29, foot shell 0.10,
+# pylon 0.20 and socket 0.20.
 actuators:
   - name: "neuankle_ankle_torque_actuator"
     type: "motor"
     joint: "neuankle_ankle_angle_r"
     gainprm: [50]
+    # gainprm: [122]  # to spec, instantaneous: full command gives 122 N*m
     ctrlrange: [-1, 1]
     ctrllimited: true
     gear: [1.0]

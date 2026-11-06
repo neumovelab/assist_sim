@@ -261,16 +261,34 @@ actuators:
 |---|---|---|
 | `name` | yes | The actuator name. The pipeline does **not** add a prefix, so give the final name that you want. |
 | `joint` | yes | The target joint. If the pipeline does not find the name without a prefix, it tries `<prefix>_<joint>`. This applies to joints that the device adds, such as `osl_ankle_angle_r`. |
-| `type` | no | Reserved. The value is always "general". |
-| `gaintype` / `biastype` / `dyntype` | no | `"fixed"`, `"affine"`, `"muscle"`, `"user"`, `"none"`, `"integrator"`, `"filter"`, `"filterexact"`. The pipeline maps the value to the correct MuJoCo enum. |
+| `type` | no | `"general"` (default) or `"motor"`. The pipeline always emits a MuJoCo `general` actuator; `motor` means fixed gain, no bias and no dynamics, and contradicting it is an error. |
+| `gaintype` / `biastype` / `dyntype` | no | `"fixed"`, `"affine"`, `"muscle"`, `"user"`, `"none"`, `"integrator"`, `"filter"`, `"filterexact"`. The pipeline maps the value to the correct MuJoCo enum. An unknown value is an error. |
 | `gainprm` / `biasprm` / `dynprm` | no | Numeric arrays. The pipeline pads them to length 10. |
 | `ctrlrange` / `ctrllimited` | no | Standard MuJoCo. |
+| `forcerange` | no | `[lo, hi]` with `lo <= hi`. It limits the actuator force, that is, the gain times the control, **before** `gear` is applied. For a joint motor with gear 1, the unit is N·m. Without it, the actuator force is not limited. |
+| `forcelimited` | no | Optional. `true` needs a `forcerange`; `false` together with a `forcerange` is an error. |
 | `gear` | no | The pipeline pads this array to length 6. |
+
+The bundled powered devices use permissive starting values, because the provided
+controllers were tuned on them. Next to these values, each device config (or, for
+cable devices, the model XML) has commented lines marked `to spec` that set the
+rating of the physical device. To use one, uncomment it; for `gainprm` or
+`ctrlrange`, also comment out the line that it replaces. Where a device has a
+continuous and an instantaneous rating, there is one `forcerange` line for each:
+use at most one. `tests/test_to_spec_blocks.py` uncomments these lines and checks
+the full-command output against the specification.
 
 Author *tendon-transmission* actuators in the `<actuator>` section of the
 device XML file. An example is the HMEDI cables that drive the spatial tendons.
 The pipeline imports them automatically with the device prefix at attachment
-time.
+time. The import accepts `<general>` and `<motor>` elements with these
+attributes: `name`, `tendon`, `gaintype`, `gainprm`, `biastype`, `biasprm`,
+`dyntype`, `dynprm`, `ctrlrange`, `ctrllimited`, `forcerange`, `forcelimited`
+and `gear`. Any other element or attribute (for example `class`, `kp` or
+`lengthrange`) is an error, because the import would not apply it. A device-XML
+actuator with a joint, site or body transmission is also an error: declare it in
+the `actuators:` section instead. To set the length range of an imported
+actuator, use `actuator_overrides`.
 
 ## `keyframe_overrides`
 
@@ -291,6 +309,16 @@ keyframe_overrides:
 
 Each top-level key is a keyframe name. That keyframe must already exist in the
 MSK model. A joint that you do not list keeps its authored value.
+
+> **The pipeline closes the device equalities at each keyframe.** After the
+> overrides, it moves the device joints (a device free joint too) until each
+> device `equality` closes. The MSK joints keep their values, and each device
+> joint stays in its range. A device joint value in `keyframe_overrides` is the
+> start point of this solve. A linkage can close in more than one pose, and the
+> start point selects the pose. The solve is best effort: if a keyframe does not
+> close, `combine` still builds the model, and the keyframe starts with an open
+> constraint. The test `tests/test_keyframe_device_closure.py` checks it. The legacy
+> `keyframes` section is used as you write it.
 
 ### Per-MSK keyframe_overrides
 
@@ -619,18 +647,30 @@ This section is necessary because `attach_body` copies a body subtree and not
 the top-level sections. Thus the `<contact>` block of the device XML file never
 moves to the combined model.
 
-> **Use `contype` and `conaffinity` before you use excludes.** MuJoCo already
-> ignores geoms in the same weld group and in parent-child body pairs. Thus a
-> device that welds onto the MSK model, with no joints of its own, needs no
-> excludes. A device with joints does need them: its links are separate weld
-> groups, and the grandparent and sibling pairs are candidates for contact.
+> **The pipeline keeps the parts of one side apart.** MuJoCo ignores geoms in
+> the same weld group and in parent-child body pairs. The links of a device with
+> joints, and the parts on two bones (a shank piece and a heel piece), are in
+> different weld groups, so MuJoCo tests them against each other. Thus the
+> pipeline sets `contype` and `conaffinity` on every device geom that collides,
+> from the side of the part:
 >
-> Instead of one exclude for each pair, give every device geom
-> `contype="2" conaffinity="1"`. A device-to-device test then gives `2 & 1 = 0`
-> in both directions and makes no contact, but bone and ground (`contype=1`)
-> continue to make contact. This method replaced approximately 30 excludes on
-> each side of `STRIDE_L2`. The cost is that device parts make no contact with
-> each other, and this includes left against right.
+> | Part | `contype` | `conaffinity` |
+> |---|--:|--:|
+> | left | 2 | 5 |
+> | right | 4 | 3 |
+> | unsided (pelvis, waist, torso) | 8 | 1 |
+>
+> The suffix of the MSK parent body gives the side (`_r`, `_l`). For a part on
+> the pelvis, the torso or the world, the suffix of the device body gives it
+> (`_r`, `_l`, `_dx`, `_sx`). Two parts of one side make no contact, and an
+> unsided part makes no contact with another device part. A left part and a right
+> part make contact. Every part makes contact with the bones and the ground
+> (`contype=1`), as before. Thus the bits in the device XML do not change the
+> contact between device parts. Only bit 0 stays: a geom with `contype="1"
+> conaffinity="0"`, such as a foot capsule, keeps that behavior. The pipeline adds
+> an exclude for each body pair where that bit lets two parts of one side make
+> contact. Use `excludes` for a part that overlaps a bone, or a left part that
+> overlaps a right part.
 
 > **An `exclude` does not cancel a `pair`.** The two act at different stages. MuJoCo
 > always evaluates a predefined `pair`; an `exclude` only filters the body pairs that

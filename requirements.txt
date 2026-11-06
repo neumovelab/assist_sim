@@ -8,7 +8,8 @@
 # That is intended for the reproducible lanes, but it also means these lanes never
 # exercise the top of the declared range -- which is how an unbounded `mujoco>=3.4`
 # once shipped in a wheel that could not combine a device on any mujoco past 3.6.
-# The `mujoco-range` job in .github/workflows/test.yml covers both ends; keep it.
+# The pin is the floor of the range; the `mujoco-range` job in .github/workflows/test.yml
+# tests the ceiling. Keep both.
 mujoco==3.4.0
 PyYAML>=6.0.2
 numpy>=1.24

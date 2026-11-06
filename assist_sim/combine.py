@@ -41,8 +41,9 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 import mujoco as mj
+import numpy as np
 
-from .canonical_keyframes import KNEE_JOINTS, LEG_SENTINEL_JOINT, canonical_leg_keyframes
+from .canonical_keyframes import KNEE_JOINTS, LEG_SENTINEL_JOINT, canonical_leg_keyframes, positive_mtp_lifts_toes
 from .config import _SENSOR_TYPES, ActuatorDef, DeviceConfig, EqualityConstraint
 from .errors import unknown_reference
 from .preprocess import KeyframeData, prepare_device_xml
@@ -60,6 +61,16 @@ _QVEL_WIDTH = {
     mj.mjtJoint.mjJNT_SLIDE: 1,
     mj.mjtJoint.mjJNT_HINGE: 1,
 }
+
+# Device keyframe closure (ModelCombiner._close_device_equalities). The solve stops when the
+# largest device equality violation (m or rad) is below _CLOSE_TOL, after _CLOSE_MAX_EVALS
+# constraint evaluations, or when the damping passes _CLOSE_DAMPING_MAX (no step lowers the
+# residual, so the residual is at a least-squares minimum).
+_CLOSE_TOL = 1e-8
+_CLOSE_MAX_EVALS = 100
+_CLOSE_DAMPING_MIN = 1e-12
+_CLOSE_DAMPING_START = 1e-6
+_CLOSE_DAMPING_MAX = 1e8
 
 # Maps from string names used in YAML to mujoco enum values
 _GAINTYPE_MAP = {
@@ -85,6 +96,37 @@ _DYNTYPE_MAP = {
     "user": mj.mjtDyn.mjDYN_USER,
 }
 
+# What the device-XML actuator import carries across (_xml_actuator_kwargs). <motor> is
+# <general> with fixed gain 1 and no bias or dynamics, which are add_actuator's defaults.
+_XML_ACTUATOR_TAGS = frozenset({"general", "motor"})
+_XML_ACTUATOR_ATTRS = frozenset(
+    {
+        "name",
+        "tendon",
+        "gaintype",
+        "gainprm",
+        "biastype",
+        "biasprm",
+        "dyntype",
+        "dynprm",
+        "ctrlrange",
+        "ctrllimited",
+        "forcerange",
+        "forcelimited",
+        "gear",
+    }
+)
+_XML_NON_TENDON_TRN = ("joint", "jointinparent", "site", "body", "cranksite")
+
+
+def _enum(table: dict, value: str, where: str):
+    """Look up a gain/bias/dyn type name, or raise: an unknown name used to keep the default."""
+    enum = table.get(value.lower())
+    if enum is None:
+        raise ValueError(f"{where} is {value!r}; expected one of {sorted(table)}")
+    return enum
+
+
 _EQTYPE_MAP = {
     "connect": mj.mjtEq.mjEQ_CONNECT,
     "weld": mj.mjtEq.mjEQ_WELD,
@@ -93,6 +135,14 @@ _EQTYPE_MAP = {
 
 # Names that select the world body as an attachment parent (free-rooted device).
 _WORLD_PARENTS = ("world", "worldbody")
+
+# Collision bits of a device geom per side: (contype, conaffinity without bit 0).  Every MSK
+# and terrain collider has contype 1, so bit 0 is their channel.  Bit 1 is the left parts,
+# bit 2 the right parts and bit 3 the unsided parts.  A part accepts only the other side, so
+# the parts of one side never collide, and no device part accepts an unsided part.
+_DEVICE_SIDE_BITS = {"left": (2, 4), "right": (4, 2), None: (8, 0)}
+_RIGHT_SUFFIXES = ("_r", "_R", "_dx")
+_LEFT_SUFFIXES = ("_l", "_L", "_sx")
 
 # Placeholder name a re-anchored wrap element carries between being created on
 # the surviving body and inheriting the original's name.
@@ -202,10 +252,13 @@ class ModelCombiner:
         # sets this, so its floating-base models are unchanged.  Runs before the
         # surgery/attachments (all name-based, frame-independent) and before the
         # keyframe rebuild (which then restores pelvis_ty/pelvis_tilt by name).
+        # The attachments are frame-independent except for world-parented device
+        # bodies, which _attach_bodies turns with the skeleton (root_turn).
+        root_turn = None
         if planar_root:
             from .root_frame import to_planar_root
 
-            to_planar_root(human_spec)
+            root_turn = to_planar_root(human_spec)
 
         # Re-anchor before surgery: a muscle the amputation preserves has to be
         # moved onto the residual bone while its wrap sites still exist.
@@ -227,14 +280,16 @@ class ModelCombiner:
             device_full_spec = mj.MjSpec.from_file(device_full)
             device_stripped_spec = mj.MjSpec.from_file(device_stripped)
 
-            self._attach_bodies(
+            attached = self._attach_bodies(
                 human_spec,
                 device_full_spec,
                 device_stripped_spec,
                 device_config,
                 prefix,
                 msk_key=msk_key,
+                root_turn=root_turn,
             )
+            self._set_device_contact_bits(human_spec, attached)
             self._replace_meshes(human_spec, device_config, prefix, msk_key)
             self._apply_body_overrides(human_spec, device_config, prefix, msk_key)
             self._apply_actuator_overrides(human_spec, device_config, prefix, msk_key)
@@ -457,7 +512,8 @@ class ModelCombiner:
         config: DeviceConfig,
         prefix: str,
         msk_key: Optional[str] = None,
-    ) -> None:
+        root_turn=None,
+    ) -> List[Tuple[mj.MjsBody, str]]:
         """Attach each device body to its human parent body.
 
         The first attach uses the full device spec, which copies the entire
@@ -466,16 +522,24 @@ class ModelCombiner:
         spec so duplicate meshes are not re-added -- the device geoms still
         resolve to the already-copied prefixed meshes.  This replaces the 3.5+
         "delete device meshes after first attach" trick.
+
+        ``root_turn`` is the rigid turn of a ``planar_root`` build (see
+        :func:`assist_sim.root_frame.to_planar_root`). A world-parented body is posed for
+        the MSK before that turn, so its frame turns with the skeleton.
+
+        Returns each attached device body with the name of its human parent.
         """
         human_spec.copy_during_attach = True
 
+        attached: List[Tuple[mj.MjsBody, str]] = []
         attachments = config.resolve_attachments(msk_key)
         for i, att in enumerate(attachments):
             # ``parent_body: world`` grafts a free-rooted device body (its own
             # <freejoint>) directly under worldbody -- used by constraint-clamped
             # devices whose parts float and are tied to the leg via <equality>
             # rather than rigidly re-parented onto a human body.
-            if att.parent_body.lower() in _WORLD_PARENTS:
+            world_parent = att.parent_body.lower() in _WORLD_PARENTS
+            if world_parent:
                 parent_body = human_spec.worldbody
             else:
                 parent_body = human_spec.body(att.parent_body)
@@ -498,7 +562,70 @@ class ModelCombiner:
                 )
 
             frame = ModelCombiner._make_frame(parent_body, att)
-            frame.attach_body(device_body, prefix=prefix)
+            if world_parent and root_turn is not None:
+                from .root_frame import turn_pose
+
+                frame.pos, frame.quat = turn_pose(frame.pos, frame.quat, root_turn)
+            attached.append((frame.attach_body(device_body, prefix=prefix), att.parent_body))
+        return attached
+
+    @staticmethod
+    def _set_device_contact_bits(human_spec: mj.MjSpec, attached: List[Tuple[mj.MjsBody, str]]) -> None:
+        """Stop the parts on one side of a device colliding with each other.
+
+        The parts of one leg touch or overlap by design (a shank piece and a heel piece
+        span the ankle).  They are in different weld groups, so MuJoCo tests them, and at
+        the ``stand`` keyframe on ``myolegs`` it pushed them apart at 14.5 kN in
+        ``Humotech_L1`` and 12.7 kN in ``DephyExoBoot_L1``.  This rule replaces one bit
+        split or exclude per device, and applies to every colliding device geom
+        (``_DEVICE_SIDE_BITS``).  A visual-only geom (contype and conaffinity 0) stays
+        as it is.
+
+        - A left part and a right part collide.  Two parts of one side do not, and an
+          unsided part (pelvis, waist, torso) collides with no device part.
+        - A part collides with the same MSK and terrain geoms as before.  All of those
+          have contype 1, so the part keeps its conaffinity bit 0 and drops its contype
+          bit 0, which would otherwise let it touch its own side.  A part that has
+          contype 1 and conaffinity 0 (the ``OpenSourceLeg`` foot capsules, the
+          ``UTAnkleExo_L2`` parts) touches the MSK and terrain only through its contype,
+          so it keeps contype bit 0.  That bit still meets the conaffinity bit 0 of the
+          other parts, so each body pair where it would cause a contact that the rule
+          forbids gets an ``<exclude>``.
+
+        The suffix of the human parent body gives the side: ``_r``, ``_R`` or ``_dx`` is
+        right and ``_l``, ``_L`` or ``_sx`` is left.  If the parent has no suffix
+        (pelvis, torso, world), the suffix of the device body or of its nearest device
+        ancestor gives the side.  Otherwise the part is unsided.  An explicit ``<pair>``
+        ignores these bits; the shipped configs pair device geoms only with MSK geoms.
+        """
+        # (body name, side, OR of its geom contypes, OR of its geom conaffinities)
+        bodies: List[Tuple[str, Optional[str], int, int]] = []
+        for root, parent_name in attached:
+            parent_side = _name_side(parent_name)
+            for body in (root, *root.find_all(mj.mjtObj.mjOBJ_BODY)):
+                side = parent_side or _device_body_side(body, root)
+                side_type, side_affinity = _DEVICE_SIDE_BITS[side]
+                body_type = body_affinity = 0
+                for geom in body.geoms:
+                    if not (geom.contype or geom.conaffinity):
+                        continue
+                    outside_affinity = geom.conaffinity & 1
+                    outside_type = 0 if outside_affinity else geom.contype & 1
+                    geom.contype = side_type | outside_type
+                    geom.conaffinity = side_affinity | outside_affinity
+                    body_type |= geom.contype
+                    body_affinity |= geom.conaffinity
+                if body_type or body_affinity:
+                    bodies.append((body.name, side, body_type, body_affinity))
+
+        for i, (name1, side1, type1, affinity1) in enumerate(bodies):
+            for name2, side2, type2, affinity2 in bodies[i + 1 :]:
+                if side1 is not None and side2 is not None and side1 != side2:
+                    continue  # left and right parts collide
+                if type1 & affinity2 & 1 or type2 & affinity1 & 1:
+                    exclude = human_spec.add_exclude()
+                    exclude.bodyname1 = name1
+                    exclude.bodyname2 = name2
 
     @staticmethod
     def _make_frame(parent_body, att):
@@ -825,9 +952,16 @@ class ModelCombiner:
         actuator_root = root.find("actuator")
         if actuator_root is not None:
             for act in actuator_root:
-                tendon_target = act.get("tendon")
-                if not tendon_target:
-                    continue  # joint-transmission actuators belong in YAML
+                if not act.get("tendon"):
+                    # Only tendon actuators come from the device XML. A joint (or site, body)
+                    # actuator here used to be skipped without a message, so a motor and its
+                    # force limit vanished from the combined model.
+                    trn = next((k for k in _XML_NON_TENDON_TRN if act.get(k)), None)
+                    raise ValueError(
+                        f"{Path(device_xml_path).name}: actuator '{act.get('name', '?')}' uses a "
+                        f"{trn or 'non-tendon'} transmission. The pipeline imports only tendon actuators "
+                        f"from the device XML; declare a joint actuator in the YAML 'actuators:' section."
+                    )
                 kwargs = _xml_actuator_kwargs(act, prefix)
                 human_spec.add_actuator(**kwargs)
 
@@ -850,6 +984,12 @@ class ModelCombiner:
         device-added joints take their model default (``qpos0``); then
         ``keyframe_overrides`` are applied on top.  This preserves pose
         fidelity across body removals without depending on array length.
+
+        Last, the device joints move so that the device equalities close at each
+        keyframe (:meth:`_close_device_equalities`).  The MSK joints keep their
+        values.  A device joint value from ``keyframe_overrides`` is the start
+        point of that solve.  The legacy full-array ``keyframes`` mode is emitted
+        as authored.
 
         The spec's source keyframes were blanked (``key.qpos = []``) before
         surgery rather than deleted (``MjSpec.delete`` does not accept keys), so
@@ -907,7 +1047,12 @@ class ModelCombiner:
                 if knee_jid >= 0 and model.jnt_limited[knee_jid]:
                     knee_positive = bool(model.jnt_range[knee_jid][1] > abs(model.jnt_range[knee_jid][0]))
                     break
-            parsed_keyframes = canonical_leg_keyframes(knee_sign=-1.0 if knee_positive else 1.0)
+            # The gait2392 MTP axis is oblique, and a positive angle lowers the toes, so the
+            # myoLeg squat and lunge toe angles flip there as well.
+            parsed_keyframes = canonical_leg_keyframes(
+                knee_sign=-1.0 if knee_positive else 1.0,
+                mtp_sign=1.0 if positive_mtp_lifts_toes(model) else -1.0,
+            )
 
         overrides = config.resolve_keyframe_overrides(msk_key)
 
@@ -928,6 +1073,9 @@ class ModelCombiner:
                 kind="keyframe",
             )
 
+        closure = ModelCombiner._device_closure_targets(model, prefix)
+        closure_data = mj.MjData(model) if closure[2].size else None
+
         for kf_name, kf_data in parsed_keyframes.items():
             qpos = list(model.qpos0)
             qvel = [0.0] * model.nv
@@ -939,7 +1087,127 @@ class ModelCombiner:
             if override is not None:
                 ModelCombiner._apply_overrides(model, override, prefix, qpos)
 
+            if closure_data is not None:
+                # Best effort: the solve gets each device as close to closed as its geometry
+                # allows. It does not raise when a loop stays open;
+                # tests/test_keyframe_device_closure.py checks the residual of every device
+                # at every keyframe.
+                ModelCombiner._close_device_equalities(model, closure_data, qpos, closure)
+
             emit(kf_name, kf_data.time, qpos, qvel)
+
+    @staticmethod
+    def _device_closure_targets(model: mj.MjModel, prefix: str):
+        """Return what the device closure solve moves, checks and clips.
+
+        A device body is a body whose name starts with the device prefix, or a child
+        of one (an unnamed body gets no prefix).  A device equality is an active
+        ``connect``, ``weld`` or ``joint`` equality with an object on a device body.
+
+        Returns ``(dofs, qpos_adr, eq_ids, limits)``: the DOF and the qpos indices of
+        the joints on device bodies, the device equality ids, and ``(qpos address,
+        lower, upper)`` for each limited hinge or slide joint on a device body.
+        """
+        on_device = np.zeros(model.nbody, dtype=bool)
+        if prefix:
+            for b in range(1, model.nbody):
+                # MuJoCo numbers each body after its parent, so the parent flag is already set.
+                on_device[b] = model.body(b).name.startswith(prefix) or on_device[model.body_parentid[b]]
+        joints = [j for j in range(model.njnt) if on_device[model.jnt_bodyid[j]]]
+        dofs = np.flatnonzero(on_device[model.dof_bodyid])
+        qpos_adr = np.array(
+            [int(model.jnt_qposadr[j]) + k for j in joints for k in range(_QPOS_WIDTH[mj.mjtJoint(int(model.jnt_type[j]))])],
+            dtype=int,
+        )
+        limits = [
+            (int(model.jnt_qposadr[j]), float(model.jnt_range[j][0]), float(model.jnt_range[j][1]))
+            for j in joints
+            if model.jnt_limited[j] and model.jnt_type[j] in (mj.mjtJoint.mjJNT_HINGE, mj.mjtJoint.mjJNT_SLIDE)
+        ]
+        eq_ids = []
+        for e in range(model.neq):
+            objs = [int(o) for o in (model.eq_obj1id[e], model.eq_obj2id[e]) if o >= 0]
+            if model.eq_type[e] == mj.mjtEq.mjEQ_JOINT:
+                bodies = [model.jnt_bodyid[o] for o in objs]
+            elif model.eq_type[e] in (mj.mjtEq.mjEQ_CONNECT, mj.mjtEq.mjEQ_WELD):
+                on_site = model.eq_objtype[e] == mj.mjtObj.mjOBJ_SITE
+                bodies = [model.site_bodyid[o] if on_site else o for o in objs]
+            else:
+                continue
+            if model.eq_active0[e] and any(on_device[b] for b in bodies):
+                eq_ids.append(e)
+        return dofs, qpos_adr, np.array(eq_ids, dtype=int), limits
+
+    @staticmethod
+    def _close_device_equalities(model, data, qpos, targets) -> float:
+        """Move the device joints of ``qpos`` so that the device equalities close.
+
+        ``targets`` comes from :meth:`_device_closure_targets`.  Only the device
+        entries of ``qpos`` change; the MSK entries keep their exact values.  Each
+        step is a damped least-squares (Levenberg-Marquardt) step on the equality
+        rows of the constraint Jacobian, restricted to the device columns.
+        ``mj_integratePos`` applies the step, so a free or ball device joint keeps a
+        unit quaternion.  Each limited device joint is then clipped to its range.  A
+        step that does not decrease the residual is tried again with more damping.
+        ``qpos`` is changed in place.
+
+        Returns the largest remaining violation (m or rad), 0 with no device equality.
+        """
+        dofs, qpos_adr, eq_ids, limits = targets
+        if not eq_ids.size:
+            return 0.0
+        nv = model.nv
+        step = np.zeros(nv)
+        eye = np.eye(dofs.size)
+
+        def clip(q):
+            for adr, lo, hi in limits:
+                q[adr] = min(max(q[adr], lo), hi)
+            return q
+
+        def evaluate(q):
+            # Only the kinematics and the constraint rows: the equality rows need no
+            # tendons and no collision, which are most of the cost of mj_fwdPosition.
+            data.qpos[:] = q
+            mj.mj_kinematics(model, data)
+            mj.mj_comPos(model, data)
+            mj.mj_makeConstraint(model, data)
+            n = data.nefc
+            rows = np.flatnonzero((data.efc_type[:n] == mj.mjtConstraint.mjCNSTR_EQUALITY) & np.isin(data.efc_id[:n], eq_ids))
+            jac = data.efc_J[: n * nv].reshape(n, nv)[np.ix_(rows, dofs)]
+            res = data.efc_pos[rows].copy()
+            return res, jac, float(res @ res)
+
+        # Read the Jacobian as a dense array, and make only the equality rows.
+        saved = (model.opt.jacobian, model.opt.disableflags)
+        model.opt.jacobian = mj.mjtJacobian.mjJAC_DENSE
+        model.opt.disableflags |= int(
+            mj.mjtDisableBit.mjDSBL_CONTACT | mj.mjtDisableBit.mjDSBL_LIMIT | mj.mjtDisableBit.mjDSBL_FRICTIONLOSS
+        )
+        try:
+            q = clip(np.array(qpos, dtype=float))
+            res, jac, cost = evaluate(q)
+            damping = _CLOSE_DAMPING_START
+            for _ in range(_CLOSE_MAX_EVALS):
+                if not res.size or np.max(np.abs(res)) < _CLOSE_TOL or damping > _CLOSE_DAMPING_MAX:
+                    break
+                step[dofs] = np.linalg.solve(jac.T @ jac + damping * eye, -(jac.T @ res))
+                moved = q.copy()
+                mj.mj_integratePos(model, moved, step, 1.0)
+                # mj_integratePos also normalizes the MSK quaternions; keep the MSK entries as given.
+                trial = q.copy()
+                trial[qpos_adr] = moved[qpos_adr]
+                trial_res, trial_jac, trial_cost = evaluate(clip(trial))
+                if trial_cost < cost:
+                    q, res, jac, cost = trial, trial_res, trial_jac, trial_cost
+                    damping = max(damping * 0.1, _CLOSE_DAMPING_MIN)
+                else:
+                    damping *= 10.0
+        finally:
+            model.opt.jacobian, model.opt.disableflags = saved
+        for adr in qpos_adr:
+            qpos[adr] = float(q[adr])
+        return float(np.max(np.abs(res), initial=0.0))
 
     @staticmethod
     def _restore_joint_slices(model, by_joint, target, adr_array) -> None:
@@ -965,6 +1233,24 @@ class ModelCombiner:
                 # MSKs differ (e.g. myolegs has freejoint root, not pelvis_ty).
                 continue
             qpos[int(model.jnt_qposadr[jid])] = value
+
+
+def _name_side(name: str) -> Optional[str]:
+    """``"right"`` or ``"left"`` from the suffix of a body name, else None."""
+    if name.endswith(_RIGHT_SUFFIXES):
+        return "right"
+    if name.endswith(_LEFT_SUFFIXES):
+        return "left"
+    return None
+
+
+def _device_body_side(body, root) -> Optional[str]:
+    """The side of the first name with a side suffix from *body* up to the attached *root*."""
+    while True:
+        side = _name_side(body.name)
+        if side is not None or body.name == root.name:
+            return side
+        body = body.parent
 
 
 def _equality_data(eq_def: EqualityConstraint) -> list:
@@ -1118,33 +1404,42 @@ def _xml_actuator_kwargs(act_elem: ET.Element, prefix: str) -> dict:
             f"a device tendon actuator (<{act_elem.tag} tendon='{act_elem.get('tendon')}'>) has no "
             f"'name'. Name it, so the combined model exposes a usable ctrl index."
         )
+    # Every attribute is either carried across or rejected. An attribute that is read by no
+    # code (class, kp, lengthrange, ...) used to change nothing in the combined model.
+    where = f"device tendon actuator '{name}'"
+    if act_elem.tag not in _XML_ACTUATOR_TAGS:
+        raise ValueError(
+            f"{where} is a <{act_elem.tag}>, which the pipeline does not import. Use <general> or "
+            f"<motor>, and shape it with gaintype/biastype/dyntype."
+        )
+    unsupported = sorted(set(act_elem.attrib) - _XML_ACTUATOR_ATTRS)
+    if unsupported:
+        raise ValueError(
+            f"{where} sets {unsupported}, which the pipeline does not import. "
+            f"Supported attributes: {sorted(_XML_ACTUATOR_ATTRS)}."
+        )
+
     kwargs: dict = {"name": prefix + name}
     kwargs["trntype"] = mj.mjtTrn.mjTRN_TENDON
     kwargs["target"] = prefix + act_elem.get("tendon", "")
 
     gaintype = act_elem.get("gaintype")
     if gaintype:
-        enum = _GAINTYPE_MAP.get(gaintype.lower())
-        if enum is not None:
-            kwargs["gaintype"] = enum
+        kwargs["gaintype"] = _enum(_GAINTYPE_MAP, gaintype, f"{where}: gaintype")
     gainprm = _floats(act_elem.get("gainprm"))
     if gainprm is not None:
         kwargs["gainprm"] = _pad(gainprm, 10)
 
     biastype = act_elem.get("biastype")
     if biastype:
-        enum = _BIASTYPE_MAP.get(biastype.lower())
-        if enum is not None:
-            kwargs["biastype"] = enum
+        kwargs["biastype"] = _enum(_BIASTYPE_MAP, biastype, f"{where}: biastype")
     biasprm = _floats(act_elem.get("biasprm"))
     if biasprm is not None:
         kwargs["biasprm"] = _pad(biasprm, 10)
 
     dyntype = act_elem.get("dyntype")
     if dyntype:
-        enum = _DYNTYPE_MAP.get(dyntype.lower())
-        if enum is not None:
-            kwargs["dyntype"] = enum
+        kwargs["dyntype"] = _enum(_DYNTYPE_MAP, dyntype, f"{where}: dyntype")
     dynprm = _floats(act_elem.get("dynprm"))
     if dynprm is not None:
         kwargs["dynprm"] = _pad(dynprm, 10)
@@ -1204,25 +1499,25 @@ def _build_actuator_kwargs(
     kwargs["trntype"] = mj.mjtTrn.mjTRN_JOINT
     kwargs["target"] = target
 
-    gaintype_enum = _GAINTYPE_MAP.get(act_def.gaintype.lower())
-    if gaintype_enum is not None:
-        kwargs["gaintype"] = gaintype_enum
+    where = f"actuators[{act_def.name}]"
+    kwargs["gaintype"] = _enum(_GAINTYPE_MAP, act_def.gaintype, f"{where}.gaintype")
     kwargs["gainprm"] = _pad(act_def.gainprm, 10)
 
-    biastype_enum = _BIASTYPE_MAP.get(act_def.biastype.lower())
-    if biastype_enum is not None:
-        kwargs["biastype"] = biastype_enum
+    kwargs["biastype"] = _enum(_BIASTYPE_MAP, act_def.biastype, f"{where}.biastype")
     kwargs["biasprm"] = _pad(act_def.biasprm, 10)
 
-    dyntype_enum = _DYNTYPE_MAP.get(act_def.dyntype.lower())
-    if dyntype_enum is not None:
-        kwargs["dyntype"] = dyntype_enum
+    kwargs["dyntype"] = _enum(_DYNTYPE_MAP, act_def.dyntype, f"{where}.dyntype")
     kwargs["dynprm"] = _pad(act_def.dynprm, 10)
 
     if act_def.ctrlrange is not None:
         kwargs["ctrlrange"] = act_def.ctrlrange
     if act_def.ctrllimited:
         kwargs["ctrllimited"] = 1
+
+    # Set forcelimited explicitly rather than relying on the compiler's autolimits default.
+    if act_def.forcerange is not None:
+        kwargs["forcerange"] = act_def.forcerange
+        kwargs["forcelimited"] = 1
 
     kwargs["gear"] = _pad(act_def.gear, 6)
 

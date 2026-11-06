@@ -71,15 +71,18 @@ path loads the spec from the given XML file instead.
   removed geom separately, because `spec.delete` does not cascade to those.
 - Attach each device body under its parent body. The pipeline applies the
   device-name prefix to all imported elements, and it obeys the per-MSK
-  attachment overrides.
+  attachment overrides. Then it sets the contact bits of each device geom from
+  its side (left, right or unsided), so that the parts of one side make no
+  contact with each other.
 - Apply the mesh replacements, the body inertial overrides, the actuator
   overrides (`lengthrange`), and the joint range and damping overrides. Add the
   joint actuators from the YAML file. Import the spatial tendons and the
   tendon-transmission actuators of the device. Add the equalities, contacts and
   sensors that `attach_body` does not move.
 - Compile the spec. Rebuild the keyframes by joint name: restore the authored
-  values of the joints that remain, then apply `keyframe_overrides`. Compile
-  again, to make the keyframes permanent.
+  values of the joints that remain, then apply `keyframe_overrides`. Then move
+  the device joints of each keyframe until the device equalities close. The
+  MSK joints do not move. Compile again, to make the keyframes permanent.
 
 The pipeline returns the compiled `MjModel` and a new `MjData`. If you request
 an export, `utils.export_combined_xml` writes it from the final spec. This is

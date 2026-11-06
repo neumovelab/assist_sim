@@ -12,6 +12,13 @@
        this, MjSpec parses them as degrees and the mesh panels are rotated ~1.57 deg instead
        of 90 deg (splayed open) -- while site positions, which carry no euler, still match. -->
   <compiler angle="radian"/>
+  <!-- Masses: 0.178 kg (leg straps), 0.094 kg (belt) and 0.627 kg (upper panel), 0.90 kg in total
+       (spec 1.0 kg), as written on these geoms in the MyoBack model (Walia et al., 2025, bioRxiv
+       10.1101/2025.03.13.643057; github.com/rohwalia/MyoBack, myoback_v2.0-Exoskeleton2.0.xml).
+       There the geoms sit on trunk bodies with explicit inertials, so MuJoCo ignores the values
+       and the suit is effectively massless. Here each part is its own welded body with no
+       inertial, so the geom masses apply. The collaborator env kept only the belt mass, which
+       left 34.1 kg inferred from the mesh and wrap-cylinder volumes. -->
   <default class="main">
     <default class="myotorsoexo">
       <geom margin="0.001" rgba="0.35 0.3 0.3 1" conaffinity="0" contype="0"/>
@@ -20,8 +27,11 @@
     </default>
     <!-- Restored locally: dropped from the current myo_sim myotorso_assets.xml, but the
          exosuit's spring-tendon wrap cylinder + side site still need them. -->
+    <!-- mass="0": a wrap cylinder routes the spring tendons and carries no mass. Without it MuJoCo
+         infers 9.0 kg from the cylinder volume at the default density (the same failure as the
+         myo-sim 0.2.1 chest_r wrap scaffold). -->
     <default class="myoBack_wrap">
-      <geom rgba=".5 .5 .9 0.5" group="3" contype="0" conaffinity="0" type="cylinder"/>
+      <geom rgba=".5 .5 .9 0.5" group="3" contype="0" conaffinity="0" type="cylinder" mass="0"/>
     </default>
     <default class="sidesite">
       <site group="3" size="0.0005"/>
@@ -36,7 +46,7 @@
 
   <worldbody>
     <body name="exo_pelvis" pos="-.025 0.1 0.979" quat="0.707035 0.707179 0 0" childclass="myotorsoexo">
-      <geom name="lower_exo_legs_geom" type="mesh" euler="1.57 3.14 -1.57" pos="-0.08 0.1 0" mesh="lower_exo_legs_geom_1"/>
+      <geom name="lower_exo_legs_geom" type="mesh" euler="1.57 3.14 -1.57" pos="-0.08 0.1 0" mesh="lower_exo_legs_geom_1" mass="0.178"/>
       <site name="Lower_Exo_Left_Leg" pos="-0.08 -0.15 -0.17" size="0.005" rgba="0.4 0.4 0.4 1"/>
       <site name="Lower_Exo_Right_Leg" pos="-0.08 -0.15 0.17" size="0.005" rgba="0.4 0.4 0.4 1"/>
       <site name="Exo_LeftLeg" pos="-0.2 0 -0.04" size="0.0005" rgba="0 1 0 1"/>
@@ -52,7 +62,7 @@
 
     <body name="exo_torso" pos="-0.111 0.0995 1.06" quat="0.707035 0.707179 0 0" childclass="myotorsoexo">
       <freejoint/>
-      <geom name="upper_exo_geom" type="mesh" euler="1.57 3.14 1.57" pos="0.01 0.165 0" mesh="upper_exo_geom_1"/>
+      <geom name="upper_exo_geom" type="mesh" euler="1.57 3.14 1.57" pos="0.01 0.165 0" mesh="upper_exo_geom_1" mass="0.627"/>
       <geom name="Exo_cylinder" size="0.105 0.13" pos="0.025 0.03 0" class="myoBack_wrap"/>
       <site name="Exo_LeftShoulder" pos="-0.11 0.28 -0.07" size="0.0005" rgba="0 1 0 1"/>
       <site name="Exo_RightShoulder" pos="-0.11 0.28 0.07" size="0.0005" rgba="0 1 0 1"/>
